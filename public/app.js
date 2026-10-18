@@ -84,7 +84,7 @@ async function saveState(event,p){
   toast(error.message);
   if(error.status===409)try{
    data=await api('/api/data');const current=data.places.find(x=>x.id===p.id);populateFilters();render();
-   if(current){detail(current);$('place-note').value=note;if(!statusId||data.statuses.some(s=>s.id===statusId))$('place-status').value=statusId;stateDirty=true;dirty=true;if(tagDraft)tagControls?.restore(tagDraft);toast('Данные обновлены. Ваши изменения оставлены в полях: проверьте и сохраните ещё раз.')}
+   if(current){detail(current);$('place-note').value=note;if(!statusId||data.statuses.some(s=>s.id===statusId))$('place-status').value=statusId||'';stateDirty=true;dirty=true;if(tagDraft)tagControls?.restore(tagDraft);toast('Данные обновлены. Ваши изменения оставлены в полях: проверьте и сохраните ещё раз.')}
   }catch(refreshError){toast(refreshError.message)}
  }finally{
   busy=false;const currentForm=$('state-form');if(currentForm)currentForm.querySelectorAll('input,select,textarea,button').forEach(el=>el.disabled=false);tagControls?.setBusy(false);
