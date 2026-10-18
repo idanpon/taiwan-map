@@ -28,23 +28,28 @@ function closeDetail(restoreFocus=false){
  return true;
 }
 function getCategory(p){return data.categories.find(c=>c.id===p.category_id)}
-// Display palette: status accents stay distinct from the muted place categories.
-const statusColors={want:'#1456e0',visited:'#17212b',maybe:'#d10064'};
-const statusSymbols={want:'+',visited:'✓',maybe:'?'};
-function getStatus(p){const value=data.statuses.find(s=>s.id===p.status_id);return value?{...value,color:statusColors[value.id]||value.color}:undefined}
+// Display palette also recognizes the custom status by its user-facing name.
+const statusColors={hype:'#dc2626',want:'#15803d',maybe:'#facc15',visited:'#6b7280'};
+const statusSymbols={want:'!',visited:'✓',maybe:'?'};
+function getStatus(p){
+ const value=data.statuses.find(s=>s.id===p.status_id);if(!value)return undefined;
+ const key=value.label.trim().toLocaleLowerCase('ru-RU')==='хайп'?'hype':value.id;
+ const color=statusColors[key]||value.color;
+ return {...value,color,symbol:statusSymbols[key]||'',symbolColor:key==='maybe'?'#422006':'#ffffff',textColor:key==='maybe'?'#806000':color};
+}
 function visible(){return data.places.filter(p=>(!city||p.city===city)&&(!types.size||types.has(p.category_id))&&(!status||(status==='none'?!p.status_id:p.status_id===status))&&(!query||`${p.name} ${p.local_name} ${p.summary} ${p.address}`.toLowerCase().includes(query)))}
 function populateFilters(){
  $('category-filters').innerHTML=data.categories.map(c=>`<button class="chip ${types.has(c.id)?'active':''}" data-category="${esc(c.id)}" aria-pressed="${types.has(c.id)}">${icon(c.icon)}${esc(c.label)}</button>`).join('');
  const previous=$('status-filter').value;$('status-filter').innerHTML='<option value="">Все статусы</option><option value="none">Без статуса</option>'+data.statuses.map(s=>`<option value="${esc(s.id)}">${esc(s.label)}</option>`).join('');$('status-filter').value=previous;
 }
 function render(){if(!data)return;const ps=visible();$('place-count').textContent=`${ps.length} из ${data.places.length} мест`;$('map-label').textContent=`${city||'Тайвань'} · ${ps.length} мест`;
- $('place-list').innerHTML=ps.length?ps.map(p=>{const c=getCategory(p),s=getStatus(p);return `<button class="place-card ${selected===p.id?'selected':''}" data-place="${esc(p.id)}" style="--category:${c.color};--category-bg:${c.color}14;--status:${s?.color||'#697568'}"><span class="place-icon">${icon(c.icon)}</span><span class="place-card-content"><span class="place-name">${esc(p.name)}</span><span class="place-meta">${esc(p.city)} <span>·</span> ${esc(c.label)}</span><span class="card-status"><i class="status-dot"></i> ${esc(s?.label||'Без статуса')}</span></span></button>`}).join(''):'<p class="empty">Под эти фильтры пока нет мест.<br>Попробуйте другой статус или сбросьте фильтры.</p>';
+ $('place-list').innerHTML=ps.length?ps.map(p=>{const c=getCategory(p),s=getStatus(p);return `<button class="place-card ${selected===p.id?'selected':''}" data-place="${esc(p.id)}" style="--category:${c.color};--category-bg:${c.color}14;--status:${s?.color||'#697568'};--status-text:${s?.textColor||'#697568'}"><span class="place-icon">${icon(c.icon)}</span><span class="place-card-content"><span class="place-name">${esc(p.name)}</span><span class="place-meta">${esc(p.city)} <span>·</span> ${esc(c.label)}</span><span class="card-status"><i class="status-dot"></i> ${esc(s?.label||'Без статуса')}</span></span></button>`}).join(''):'<p class="empty">Под эти фильтры пока нет мест.<br>Попробуйте другой статус или сбросьте фильтры.</p>';
  if(selected&&!ps.some(p=>p.id===selected)){selected=null;$('detail').hidden=true;$('application').classList.remove('detail-open');dirty=false}renderMarkers(ps);
 }
 function renderMarkers(ps=visible()){
  if(!map||!layers)return;layers.clearLayers();lastZoomGroup=map.getZoom()<10;
  if(lastZoomGroup){for(const name of [...new Set(ps.map(p=>p.city))]){const group=ps.filter(p=>p.city===name),lat=group.reduce((s,p)=>s+p.lat,0)/group.length,lon=group.reduce((s,p)=>s+p.lon,0)/group.length;L.marker([lat,lon],{icon:L.divIcon({className:'pin-shell',html:`<div class="city-cluster">${group.length}</div>`,iconSize:[45,45],iconAnchor:[22,22]}),title:name}).addTo(layers).bindTooltip(`${name} · ${group.length} мест`).on('click',()=>map.fitBounds(group.map(p=>[p.lat,p.lon]),{padding:[60,60],maxZoom:14}));}return}
- for(const p of ps){const c=getCategory(p),s=getStatus(p);const pin=L.divIcon({className:'pin-shell',html:`<div class="pin ${p.status_id==='visited'?'visited':''}" style="--category:${c.color};--status:${s?.color||c.color}">${icon(c.icon)}${s?`<i class="pin-state" aria-hidden="true">${statusSymbols[s.id]||''}</i>`:''}</div>`,iconSize:[40,40],iconAnchor:[20,20]});const label=p.name+(s?' · '+s.label:'');L.marker([p.lat,p.lon],{icon:pin,title:label,alt:label,keyboard:true,riseOnHover:true,zIndexOffset:selected===p.id?500:0}).addTo(layers).bindTooltip(esc(label),{direction:'top',offset:[0,-22]}).on('click',()=>openPlace(p.id))}
+ for(const p of ps){const c=getCategory(p),s=getStatus(p);const pin=L.divIcon({className:'pin-shell',html:`<div class="pin ${p.status_id==='visited'?'visited':''}" style="--category:${c.color};--status:${s?.color||c.color};--status-symbol:${s?.symbolColor||'#ffffff'}">${icon(c.icon)}${s?`<i class="pin-state" aria-hidden="true">${s.symbol}</i>`:''}</div>`,iconSize:[40,40],iconAnchor:[20,20]});const label=p.name+(s?' · '+s.label:'');L.marker([p.lat,p.lon],{icon:pin,title:label,alt:label,keyboard:true,riseOnHover:true,zIndexOffset:selected===p.id?500:0}).addTo(layers).bindTooltip(esc(label),{direction:'top',offset:[0,-22]}).on('click',()=>openPlace(p.id))}
 }
 function initMap(){
  if(!window.L){$('map-error').hidden=false;return}
