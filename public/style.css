@@ -91,8 +91,7 @@ label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 8px; }
 .pin-shell { background: none !important; border: 0 !important; }
 .pin { width: 40px; height: 40px; background: var(--category); color: white; border: 2px solid #fffcf6; border-radius: 50%; box-shadow: 0 3px 9px #273a3238; position: relative; display: grid; place-items: center; }
 .pin svg { width: 19px; height: 19px; }
-.pin.visited { opacity: .8; }
-.pin .pin-state { position: absolute; top: -3px; right: -3px; height: 12px; width: 12px; border-radius: 50%; border: 2px solid white; background: var(--status); }
+.pin .pin-state { position: absolute; top: -5px; right: -5px; height: 19px; width: 19px; display: grid; place-items: center; border-radius: 50%; border: 2px solid white; background: var(--status); color: white; box-shadow: 0 1px 4px #273a3240; font: 700 11px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 .city-cluster { height: 45px; width: 45px; border-radius: 50%; background: #456b53; color: white; display: grid; place-items: center; border: 3px solid #f5f4e8; box-shadow: 0 2px 12px #273a3240; font-size: 17px; }
 .detail { position: absolute; z-index: 502; bottom: 20px; right: 20px; width: 350px; max-width: calc(100% - 40px); max-height: calc(100% - 90px); display: flex; flex-direction: column; overflow: hidden; background: var(--panel); border: 1px solid #fff; border-radius: 12px; box-shadow: 0 12px 50px #273a322a; }
 .detail-header { display: flex; align-items: center; gap: 12px; justify-content: space-between; flex: 0 0 auto; padding: 10px 10px 10px 22px; border-bottom: 1px solid var(--line); }
