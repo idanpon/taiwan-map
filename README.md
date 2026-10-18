@@ -83,8 +83,10 @@ metadata and `tags_version`; ordinary repeated CSV imports leave it untouched.
 
 Place information continues to be managed through ChatGPT. Admins and editors
 can additionally edit the three tags and their optional fields in the place card;
-viewers see the tags without editing controls. Tag changes save separately from
-notes and statuses, with nested patches and optimistic concurrency. To review a private
+viewers see the tags without editing controls. The card uses one Save button for tags, notes and statuses in one SQLite
+transaction with version checks and rollback on any conflict. The schedule
+editor starts collapsed. Date fields stack on narrow screens to avoid Safari
+intrinsic-width overflow. To review a private
 batch, use `server/update-place-tags.mjs` with this format:
 
 ```json
@@ -109,3 +111,9 @@ introduce a general place editor; the card editor is restricted to these tags. N
 versions. Schedule text is limited to 2000 characters and booking URLs to 1024;
 only HTTP/HTTPS without credentials is accepted. End dates are inclusive and
 checked against calendar days in Asia/Taipei, never parsed from free text.
+
+The existing `PUT /api/places/:id/state` also accepts optional `tags` (nested
+patch) and `tags_version`. A stale note or tag version aborts the whole batch
+before COMMIT. Legacy requests without tags remain supported. Only this route
+allows up to 32 KiB for the combined note and schedule; other request limits
+remain at 8 KiB. Field length limits are unchanged.
