@@ -71,3 +71,38 @@ SQLite: foreign keys, WAL, busy timeout, SQL-миграции с проверк�
 - `.github/workflows/pages.yml`: тесты на push/PR, публикация из main.
 
 `npm test` проверяет вход/выход, persistence, членство, конфликты, limiter, CORS/OPTIONS/ошибки/запрещённые origins, импорт/откат и Pages-сборку без backend-файлов. `npm run build:pages` собирает интерфейс. Независимый HTTPS hostname и запуск systemd проверены на VPS. Проверка входа, переноса данных и полного пользовательского сценария в браузере ещё требуется.
+
+### Additional place tags
+
+Three independent optional tags are stored in `places.tags_json` (migration
+`0006_place_tags.sql`), alongside the existing category, status and note data.
+`public/place-tags.js` is the shared definition, validation, date and rendering
+module; Lucide paths are bundled locally under the existing ISC license.
+Missing tags in old imports mean no tags. Export/restore includes disabled
+metadata and `tags_version`; ordinary repeated CSV imports leave it untouched.
+
+Place information continues to be managed through ChatGPT. To review a private
+batch, use `server/update-place-tags.mjs` with this format:
+
+```json
+{"schema_version":1,"places":[{"id":"existing-place-id","version":1,"tags":{"photoSpot":true,"limitedDates":{"enabled":true,"startDate":"2026-12-29","endDate":"2027-01-05","scheduleText":"29–31 декабря: 10:00–20:00\n1 января: закрыто"},"reservation":{"enabled":true,"url":"https://example.com/booking"}}}]}
+```
+
+Use the real IDs and current `tags_version` from authenticated `/api/export`.
+Do not assign tags without a reviewed request. Run on the current migrated DB:
+
+```sh
+DATABASE_PATH=/private/taiwan.sqlite node server/update-place-tags.mjs /private/tags.json --check
+DATABASE_PATH=/private/taiwan.sqlite node server/update-place-tags.mjs /private/tags.json --apply /private/new-tags-backup.sqlite
+```
+
+Apply refuses an existing backup path, creates a private SQLite backup before
+writes, and validates the entire batch again inside a transaction. Stale tag
+versions abort the batch. Nested patches preserve other fields and disabled
+values. The authenticated `PUT /api/places/:id/tags` route accepts
+`{"version":1,"tags":{"photoSpot":true}}` for admin/editor management using the
+same validation and conflict checks; viewer writes are rejected. This does not
+introduce a public place editor. Notes/statuses and visibility use independent
+versions. Schedule text is limited to 2000 characters and booking URLs to 1024;
+only HTTP/HTTPS without credentials is accepted. End dates are inclusive and
+checked against calendar days in Asia/Taipei, never parsed from free text.

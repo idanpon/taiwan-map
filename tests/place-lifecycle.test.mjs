@@ -75,10 +75,10 @@ test('hidden places remain in exports and are safely deleted from the folder; in
 test('visibility migration preserves all existing place columns and rows, notes, sessions and import metadata',async()=>{
  const directory=mkdtempSync(join(tmpdir(),'taiwan-before-hidden-')),DB=openDatabase();
  try{
-  for(const name of readdirSync('drizzle').filter(x=>/^\d+.*\.sql$/.test(x)&&x!=='0005_hidden_places.sql'))copyFileSync('drizzle/'+name,join(directory,name));
+  for(const name of readdirSync('drizzle').filter(x=>/^\d+.*\.sql$/.test(x)&&x<'0005_hidden_places.sql'))copyFileSync('drizzle/'+name,join(directory,name));
   migrate(DB,directory);DB.sqlite.exec("INSERT INTO trips VALUES('trip','Trip','Asia/Taipei'); INSERT INTO categories VALUES('c','Category','#123456','leaf',0); INSERT INTO places VALUES('p','trip','Place','','City','c',25,121,'Address','Summary','Tip','{}','',1)");
   const before=DB.sqlite.prepare('SELECT * FROM places').get();migrate(DB,'drizzle');migrate(DB,'drizzle');
-  assert.deepEqual({...DB.sqlite.prepare('SELECT * FROM places').get()},{...before,hidden:0,visibility_version:1});assert.deepEqual(DB.sqlite.prepare('PRAGMA foreign_key_check').all(),[]);
+  assert.deepEqual({...DB.sqlite.prepare('SELECT * FROM places').get()},{...before,hidden:0,visibility_version:1,tags_json:'{}',tags_version:1});assert.deepEqual(DB.sqlite.prepare('PRAGMA foreign_key_check').all(),[]);
  }finally{DB.close();rmSync(directory,{recursive:true,force:true})}
 });
 

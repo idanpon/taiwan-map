@@ -1,3 +1,4 @@
+import {readTags} from '../public/place-tags.js';
 import {TRIP,stmt,body,fail,json} from './auth.mjs';
 
 export async function handlePlaceLifecycle(request,db,user,stateUser){
@@ -12,7 +13,7 @@ export async function handlePlaceLifecycle(request,db,user,stateUser){
    stmt(db,`SELECT p.*,s.status_id,s.note,COALESCE(s.version,0) version FROM places p LEFT JOIN user_place_states s ON s.place_id=p.id AND s.user_id=? WHERE p.trip_id=? AND p.hidden=1 ORDER BY p.city,p.name`,stateUser,TRIP),
    stmt(db,'SELECT l.* FROM place_links l JOIN places p ON p.id=l.place_id WHERE p.trip_id=? AND p.hidden=1',TRIP)
   ]);
-  return json({places:ps.results.map(p=>({...p,hidden:true,hours:JSON.parse(p.hours_json),hours_json:undefined,note:p.note||'',links:ls.results.filter(l=>l.place_id===p.id)}))});
+  return json({places:ps.results.map(p=>({...p,hidden:true,tags:readTags(p.tags_json),tags_json:undefined,hours:JSON.parse(p.hours_json),hours_json:undefined,note:p.note||'',links:ls.results.filter(l=>l.place_id===p.id)}))});
  }
  const id=(visibility||deletion)[1],b=await body(request);
  if(!Number.isSafeInteger(b.version)||b.version<1)fail(400,'Некорректная версия места.');
