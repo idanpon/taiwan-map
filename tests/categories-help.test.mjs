@@ -66,17 +66,19 @@ test('imports of older six-category exports merge café and food while retaining
  }finally{source.close();target.close()}
 });
 
-test('help uses current category labels and live editable status colors, symbols and transparency',()=>{
+test('help uses current categories and explains statuses independently of their editable definitions',()=>{
  const data={categories:categoryDefinitions,statuses:[{id:'want',label:'Хотим посетить',color:'#1456e0',symbol:'!'},{id:'visited',label:'Уже посетили',color:'#6b7280',symbol:'✓',dimmed:true},{id:'maybe',label:'Под вопросом',color:'#facc15',symbol:'?'},{id:'custom-hype',label:'Хайп!',color:'#dc2626',symbol:'★'}],user:{role:'viewer'}};
  let html=helpContent(data,esc);
  for(const category of data.categories)assert.ok(html.includes(category.label));
- for(const status of data.statuses){assert.ok(html.includes(status.label));assert.ok(html.includes(status.color));assert.ok(html.includes(status.symbol));}
- assert.ok(html.includes('--status-opacity:0.7'));assert.ok(html.includes('управляющий аккаунт ChatGPT'));
+ for(const status of data.statuses){assert.ok(!html.includes(status.label));assert.ok(!html.includes(status.color));}
+ assert.ok(!html.includes('class="help-statuses"'));assert.ok(html.includes('управляющий аккаунт ChatGPT'));
  assert.ok(html.includes('Самостоятельное добавление мест через интерфейс сайта пока недоступно'));
  assert.ok(html.includes('У вас доступ для просмотра'));assert.ok(!html.includes('Кнопка ⚙'));
- data.user.role='editor';data.statuses[0]={...data.statuses[0],label:'Новое <название>',color:'#112233',symbol:'&'};
- html=helpContent(data,esc);assert.ok(html.includes('Новое &lt;название&gt;'));assert.ok(html.includes('#112233'));assert.ok(html.includes('&amp;'));assert.ok(html.includes('Кнопка ⚙'));
- assert.ok(!html.includes('Интересное место, которое планируем посетить.'));assert.ok(!html.includes('Место, где уже побывали.'));assert.ok(html.includes('Их смысл определяется вашей договорённостью'));
- data.statuses=[];assert.ok(helpContent(data,esc).includes('На карте пока нет статусов.'));
- assert.ok(!html.includes('Хотим посетить'));assert.ok(!html.includes('<название>'));
+ const original=html;
+ data.statuses[0]={...data.statuses[0],label:'Новое <название>',color:'#112233',symbol:'&'};
+ assert.equal(helpContent(data,esc),original);
+ data.statuses=[];assert.equal(helpContent(data,esc),original);
+ data.user.role='editor';html=helpContent(data,esc);assert.ok(html.includes('Кнопка ⚙'));
+ assert.ok(html.includes('Статусы можно создавать, изменять и удалять'));
+ assert.ok(html.includes('их смысл участники определяют по договорённости'));
 });
