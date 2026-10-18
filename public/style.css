@@ -73,20 +73,24 @@ button:disabled { cursor: wait; opacity: .55; }
 .login-copy h1 { font-size: clamp(28px, 5vw, 36px); line-height: 1.2; font-weight: 600; letter-spacing: -.8px; margin: 0 0 12px; }
 .login-copy > .muted { margin: 0 0 32px; }
 label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 8px; }
-.password-row { display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.password-row { --field-background: var(--panel); display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
 .password-row input { background: none; border: 0; padding: 14px; width: 100%; font-size: 16px; min-width: 0; border-radius: 8px 0 0 8px; }
 .password-row button { font-size: 24px; color: var(--green); min-width: 52px; }
-.password-input { display: flex; align-items: stretch; min-width: 0; width: 100%; border: 1px solid var(--line); border-radius: 6px; background: var(--input); overflow: hidden; }
-.password-row .password-input { flex: 1; width: auto; border: 0; background: none; }
+.password-input { --field-background: var(--input); display: flex; align-items: stretch; min-width: 0; width: 100%; border: 1px solid var(--line); border-radius: 6px; background: var(--input); overflow: hidden; }
+.password-row .password-input { --field-background: var(--panel); flex: 1; width: auto; border: 0; background: none; }
 .password-input input, dialog .password-input input:not([type=color]) { flex: 1; min-width: 0; width: 0; border: 0; border-radius: 0; background: none; }
-.password-input .password-toggle { display: grid; place-items: center; flex: none; min-height: 44px; min-width: 44px; padding: 8px; color: var(--green); border-left: 1px solid var(--line); }
+.password-input .password-toggle { display: grid; place-items: center; flex: none; min-height: 44px; min-width: 44px; padding: 8px; color: var(--green); border: 0; }
 .password-toggle svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .password-toggle:focus-visible { outline: 2px solid var(--green); outline-offset: -3px; }
 #login-error, #status-error { color: var(--danger); min-height: 18px; font-size: 13px; }
 .login-foot { font-size: 11px; display: flex; flex-wrap: wrap; justify-content: space-between; color: var(--muted); gap: 8px 20px; }
 .telegram-button { width: 100%; margin: 0 0 20px; }
+#telegram-login { margin-bottom: 0; }
+.login-alternative { display: none; align-items: center; gap: 12px; margin: 24px 0; color: var(--muted); font-size: 12px; text-align: center; }
+#telegram-login:not([hidden]) + .login-alternative { display: flex; }
+.login-alternative::before, .login-alternative::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 #username-field { margin-bottom: 16px; }
-#username { width: 100%; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font-size: 16px; }
+#username { --field-background: var(--panel); width: 100%; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font-size: 16px; }
 #accounts-dialog { width: 520px; }
 #accounts-dialog select { width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--input); font: inherit; }
 #account-error { color: var(--danger); font-size: 14px; }
@@ -312,10 +316,12 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
  .help-heading { top: -24px; margin: -24px -24px 0; padding: 16px 12px 12px 24px; }
 }
 
-.login-panel { position: relative; }
-.login-theme { position: absolute; top: 0; right: 0; }
+.login-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.login-theme { display: flex; flex: none; }
 .theme-control { flex: none; display: inline-flex; }
 input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
+/* Autofill uses the whole field's surface, avoiding a seam before its icons. */
+input:is(:autofill, :-webkit-autofill) { -webkit-text-fill-color: var(--ink); caret-color: var(--ink); box-shadow: 0 0 0 1000px var(--field-background, var(--input)) inset; }
 input[type=checkbox] { accent-color: var(--action); }
 .tip { white-space: pre-line; }
 .map-pin-button { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; background: none; }
@@ -354,6 +360,11 @@ input[type=checkbox] { accent-color: var(--action); }
 .theme-control button { display: grid; place-items: center; width: 44px; height: 44px; padding: 10px; border: 0; background: none; color: var(--green); }
 .theme-control button:hover { color: var(--ink); }
 .theme-control svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.top-actions .theme-control button { color: var(--muted); }
+.top-actions .theme-control button:hover { color: var(--ink); }
+.top-actions .theme-control svg { width: 16px; height: 16px; }
+/* Match the question glyph's visible height, including the sun's outer rays. */
+.top-actions .theme-control .theme-sun { width: 14px; height: 14px; }
 .theme-control .theme-sun, :root[data-theme=dark] .theme-control .theme-moon { display: none; }
 :root[data-theme=dark] .theme-control .theme-sun { display: block; }
 .map-button { display: inline-flex; align-items: center; justify-content: center; }
