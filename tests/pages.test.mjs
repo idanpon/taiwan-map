@@ -1,4 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {mkdtemp,readFile,readdir,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join,resolve} from 'node:path';import {buildPages} from '../scripts/build-pages.mjs';
+import {spawnSync} from 'node:child_process';
 test('Pages build supports repository subpaths and publishes no server code or catalog',async()=>{
  const temp=await mkdtemp(join(tmpdir(),'taiwan-pages-'));const output=join(temp,'site');
  try{
@@ -11,4 +12,14 @@ test('Pages build supports repository subpaths and publishes no server code or c
   await assert.rejects(buildPages({output,apiBase:'http://untrusted.example'}));await buildPages({output,apiBase:'https://api.example.com/taiwan',authMode:'cookie'});assert.ok((await readFile(join(output,'config.js'),'utf8')).includes('https://api.example.com/taiwan'));assert.ok((await readFile(join(output,'config.js'),'utf8')).includes('"authMode":"cookie"'));assert.ok((await readFile(join(output,'index.html'),'utf8')).includes("connect-src 'self' https://api.example.com"));await assert.rejects(buildPages({output,authMode:'invalid'}));await assert.rejects(buildPages({output,apiBase:'https://api.example.com/path?token=no'}));await assert.rejects(buildPages({output,customDomain:'bad\nexample.com'}));
   await buildPages({output});assert.ok((await readFile(join(output,'config.js'),'utf8')).includes('"apiBase":""'));assert.ok(!(await readdir(output)).includes('CNAME'));
  }finally{await rm(temp,{recursive:true,force:true})}
+});
+test('CLI publishes the tracked public API configuration when repository variables are unset',async()=>{
+ const temporary=await mkdtemp(join(tmpdir(),'taiwan-cli-'));
+ try{
+  const expected=JSON.parse(await readFile(new URL('../pages.config.json',import.meta.url),'utf8'));
+  const result=spawnSync(process.execPath,[resolve('scripts/build-pages.mjs')],{cwd:temporary,env:{...process.env,PAGES_API_BASE:'',PAGES_CUSTOM_DOMAIN:'',PAGES_AUTH_MODE:''},encoding:'utf8'});
+  assert.equal(result.status,0,result.stderr);const output=join(temporary,'dist');
+  const config=await readFile(join(output,'config.js'),'utf8');assert.ok(config.includes(JSON.stringify(expected.apiBase)));assert.ok(config.includes('"authMode":"bearer"'));
+  assert.ok((await readFile(join(output,'index.html'),'utf8')).includes("connect-src 'self' "+expected.apiBase));assert.ok(!(await readdir(output)).includes('CNAME'));assert.ok(!(await readdir(output)).includes('pages.config.json'));
+ }finally{await rm(temporary,{recursive:true,force:true})}
 });

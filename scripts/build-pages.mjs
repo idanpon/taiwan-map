@@ -1,4 +1,4 @@
-import {cp,mkdir,rm,writeFile} from 'node:fs/promises';
+import {cp,mkdir,readFile,rm,writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {page,securityHeaders} from '../src/ui.mjs';
@@ -18,4 +18,7 @@ export async function buildPages({output=resolve('dist'),apiBase='',customDomain
  if(customDomain)await writeFile(resolve(output,'CNAME'),customDomain+'\n');
  return {output,apiConfigured:!!apiBase,customDomain:customDomain||null};
 }
-if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url))console.log(JSON.stringify(await buildPages({apiBase:process.env.PAGES_API_BASE||'',customDomain:process.env.PAGES_CUSTOM_DOMAIN||'',authMode:process.env.PAGES_AUTH_MODE||'bearer'})));
+if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+ const deployment=JSON.parse(await readFile(new URL('../pages.config.json',import.meta.url),'utf8'));
+ console.log(JSON.stringify(await buildPages({apiBase:process.env.PAGES_API_BASE||deployment.apiBase||'',customDomain:process.env.PAGES_CUSTOM_DOMAIN||deployment.customDomain||'',authMode:process.env.PAGES_AUTH_MODE||deployment.authMode||'bearer'})));
+}

@@ -22,7 +22,7 @@ jobs:
         env:
           PAGES_API_BASE: ${{ vars.PAGES_API_BASE }}
           PAGES_CUSTOM_DOMAIN: ${{ vars.PAGES_CUSTOM_DOMAIN }}
-          PAGES_AUTH_MODE: ${{ vars.PAGES_AUTH_MODE || 'bearer' }}
+          PAGES_AUTH_MODE: ${{ vars.PAGES_AUTH_MODE }}
       - uses: actions/upload-pages-artifact@v4
         if: github.event_name != 'pull_request'
         with:
