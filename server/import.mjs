@@ -1,4 +1,5 @@
 // Import an authenticated /api/export download into an EMPTY database only.
+import {validStatusSymbol} from '../public/map-model.js';
 import {readFileSync} from 'node:fs';import {resolve} from 'node:path';import {fileURLToPath} from 'node:url';import {openDatabase,migrate} from './database.mjs';
 export function importExport(db,data){
  if(!data||data.schema_version!==1||data.trip?.id!=='taiwan-2026'||data.user?.id!=='trip-shared'||!Array.isArray(data.places)||!Array.isArray(data.statuses)||!Array.isArray(data.categories))throw new Error('Unsupported export: expected shared-profile schema v1');
@@ -9,7 +10,10 @@ export function importExport(db,data){
   db.sqlite.prepare('INSERT INTO users(id,display_name,created_at) VALUES(?,?,?)').run(USER,data.user.name||'Наша поездка',now);
   db.sqlite.prepare('INSERT INTO memberships VALUES(?,?,?)').run(TRIP,USER,'owner');
   for(const [i,c] of data.categories.entries())db.sqlite.prepare('INSERT INTO categories VALUES(?,?,?,?,?)').run(c.id,c.label,c.color,c.icon,c.sort_order??i);
-  for(const [i,s] of data.statuses.entries())db.sqlite.prepare('INSERT INTO statuses(id,trip_id,label,color,sort_order,archived,created_by) VALUES(?,?,?,?,?,0,?)').run(s.id,TRIP,s.label,s.color,s.sort_order??i,USER);
+  for(const [i,s] of data.statuses.entries()){
+   const symbol=s.symbol??'';if(!validStatusSymbol(symbol))throw new Error('Invalid status symbol in export');
+   db.sqlite.prepare('INSERT INTO statuses(id,trip_id,label,color,sort_order,archived,created_by,symbol,version) VALUES(?,?,?,?,?,0,?,?,?)').run(s.id,TRIP,s.label,s.color,s.sort_order??i,USER,symbol,Number.isSafeInteger(s.version)&&s.version>0?s.version:1);
+  }
   for(const p of data.places){
    if(!p.hours||!Array.isArray(p.links)||!Number.isFinite(p.lat)||p.lat < -90||p.lat>90||!Number.isFinite(p.lon)||p.lon < -180||p.lon>180||!Number.isSafeInteger(p.version)||p.version<0)throw new Error('Invalid place in export');
    db.sqlite.prepare('INSERT INTO places(id,trip_id,name,local_name,city,category_id,lat,lon,address,summary,tip,hours_json,verified_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(p.id,TRIP,p.name,p.local_name,p.city,p.category_id,p.lat,p.lon,p.address,p.summary,p.tip,JSON.stringify(p.hours),p.verified_at,p.updated_at||now);

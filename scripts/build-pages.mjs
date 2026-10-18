@@ -10,14 +10,15 @@ export async function buildPages({output=resolve('dist'),apiBase='',customDomain
  output=resolve(output);const root=fileURLToPath(new URL('..',import.meta.url));
  if(output===resolve(root)||resolve(root,'public').startsWith(output+'/'))throw new Error('Unsafe output directory');
  await rm(output,{recursive:true,force:true});await mkdir(output,{recursive:true});await cp(new URL('../public/',import.meta.url),output,{recursive:true});
- const assets=await Promise.all(['app.js','api-client.js','style.css','accounts.js','password-fields.js'].map(name=>readFile(new URL('../public/'+name,import.meta.url),'utf8')));
+ const assets=await Promise.all(['app.js','api-client.js','style.css','accounts.js','password-fields.js','map-model.js','statuses.js'].map(name=>readFile(new URL('../public/'+name,import.meta.url),'utf8')));
  const version=assets.reduce((hash,source)=>hash.update(source),createHash('sha256').update(page).update(JSON.stringify({apiBase,authMode,customDomain}))).digest('hex').slice(0,12);
  const csp=securityHeaders['Content-Security-Policy'].replace(/; frame-ancestors[^;]*/,'').replace("connect-src 'self'",`connect-src 'self'${apiBase?' '+new URL(apiBase).origin:''}`);
  // Relative files support both /taiwan-map/ and a custom domain root.
  const html=page.replace(/(href|src)="\/(?!api\/)/g,'$1="./').replace(/((?:href|src)="\.\/(?:app\.js|style\.css|config\.js))"/g,`$1?v=${version}"`).replace('<meta name="theme-color"',`<meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="referrer" content="strict-origin-when-cross-origin"><meta name="theme-color"`);
  await writeFile(resolve(output,'index.html'),html);
- await writeFile(resolve(output,'app.js'),assets[0].replace("from './api-client.js'",`from './api-client.js?v=${version}'`).replace("from './accounts.js'",`from './accounts.js?v=${version}'`));
+ await writeFile(resolve(output,'app.js'),assets[0].replace("from './api-client.js'",`from './api-client.js?v=${version}'`).replace("from './accounts.js'",`from './accounts.js?v=${version}'`).replace("from './map-model.js'",`from './map-model.js?v=${version}'`).replace("from './statuses.js'",`from './statuses.js?v=${version}'`));
  await writeFile(resolve(output,'accounts.js'),assets[3].replace("from './password-fields.js'",`from './password-fields.js?v=${version}'`));
+ await writeFile(resolve(output,'statuses.js'),assets[6].replace("from './map-model.js'",`from './map-model.js?v=${version}'`));
  await writeFile(resolve(output,'config.js'),'// Public config, not a secret store.\nwindow.TAIWAN_CONFIG = Object.freeze('+JSON.stringify({apiBase,requiresApi:true,authMode})+');\n');
  await writeFile(resolve(output,'.nojekyll'),'');
  if(customDomain)await writeFile(resolve(output,'CNAME'),customDomain+'\n');
