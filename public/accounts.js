@@ -33,8 +33,8 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true})
    },240000);
   }catch(e){target.textContent=e.message;button.disabled=false;button.onclick=()=>prepareTelegram(button,purpose,target)}
  }
- async function init(){
-  authConfig=await api('/api/auth/config');
+ async function init(signal){
+  authConfig=await api('/api/auth/config',{signal});
   $('username-field').hidden=authConfig.mode!=='accounts';$('username').required=authConfig.mode==='accounts';
   $('password-label').textContent=authConfig.mode==='accounts'?'Пароль':'Пароль к поездке';
   $('telegram-login').hidden=!authConfig.telegram_client_id;
@@ -44,6 +44,7 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true})
   $('profile-name').textContent=user.name;
   $('accounts-open').textContent=user.can_setup?'Настроить аккаунты':user.role==='admin'?'Пользователи':'Профиль';
   $('manage-statuses').hidden=user.role==='viewer';
+  $('hidden-places-open').hidden=user.role==='viewer';
  }
  async function refreshUsers(){
   const result=await api('/api/admin/users');
@@ -69,7 +70,7 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true})
  }
  $('accounts-open').onclick=async()=>{
   const user=getData()?.user;if(!user||!canOpen())return;error('');$('accounts-dialog').showModal();
-  $('account-title').textContent=user.can_setup?'Первый admin':user.role==='admin'?'Профиль и пользователи':'Мой профиль';
+  $('account-title').textContent=user.can_setup?'Первый admin':user.role==='admin'?'Профиль и пользователи':'Мой профиль';$('account-title').focus({preventScroll:true});
   resetPasswordFields($('change-password'));$('change-password').reset();
   $('own-profile').hidden=user.can_setup;$('own-profile').querySelector('h3').hidden=user.role!=='admin';
   $('current-password-field').hidden=!user.has_password;$('change-password').elements.current_password.required=user.has_password;

@@ -284,7 +284,6 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
 
 #status-dialog .status-dimmed-label input { width: 20px; height: 20px; flex: none; margin: 0; padding: 0; }
 
-.help-button b { display: grid; place-items: center; width: 22px; height: 22px; border: 1.5px solid currentColor; border-radius: 50%; font-size: 16px; font-weight: 600; }
 #help-dialog { width: 760px; }
 #help-content { font-size: 14px; line-height: 1.6; }
 #help-content h3 { font-size: 17px; line-height: 1.4; margin: 28px 0 14px; }
@@ -316,7 +315,6 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
 .login-panel { position: relative; }
 .login-theme { position: absolute; top: 0; right: 0; }
 .theme-control { flex: none; display: inline-flex; }
-.theme-control select { min-height: 40px; width: 108px; border: 1px solid var(--line); border-radius: 7px; padding: 8px; background: var(--panel); font-size: 12px; cursor: pointer; }
 input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 input[type=checkbox] { accent-color: var(--action); }
 .tip { white-space: pre-line; }
@@ -344,7 +342,6 @@ input[type=checkbox] { accent-color: var(--action); }
 @media (max-width: 1000px) {
  .topbar { gap: 8px; }
  .top-actions { gap: 4px; }
- .top-actions .theme-control select { width: 96px; min-height: 44px; }
  .map-zoom { top: 72px; right: max(12px, env(safe-area-inset-right)); bottom: auto; left: auto; }
  .map-zoom button { width: 44px; height: 44px; }
  .map-status { top: 72px; left: 12px; right: auto; bottom: auto; max-width: calc(100% - 84px); }
@@ -352,3 +349,27 @@ input[type=checkbox] { accent-color: var(--action); }
  .maplibregl-ctrl-bottom-left { padding-bottom: env(safe-area-inset-bottom); }
  .detail { bottom: calc(28px + env(safe-area-inset-bottom)); }
 }
+
+/* One icon shows the action available from the current theme, before JS too. */
+.theme-control button { display: grid; place-items: center; width: 44px; height: 44px; padding: 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--green); }
+.theme-control button:hover { background: var(--soft); }
+.theme-control svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.theme-control .theme-sun, :root[data-theme=dark] .theme-control .theme-moon { display: none; }
+:root[data-theme=dark] .theme-control .theme-sun { display: block; }
+.map-button { display: inline-flex; align-items: center; justify-content: center; }
+.help-button .help-symbol { display: block; width: 22px; height: 22px; border: 0; border-radius: 0; font: 500 23px/22px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.dialog-title:focus { outline: none; }
+.auth-loading { min-height: 220px; display: flex; flex-direction: column; justify-content: center; color: var(--muted); }
+.auth-loading p { margin: 24px 0 8px; }
+.auth-loading .text-button { align-self: flex-start; padding-left: 0; }
+.list-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 0; padding-bottom: 0; min-height: 44px; }
+#hidden-places-open { white-space: nowrap; }
+.place-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 20px; border-top: 1px solid var(--line); padding-top: 12px; }
+.place-actions > button { min-height: 44px; }
+.place-actions .primary { margin: 0; width: auto; }
+#hidden-places-dialog { width: 620px; }
+#hidden-places-error { color: var(--danger); }
+.hidden-place { border-top: 1px solid var(--line); padding: 18px 0; overflow-wrap: anywhere; }
+.hidden-place h3 { margin: 0 0 6px; }
+.hidden-place p { margin: 6px 0; }
+.hidden-place-note { white-space: pre-wrap; }
