@@ -1,0 +1,6 @@
+*
+!Dockerfile
+!src/**
+!public/**
+!server/**
+!drizzle/**

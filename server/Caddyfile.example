@@ -1,0 +1,8 @@
+# Add this virtual host to the existing proxy; inspect current configuration first.
+# Replace the domain and the port with your actual configuration.
+taiwan-api.svobodadlaseti.shop {
+  encode zstd gzip
+  reverse_proxy 127.0.0.1:18080 {
+    header_up X-Real-IP {remote_host}
+  }
+}

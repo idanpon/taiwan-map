@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+node_modules/
+data/
+dist/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.private.json
+*.tar.gz
+*.private.md

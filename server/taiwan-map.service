@@ -1,0 +1,31 @@
+[Unit]
+Description=Taiwan Map API
+After=network.target
+
+[Service]
+Type=simple
+User=taiwan-map
+Group=taiwan-map
+WorkingDirectory=/opt/taiwan-map
+EnvironmentFile=/etc/taiwan-map.env
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=18080
+Environment=DATABASE_PATH=/var/lib/taiwan-map/taiwan.sqlite
+StateDirectory=taiwan-map
+StateDirectoryMode=0700
+UMask=0077
+# Confirm Node 24+ and its actual path before installing this service.
+ExecStart=/usr/bin/node /opt/taiwan-map/server/index.mjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/taiwan-map
+MemoryMax=192M
+TasksMax=32
+
+[Install]
+WantedBy=multi-user.target

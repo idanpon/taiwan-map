@@ -1,0 +1,10 @@
+# Insert inside the EXISTING svobodadlaseti.shop HTTPS site on 127.0.0.1:8444.
+# Keep existing bind/tls/other routes. Caddy strips /taiwan before proxying.
+# Check the actual configuration/route order before editing or reloading.
+handle_path /taiwan/* {
+    reverse_proxy 127.0.0.1:18080 {
+        header_up X-Real-IP {remote_host}
+    }
+}
+# With nginx TCP/SNI in front, remote_host may be loopback rather than the visitor.
+# Do not enable PROXY protocol globally without checking every upstream.

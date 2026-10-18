@@ -1,0 +1,16 @@
+# Add only a dedicated virtual host; leave other sites and listeners intact.
+# TLS certificate provisioning/renewal must use the VPS's existing ACME tooling.
+server {
+    listen 443 ssl;
+    server_name taiwan-api.svobodadlaseti.shop;
+    ssl_certificate /path/to/fullchain.pem;
+    ssl_certificate_key /path/to/privkey.pem;
+    client_max_body_size 8k;
+    location /api/ {
+        proxy_pass http://127.0.0.1:18080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location / { return 404; }
+}
