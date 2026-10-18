@@ -81,7 +81,9 @@ label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 8px; }
 .password-input input, dialog .password-input input:not([type=color]) { flex: 1; min-width: 0; width: 0; border: 0; border-radius: 0; background: none; }
 .password-input .password-toggle { display: grid; place-items: center; flex: none; min-height: 44px; min-width: 44px; padding: 8px; color: var(--green); border: 0; }
 .password-toggle svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.password-toggle:focus-visible { outline: 2px solid var(--green); outline-offset: -3px; }
+.password-input:focus-within, .password-row:focus-within { border-color: var(--focus); }
+.password-input input:focus, .password-input .password-toggle:focus, .password-row > button:focus { outline: none; }
+.password-toggle:focus-visible, .password-row > button:focus-visible { color: var(--ink); }
 #login-error, #status-error { color: var(--danger); min-height: 18px; font-size: 13px; }
 .login-foot { font-size: 11px; display: flex; flex-wrap: wrap; justify-content: space-between; color: var(--muted); gap: 8px 20px; }
 .telegram-button { width: 100%; margin: 0 0 20px; }
@@ -294,19 +296,16 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
 #help-content p { margin: 6px 0 12px; }
 #help-content ol { padding-left: 22px; }
 #help-content ol li { margin-bottom: 10px; }
-.help-categories, .help-statuses { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; }
-.help-categories li, .help-statuses li { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
-.help-categories strong, .help-statuses strong { font-size: 13px; overflow-wrap: anywhere; }
-#help-content .help-categories p, #help-content .help-statuses p { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 4px 0 0; }
+.help-categories { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; }
+.help-categories li { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.help-categories strong { font-size: 13px; overflow-wrap: anywhere; }
+#help-content .help-categories p { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 4px 0 0; }
 .help-category-icon { display: grid; place-items: center; width: 30px; height: 30px; flex: none; background: var(--soft); border-radius: 7px; }
 .help-category-icon svg { width: 20px; height: 20px; }
-.help-statuses .status-dot { flex: none; margin-top: 3px; }
-.help-notice { padding: 14px 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); margin-top: 24px; }
-#help-content .help-notice h3 { margin-top: 0; }
 @media (max-width: 600px) {
  #help-dialog { padding: 24px; }
  #help-dialog h2 { font-size: 22px; }
- .help-categories, .help-statuses { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+ .help-categories { grid-template-columns: minmax(0, 1fr); gap: 16px; }
 }
 
 .help-heading { position: sticky; top: -28px; z-index: 2; display: flex; align-items: flex-start; gap: 12px; justify-content: space-between; margin: -28px -28px 0; padding: 20px 20px 14px 28px; background: var(--paper); }
