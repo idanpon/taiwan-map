@@ -67,7 +67,7 @@ button:disabled { opacity: .55; cursor: default; }
 .text-button:hover { color: var(--ink); }
 .workspace { position: relative; display: flex; flex: 1; min-height: 0; }
 .sidebar { width: 340px; flex: 0 0 340px; min-height: 0; display: flex; flex-direction: column; background: var(--paper); border-right: 1px solid var(--line); z-index: 501; }
-.side-head { padding: 24px 20px 18px; flex: 0 0 auto; }
+.side-head { scrollbar-width: thin; scrollbar-color: #b1baaa transparent; max-height: 64%; overflow-y: auto; overscroll-behavior: contain; padding: 24px 20px 18px; flex: 0 0 auto; }
 .side-head h1 { font-size: 24px; font-weight: 600; letter-spacing: -.5px; margin: 0 0 20px; }
 .city-filter { margin-bottom: 16px; }
 .city-filter label { color: var(--muted); font-size: 12px; }
@@ -77,7 +77,7 @@ button:disabled { opacity: .55; cursor: default; }
 .search-box input { width: 100%; min-width: 0; border: 0; background: none; font-size: 14px; padding: 10px 0; }
 .filter-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11px; letter-spacing: .6px; color: var(--muted); }
 .chips { display: flex; flex-wrap: wrap; gap: 7px; }
-.chip { border: 1px solid var(--line); border-radius: 20px; min-height: 34px; padding: 7px 10px; display: inline-flex; gap: 6px; align-items: center; font-size: 11px; background: var(--panel); }
+.chip { max-width: 100%; text-align: left; border: 1px solid var(--line); border-radius: 20px; min-height: 34px; padding: 7px 10px; display: inline-flex; gap: 6px; align-items: center; font-size: 11px; background: var(--panel); }
 .chip svg { width: 14px; height: 14px; flex: none; }
 .chip.active { background: #e0e8db; border-color: #9dae95; }
 .status-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
@@ -93,7 +93,7 @@ button:disabled { opacity: .55; cursor: default; }
 .place-card-content { min-width: 0; flex: 1; }
 .place-name { display: block; font-weight: 600; font-size: 14px; line-height: 1.4; margin: 0 0 4px; overflow-wrap: anywhere; }
 .place-meta { font-size: 11px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.status-dot { opacity: var(--status-opacity, 1); height: 16px; width: 16px; border-radius: 50%; display: inline-grid; place-items: center; vertical-align: middle; background: var(--status, #c5cbbf); color: var(--status-symbol, white); font: 700 10px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI Symbol', sans-serif; }
+.status-dot { opacity: var(--status-opacity, 1); height: 14px; width: 14px; border-radius: 50%; display: inline-grid; place-items: center; vertical-align: middle; background: var(--status, #c5cbbf); color: var(--status-symbol, white); font: 700 9px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI Symbol', sans-serif; }
 .card-status { display: block; font-size: 11px; margin-top: 6px; color: var(--status-text, var(--status, var(--muted))); }
 .side-footer { padding: 14px 20px; flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 8px 12px; justify-content: space-between; font-size: 10px; border-top: 1px solid var(--line); color: var(--muted); }
 .side-footer a { white-space: nowrap; }
@@ -104,7 +104,7 @@ button:disabled { opacity: .55; cursor: default; }
 .leaflet-control-attribution { font-size: 10px !important; background: #faf9f1ec !important; }
 .leaflet-control-zoom { border: 0 !important; box-shadow: 0 3px 16px #273a3215 !important; margin-top: 78px !important; margin-right: 20px !important; }
 .leaflet-control-zoom a { color: var(--green) !important; border-color: var(--line) !important; width: 40px !important; height: 40px !important; line-height: 40px !important; }
-.map-heading { position: absolute; z-index: 450; top: 20px; left: 20px; max-width: calc(100% - 310px); min-height: 42px; padding: 10px 14px; background: #fcfbf5f2; border: 1px solid #fff; border-radius: 7px; display: flex; gap: 8px; align-items: center; font-size: 12px; box-shadow: 0 2px 12px #273a3209; pointer-events: none; }
+.map-heading { position: absolute; z-index: 450; top: 20px; left: 20px; max-width: calc(100% - 410px); min-height: 42px; padding: 10px 14px; background: #fcfbf5f2; border: 1px solid #fff; border-radius: 7px; display: flex; gap: 8px; align-items: center; font-size: 12px; box-shadow: 0 2px 12px #273a3209; pointer-events: none; }
 #map-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .live-dot { height: 5px; width: 5px; flex: none; border-radius: 50%; background: #6b8a65; }
 .map-tools { position: absolute; right: 20px; top: 20px; z-index: 450; display: flex; gap: 8px; }
@@ -113,7 +113,7 @@ button:disabled { opacity: .55; cursor: default; }
 .pin-shell { background: none !important; border: 0 !important; }
 .pin { opacity: var(--status-opacity, 1); width: 40px; height: 40px; background: var(--category); color: white; border: 2px solid #fffcf6; border-radius: 50%; box-shadow: 0 3px 9px #273a3238; position: relative; display: grid; place-items: center; }
 .pin svg { width: 19px; height: 19px; }
-.pin .pin-state { position: absolute; top: -3px; right: -3px; height: 18px; width: 18px; display: grid; place-items: center; border-radius: 50%; border: 2px solid white; background: var(--status); color: var(--status-symbol, white); box-shadow: 0 1px 4px #273a3240; font: 700 10px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI Symbol', sans-serif; }
+.pin .pin-state { position: absolute; top: -3px; right: -3px; height: 14px; width: 14px; display: grid; place-items: center; border-radius: 50%; border: 2px solid white; background: var(--status); color: var(--status-symbol, white); box-shadow: 0 1px 4px #273a3240; font: 700 8px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI Symbol', sans-serif; }
 .city-cluster { height: 45px; width: 45px; border-radius: 50%; background: #456b53; color: white; display: grid; place-items: center; border: 3px solid #f5f4e8; box-shadow: 0 2px 12px #273a3240; font-size: 17px; }
 .detail { position: absolute; z-index: 502; bottom: 20px; right: 20px; width: 350px; max-width: calc(100% - 40px); max-height: calc(100% - 90px); display: flex; flex-direction: column; overflow: hidden; background: var(--panel); border: 1px solid #fff; border-radius: 12px; box-shadow: 0 12px 50px #273a322a; }
 .detail-header { display: flex; align-items: center; gap: 12px; justify-content: space-between; flex: 0 0 auto; padding: 10px 10px 10px 22px; border-bottom: 1px solid var(--line); }
@@ -160,7 +160,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
   .trip-dates { display: none; }
   .sidebar { width: 310px; flex-basis: 310px; }
   .map-button span { display: none; }
-  .map-heading { max-width: calc(100% - 150px); }
+  .map-heading { max-width: calc(100% - 200px); }
   .detail { width: 320px; }
 }
 @media (max-width: 1000px) {
@@ -172,7 +172,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
   #logout { min-height: 44px; padding: 8px 0 8px 12px; font-size: 13px; }
   .sidebar { display: none; position: absolute; inset: 0; width: 100%; min-width: 0; border: 0; z-index: 600; overflow-y: auto; overscroll-behavior: contain; padding-bottom: calc(88px + env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch; }
   .sidebar.mobile-open { display: block; }
-  .side-head { padding: 20px max(16px, env(safe-area-inset-right)) 18px max(16px, env(safe-area-inset-left)); }
+  .side-head { max-height: none; overflow: visible; padding: 20px max(16px, env(safe-area-inset-right)) 18px max(16px, env(safe-area-inset-left)); }
   .side-head h1 { margin-bottom: 16px; font-size: 25px; }
   .city-filter select { font-size: 16px; }
   .search-box { margin-bottom: 12px; }
@@ -191,7 +191,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
   .place-name { font-size: 15px; }
   .place-meta, .card-status { font-size: 12px; }
   .side-footer { font-size: 11px; padding: 16px; }
-  .map-heading { top: 12px; left: max(12px, env(safe-area-inset-left)); padding: 10px; min-height: 44px; max-width: calc(100% - 140px); font-size: 11px; }
+  .map-heading { top: 12px; left: max(12px, env(safe-area-inset-left)); padding: 10px; min-height: 44px; max-width: calc(100% - 196px); font-size: 11px; }
   .map-tools { top: 12px; right: max(12px, env(safe-area-inset-right)); gap: 8px; }
   .map-button { width: 44px; height: 44px; padding: 0; }
   .map-button span { display: none; }
@@ -249,3 +249,32 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
 }
 
 #status-dialog .status-dimmed-label input { width: 20px; height: 20px; flex: none; margin: 0; padding: 0; }
+
+.help-button b { display: grid; place-items: center; width: 22px; height: 22px; border: 1.5px solid currentColor; border-radius: 50%; font-size: 16px; font-weight: 600; }
+#help-dialog { width: 760px; }
+#help-content { font-size: 14px; line-height: 1.6; }
+#help-content h3 { font-size: 17px; line-height: 1.4; margin: 28px 0 14px; }
+#help-content p { margin: 6px 0 12px; }
+#help-content ol { padding-left: 22px; }
+#help-content ol li { margin-bottom: 10px; }
+.help-categories, .help-statuses { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; }
+.help-categories li, .help-statuses li { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.help-categories strong, .help-statuses strong { font-size: 13px; overflow-wrap: anywhere; }
+#help-content .help-categories p, #help-content .help-statuses p { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 4px 0 0; }
+.help-category-icon { display: grid; place-items: center; width: 30px; height: 30px; flex: none; background: var(--soft); border-radius: 7px; }
+.help-category-icon svg { width: 20px; height: 20px; }
+.help-statuses .status-dot { flex: none; margin-top: 3px; }
+.help-notice { padding: 14px 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); margin-top: 24px; }
+#help-content .help-notice h3 { margin-top: 0; }
+@media (max-width: 600px) {
+ #help-dialog { padding: 24px; }
+ #help-dialog h2 { font-size: 22px; }
+ .help-categories, .help-statuses { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+}
+
+.help-heading { position: sticky; top: -28px; z-index: 2; display: flex; align-items: flex-start; gap: 12px; justify-content: space-between; margin: -28px -28px 0; padding: 20px 20px 14px 28px; background: var(--paper); }
+.help-heading h2 { margin: 8px 0 0; }
+#help-close { position: static; flex: none; }
+@media (max-width: 600px) {
+ .help-heading { top: -24px; margin: -24px -24px 0; padding: 16px 12px 12px 24px; }
+}

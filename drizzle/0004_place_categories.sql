@@ -1,0 +1,23 @@
+-- Category definition snapshot from public/categories.js. Existing colors are retained.
+INSERT OR IGNORE INTO categories(id,label,color,icon,sort_order) SELECT 'sight','Достопримечательности','#bb623d','landmark',0 WHERE EXISTS (SELECT 1 FROM categories);
+INSERT OR IGNORE INTO categories(id,label,color,icon,sort_order) SELECT 'culture','Музеи и выставки','#786b9d','palette',1 WHERE EXISTS (SELECT 1 FROM categories);
+INSERT OR IGNORE INTO categories(id,label,color,icon,sort_order) SELECT 'walks','Районы и прогулки','#527daa','footprints',2 WHERE EXISTS (SELECT 1 FROM categories);
+INSERT OR IGNORE INTO categories(id,label,color,icon,sort_order) SELECT 'nature','Природа','#65855d','leaf',3 WHERE EXISTS (SELECT 1 FROM categories);
+INSERT OR IGNORE INTO categories(id,label,color,icon,sort_order) SELECT 'food','Еда и напитки','#c38331','utensils',4 WHERE EXISTS (SELECT 1 FROM categories);
+INSERT OR IGNORE INTO categories(id,label,color,icon,sort_order) SELECT 'shopping','Шопинг','#4d8586','shopping-bag',5 WHERE EXISTS (SELECT 1 FROM categories);
+INSERT OR IGNORE INTO categories(id,label,color,icon,sort_order) SELECT 'activities','Развлечения и активности','#b15987','ticket',6 WHERE EXISTS (SELECT 1 FROM categories);
+INSERT OR IGNORE INTO categories(id,label,color,icon,sort_order) SELECT 'lodging','Жильё','#6d72b4','bed-double',7 WHERE EXISTS (SELECT 1 FROM categories);
+INSERT OR IGNORE INTO categories(id,label,color,icon,sort_order) SELECT 'transport','Транспорт','#537681','train-front',8 WHERE EXISTS (SELECT 1 FROM categories);
+INSERT OR IGNORE INTO categories(id,label,color,icon,sort_order) SELECT 'services','Дела и сервисы','#82705b','clipboard-check',9 WHERE EXISTS (SELECT 1 FROM categories);
+UPDATE places SET category_id='food' WHERE category_id='cafe';
+DELETE FROM categories WHERE id='cafe' AND NOT EXISTS (SELECT 1 FROM places WHERE category_id='cafe');
+UPDATE categories SET label='Достопримечательности',icon='landmark',sort_order=0 WHERE id='sight';
+UPDATE categories SET label='Музеи и выставки',icon='palette',sort_order=1 WHERE id='culture';
+UPDATE categories SET label='Районы и прогулки',icon='footprints',sort_order=2 WHERE id='walks';
+UPDATE categories SET label='Природа',icon='leaf',sort_order=3 WHERE id='nature';
+UPDATE categories SET label='Еда и напитки',icon='utensils',sort_order=4 WHERE id='food';
+UPDATE categories SET label='Шопинг',icon='shopping-bag',sort_order=5 WHERE id='shopping';
+UPDATE categories SET label='Развлечения и активности',icon='ticket',sort_order=6 WHERE id='activities';
+UPDATE categories SET label='Жильё',icon='bed-double',sort_order=7 WHERE id='lodging';
+UPDATE categories SET label='Транспорт',icon='train-front',sort_order=8 WHERE id='transport';
+UPDATE categories SET label='Дела и сервисы',icon='clipboard-check',sort_order=9 WHERE id='services';

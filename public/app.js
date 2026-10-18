@@ -2,6 +2,8 @@ import {createApiClient} from './api-client.js';
 import {createAccountUI} from './accounts.js';
 import {cityOptions,statusAppearance} from './map-model.js';
 import {createStatusUI} from './statuses.js';
+import {categoryIcon as icon} from './categories.js';
+import {createHelpUI} from './help.js';
 const $=id=>document.getElementById(id);
 const config=window.TAIWAN_CONFIG||{apiBase:'',requiresApi:false};
 let apiBase='',configurationError='';
@@ -11,8 +13,6 @@ try {
 }catch{configurationError='В настройках сайта указан некорректный HTTPS-адрес API.'}
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const shapes={landmark:'<path d="M3 10h18L12 3 3 10Zm2 3v6m5-6v6m4-6v6m5-6v6M3 21h18"/>',museum:'<path d="M3 20h18M5 20V9m14 11V9M8 20V9m8 11V9M3 9h18L12 3 3 9Z"/>',coffee:'<path d="M4 8h12v8a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8Zm12 1h2a3 3 0 0 1 0 6h-2M7 3v2m5-2v2M2 22h17"/>',utensils:'<path d="M5 3v6a3 3 0 0 0 6 0V3M8 3v19M19 22V3c-4 2-4 9 0 9M5 7h6"/>',bag:'<path d="M5 7h14l2 14H3L5 7Zm3 0V5a4 4 0 0 1 8 0v2"/>',leaf:'<path d="M20 3C8 2 2 8 5 15c3 7 16 2 15-12ZM4 21l12-13m-6 6H6m8-4V6"/>'};
-const icon=name=>`<svg viewBox="0 0 24 24" aria-hidden="true">${shapes[name]||shapes.landmark}</svg>`;
 let data,map,layers,positionLayer,accuracyLayer,selected=null,city='',types=new Set(),status='',query='',dirty=false,busy=false,lastZoomGroup=false;
 let toastTimer;
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5500)}
@@ -21,7 +21,7 @@ const transport=createApiClient({apiBase,authMode:config.authMode||'cookie',stor
 async function api(path,options={}){if(configurationError)throw new Error(configurationError);return transport(path,options)}
 async function exportData(event){event.preventDefault();try{const content=await api('/api/export');const blob=new Blob([JSON.stringify(content,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='taiwan-map.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(e){toast(e.message)}}
 let accountUI;
-function showLogin(){$('status-dialog').close();$('accounts-dialog').close();accountUI?.showLogin();$('application').hidden=true;$('application').classList.remove('detail-open');document.body.classList.remove('app-active');setSidebar(false);$('detail').hidden=true;$('login').hidden=false;data=null;selected=null;dirty=false;if(map){map.remove();map=null}}
+function showLogin(){$('help-dialog').close();$('status-dialog').close();$('accounts-dialog').close();accountUI?.showLogin();$('application').hidden=true;$('application').classList.remove('detail-open');document.body.classList.remove('app-active');setSidebar(false);$('detail').hidden=true;$('login').hidden=false;data=null;selected=null;dirty=false;if(map){map.remove();map=null}}
 function setSidebar(open){$('places-panel').classList.toggle('mobile-open',open);$('mobile-toggle').textContent=open?'Назад к карте':'Места и фильтры';$('mobile-toggle').setAttribute('aria-expanded',String(open))}
 function closeDetail(restoreFocus=false){
  if($('detail').hidden)return true;
@@ -77,9 +77,10 @@ const statusUI=createStatusUI({api,$,esc,getData:()=>data,toast,onChange:()=>{
  const select=$('place-status');if(select){const value=select.value;select.innerHTML='<option value="">Без статуса</option>'+data.statuses.map(s=>`<option value="${esc(s.id)}">${esc(s.label)}</option>`).join('');select.value=value;}
 }});
 $('manage-statuses').onclick=()=>statusUI.open();
+const helpUI=createHelpUI({$,getData:()=>data,esc});$('help-open').onclick=()=>helpUI.open();
 $('mobile-toggle').onclick=()=>{if(!closeDetail())return;setSidebar(!$('places-panel').classList.contains('mobile-open'));if(map)setTimeout(()=>map.invalidateSize(),0)};
-document.addEventListener('click',event=>{if($('detail').hidden||$('status-dialog').open||$('accounts-dialog').open||event.target.closest('#detail, #status-dialog, #manage-statuses, [data-place], .leaflet-marker-icon'))return;if(!closeDetail()){event.preventDefault();event.stopPropagation()}},true);
-document.addEventListener('keydown',event=>{if(event.key!=='Escape'||$('status-dialog').open||$('accounts-dialog').open)return;if(!$('detail').hidden){event.preventDefault();closeDetail(true)}else if($('places-panel').classList.contains('mobile-open')){setSidebar(false);$('mobile-toggle').focus()}});
+document.addEventListener('click',event=>{if($('detail').hidden||$('status-dialog').open||$('accounts-dialog').open||$('help-dialog').open||event.target.closest('#detail, #status-dialog, #help-dialog, #help-open, #manage-statuses, [data-place], .leaflet-marker-icon'))return;if(!closeDetail()){event.preventDefault();event.stopPropagation()}},true);
+document.addEventListener('keydown',event=>{if(event.key!=='Escape'||$('status-dialog').open||$('accounts-dialog').open||$('help-dialog').open)return;if(!$('detail').hidden){event.preventDefault();closeDetail(true)}else if($('places-panel').classList.contains('mobile-open')){setSidebar(false);$('mobile-toggle').focus()}});
 window.addEventListener('resize',()=>{if(map)map.invalidateSize({pan:false})});
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
 document.addEventListener('visibilitychange',async()=>{if(document.hidden||!data||dirty||busy)return;try{const id=selected;await load();if(id&&data.places.some(p=>p.id===id))detail(data.places.find(p=>p.id===id))}catch(e){toast(e.message)}});
