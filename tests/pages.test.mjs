@@ -26,6 +26,7 @@ test('Pages build supports repository subpaths and publishes no server code or c
   for(const name of ['theme-init.js','theme.js','map-config.js','basemap.js','map-view.js','auth-startup.js','place-lifecycle.js','dialogs.js','vendor/maplibre-6.15.0/maplibre-gl.js','vendor/maplibre-6.15.0/maplibre-gl-worker.js','vendor/maplibre-6.15.0/maplibre-gl.css','vendor/maplibre-6.15.0/LICENSE.txt'])await readFile(join(output,name));
   assert.ok((await readFile(join(output,'map-view.js'),'utf8')).includes("from './basemap.js?v="+version+"'"));
   assert.ok((await readFile(join(output,'map-view.js'),'utf8')).includes("from './map-compass.js?v="+version+"'"));await readFile(join(output,'map-compass.js'));
+  assert.ok((await readFile(join(output,'map-view.js'),'utf8')).includes("from './map-framing.js?v="+version+"'"));await readFile(join(output,'map-framing.js'));
   assert.match(html,/<button id="map-north"[^>]*aria-label="Север наверх"[^>]*hidden>/);
   assert.ok((await readFile(join(output,'basemap.js'),'utf8')).includes("from './map-config.js?v="+version+"'"));
   const vendorNames=await readdir(join(output,'vendor'));assert.ok(!vendorNames.some(name=>/leaflet/i.test(name)));

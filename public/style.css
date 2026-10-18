@@ -449,8 +449,18 @@ input[type=checkbox] { accent-color: var(--action); }
 .schedule-editor[open] summary svg { transform: rotate(180deg); }
 #state-form, #place-tag-editor, .tag-editor { min-width: 0; max-width: 100%; }
 @media (max-width: 600px) {
- .tag-editor .tag-date-fields { grid-template-columns: minmax(0, 1fr); }
  .tag-editor input[type=date], .tag-editor input[type=url], .tag-editor textarea { font-size: 16px; }
 }
 .tag-editor textarea { min-height: 90px; resize: vertical; }
 .tag-editor .muted { margin: 6px 0; font-size: 11px; line-height: 1.5; }
+
+/* Native date inputs have no padding: iOS otherwise miscalculates width:100%. */
+.tag-editor .date-input { display: flex; align-items: center; box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; margin-top: 6px; padding: 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--input); }
+.tag-editor .date-input input[type=date] { margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; min-height: 26px; }
+.tag-editor .date-input:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
+.tag-editor .date-input input:focus, .tag-editor .date-input input:focus-visible { outline: none; box-shadow: none; }
+@media (max-width: 379px) {
+ .tag-editor .tag-date-fields { grid-template-columns: minmax(0, 1fr); }
+}
+.map-tool-icon { flex: none; width: 22px; height: 22px; stroke-width: 1.7; }
+#fit .map-tool-icon { width: 24px; height: 24px; }
