@@ -40,7 +40,7 @@ test('category migration retains every place, note, link, status setting, sessio
   const places=DB.sqlite.prepare('SELECT * FROM places ORDER BY id').all();
   migrate(DB,'drizzle');migrate(DB,'drizzle');
   for(const table of unchanged)assert.deepEqual(DB.sqlite.prepare('SELECT * FROM '+table+' ORDER BY rowid').all(),before[table],table);
-  assert.deepEqual(DB.sqlite.prepare('SELECT * FROM places ORDER BY id').all().map(p=>({...p})),places.map(p=>({...p,category_id:p.category_id==='cafe'?'food':p.category_id})));
+  assert.deepEqual(DB.sqlite.prepare('SELECT * FROM places ORDER BY id').all().map(p=>({...p})),places.map(p=>({...p,category_id:p.category_id==='cafe'?'food':p.category_id,tags_json:'{}',tags_version:1})));
   const categories=DB.sqlite.prepare('SELECT * FROM categories ORDER BY sort_order').all();assert.equal(categories.length,10);
   for(const [i,category] of categories.entries())assert.deepEqual({...category},(({id,label,color,icon,sort_order})=>({id,label,color,icon,sort_order}))(categoryDefinitions[i]));
   assert.equal(DB.sqlite.prepare('PRAGMA foreign_key_check').all().length,0);

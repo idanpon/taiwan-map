@@ -11,7 +11,7 @@ test('Pages build supports repository subpaths and publishes no server code or c
   assert.ok(config.includes('"requiresApi":true'));assert.ok(config.includes('"authMode":"bearer"'));assert.ok(html.includes('type="module" src="./app.js?v='));assert.ok((await readFile(join(output,'app.js'),'utf8')).includes("from './api-client.js?v="+version+"'"));await readFile(join(output,'api-client.js'));assert.ok(!html.includes('passwordHash'));assert.ok(!html.includes('APP_PASSWORD_HASH'));
   const names=await readdir(output);for(const forbidden of ['src','server','drizzle','places.mjs','.env'])assert.ok(!names.includes(forbidden));assert.equal(await readFile(join(output,'CNAME'),'utf8'),'taiwan.example.com\n');
   assert.ok((await readFile(join(output,'accounts.js'),'utf8')).includes("from './password-fields.js?v="+version+"'"));await readFile(join(output,'password-fields.js'));
-  for(const module of ['map-model.js','statuses.js','categories.js','help.js']){await readFile(join(output,module));assert.ok((await readFile(join(output,'app.js'),'utf8')).includes("from './"+module+"?v="+version+"'"));}
+  for(const module of ['map-model.js','statuses.js','categories.js','help.js','place-tags.js']){await readFile(join(output,module));assert.ok((await readFile(join(output,'app.js'),'utf8')).includes("from './"+module+"?v="+version+"'"));}
   assert.ok((await readFile(join(output,'statuses.js'),'utf8')).includes("from './map-model.js?v="+version+"'"));
   assert.ok((await readFile(join(output,'help.js'),'utf8')).includes("from './categories.js?v="+version+"'"));
   assert.ok((await readFile(join(output,'help.js'),'utf8')).includes("from './dialogs.js?v="+version+"'"));

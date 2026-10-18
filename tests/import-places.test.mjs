@@ -14,6 +14,7 @@ const manifest=records=>({schema_version:1,source:'taiwan-trip-csv',records});
 const table=(s,name)=>s.prepare('SELECT * FROM '+name+' ORDER BY rowid').all();
 test('incremental import preserves existing content/states, maps IDs, keeps alternatives, and repeats without duplicates',()=>{
  const db=fixture(),s=db.sqlite,before={};for(const name of ['users','memberships','sessions','statuses','user_place_states','state_events'])before[name]=table(s,name);
+ s.prepare("UPDATE places SET tags_json=?,tags_version=4 WHERE id='old'").run(JSON.stringify({photoSpot:true,reservation:{enabled:true,url:'https://example.com/book'}}));
  const old={...s.prepare("SELECT * FROM places WHERE id='old'").get()};
  const batch=manifest([{row:row('TW001'),geocoding:geo},{row:{...row('TW002'),name:'Other alternative'},geocoding:{...geo,lat:23.5}},{row:row('TW003'),existing_id:'old',category_change:{from:'sight',to:'walks'}},{row:row('TW004','review'),geocoding:geo},{row:row('TW005','separate'),geocoding:geo},{row:row('TW006'),pending_reason:'Unclear branch'}]);
  assert.deepEqual(importPlaces(s,batch).map(x=>x.result),['added','added','matched','review','separate','pending']);assert.equal(table(s,'places').length,1);assert.equal(table(s,'app_meta').length,0);

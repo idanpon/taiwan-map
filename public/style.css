@@ -407,3 +407,24 @@ input[type=checkbox] { accent-color: var(--action); }
  .topbar .brand > span { display: none; }
  .topbar .brand-mark { width: 28px; height: 28px; }
 }
+
+/* Supplemental tags stay in the card and filters, never on map markers. */
+.tag-filters { margin-top: 16px; }
+.tag-filters h2 { margin: 0 0 7px; font-size: 12px; font-weight: 500; color: var(--muted); }
+.detail-title { display: flex; align-items: flex-start; gap: 8px; }
+.detail-title h2 { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.place-tags { display: inline-flex; flex: none; flex-wrap: nowrap; gap: 6px; padding-top: 2px; color: var(--muted); }
+.place-tag { display: inline-flex; align-items: center; justify-content: center; width: 24px; min-height: 32px; padding: 0; color: inherit; border: 0; border-radius: 5px; }
+.place-tag:hover { color: var(--ink); background: var(--soft); }
+.place-tag svg { width: 16px; height: 16px; }
+.tag-details { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 14px; font-size: 13px; line-height: 1.6; }
+.tag-details h3 { margin: 0 0 6px; font-size: 13px; }
+.tag-details p { margin: 6px 0; }
+.tag-details svg { width: 15px; height: 15px; flex: none; }
+.place-schedule summary { cursor: pointer; list-style: none; color: var(--action); padding: 6px 0; }
+.place-schedule summary::-webkit-details-marker { display: none; }
+.schedule-show, .schedule-hide, .booking-link { display: inline-flex; gap: 6px; align-items: center; }
+.schedule-hide, .place-schedule[open] .schedule-show { display: none; }
+.place-schedule[open] .schedule-hide { display: inline-flex; }
+.schedule-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.event-ended { color: var(--muted); font-size: 12px; }
