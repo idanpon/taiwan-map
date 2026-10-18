@@ -73,9 +73,10 @@ test('admin-created accounts require matching confirmation and allow six-charact
   }
   const created=await f.call('/api/admin/users','POST',user,f.admin);assert.equal(created.status,201);const {id}=await created.json();
   const login=await f.call('/api/login','POST',{username:user.username,password:'abcdef'});assert.equal(login.status,200);const token=await f.credential(login);
-  assert.equal((await f.call('/api/admin/users/'+id,'PUT',{password:'abcde'},f.admin)).status,400);
+  assert.equal((await f.call('/api/admin/users/'+id,'PUT',{password:'abcde',password_confirmation:'abcde'},f.admin)).status,400);
   assert.equal((await f.call('/api/data','GET',undefined,token)).status,200);
-  assert.equal((await f.call('/api/admin/users/'+id,'PUT',{password:'ghijkl'},f.admin)).status,200);
+  for(const password_confirmation of [undefined,'xxxxxx'])assert.equal((await f.call('/api/admin/users/'+id,'PUT',{password:'ghijkl',password_confirmation},f.admin)).status,400);
+  assert.equal((await f.call('/api/admin/users/'+id,'PUT',{password:'ghijkl',password_confirmation:'ghijkl'},f.admin)).status,200);
   assert.equal((await f.call('/api/data','GET',undefined,token)).status,401);
   assert.equal((await f.call('/api/login','POST',{username:user.username,password:'ghijkl'})).status,200);
  }finally{f.DB.close()}
@@ -136,7 +137,7 @@ test('admin changes revoke sessions, prevent last-admin lockout and enforce case
   assert.equal((await f.call('/api/admin/users/trip-shared','PUT',{disabled:true},f.admin)).status,409);
   assert.equal((await f.call('/api/data','GET',undefined,f.admin)).status,200);
   r=await f.call('/api/admin/users','POST',{name:'Duplicate',username:'DANIL',password:'duplicate-password',password_confirmation:'duplicate-password',role:'viewer'},f.admin);assert.equal(r.status,409);
-  assert.equal((await f.call('/api/admin/users/'+editor.id,'PUT',{disabled:false,role:'admin',password:'replacement-password'},f.admin)).status,200);
+  assert.equal((await f.call('/api/admin/users/'+editor.id,'PUT',{disabled:false,role:'admin',password:'replacement-password',password_confirmation:'replacement-password'},f.admin)).status,200);
   assert.equal((await f.call('/api/login','POST',{username:'writer',password:'member-password-123'})).status,401);
   const second=await f.credential(await f.call('/api/login','POST',{username:'writer',password:'replacement-password'}));
   assert.equal((await f.call('/api/admin/users/trip-shared','PUT',{role:'viewer'},second)).status,200);
@@ -202,5 +203,146 @@ test('Telegram linking needs a live account and its own challenge; identity cann
   const data=await(await f.call('/api/data','GET',undefined,token)).json();assert.equal(data.user.id,'trip-shared');assert.equal(data.user.role,'admin');
   // Password login still accesses exactly the same account.
   assert.equal((await f.call('/api/login','POST',{username:'danil',password:'new-admin-password'})).status,200);
+ }finally{f.DB.close()}
+});
+
+
+test('every role can change only its own password with matching confirmation and its current password',async()=>{
+ const f=await fixture();try{
+  const viewer=await f.add('reader'),editor=await f.add('writer','editor');
+  for(const [user,login,current_password] of [[viewer,'reader','member-password-123'],[editor,'writer','member-password-123'],[{id:'trip-shared',token:f.admin},'danil','new-admin-password']]){
+   const payload={current_password,password:'abcdef',password_confirmation:'abcdef',user_id:viewer.id};
+   for(const invalid of [{current_password:'wrong-password'},{password_confirmation:'ghijkl'},{password_confirmation:undefined},{password:'abcde',password_confirmation:'abcde'}]){
+    assert.equal((await f.call('/api/auth/password','POST',{...payload,...invalid},user.token)).status,400);
+    assert.equal((await f.call('/api/data','GET',undefined,user.token)).status,200);
+   }
+   const otherSession=await f.credential(await f.call('/api/login','POST',{username:login,password:current_password}));
+   assert.equal((await f.call('/api/auth/password','POST',payload,user.token)).status,200);
+   for(const token of [user.token,otherSession])assert.equal((await f.call('/api/data','GET',undefined,token)).status,401);
+   assert.equal((await f.call('/api/login','POST',{username:login,password:current_password})).status,401);
+   assert.equal((await f.call('/api/login','POST',{username:login,password:'abcdef'})).status,200);
+  }
+ }finally{f.DB.close()}
+});
+
+test('only admin can list, create, update or delete accounts, including attempts to edit oneself through admin routes',async()=>{
+ const f=await fixture();try{
+  for(const user of [await f.add('reader'),await f.add('writer','editor')]){
+   for(const [path,method,payload] of [
+    ['/api/admin/users','GET'],['/api/admin/users','POST',{}],
+    ['/api/admin/users/'+user.id,'PUT',{role:'admin'}],
+    ['/api/admin/users/'+user.id,'DELETE'],['/api/admin/users/trip-shared','DELETE']
+   ])assert.equal((await f.call(path,method,payload,user.token)).status,403);
+  }
+  assert.equal((await f.call('/api/auth/password','POST',{password:'abcdef',password_confirmation:'abcdef'})).status,401);
+ }finally{f.DB.close()}
+});
+
+test('admin cannot disable or delete its current account even when another active admin exists',async()=>{
+ const f=await fixture();try{
+  await f.add('second-admin','admin');
+  assert.equal((await f.call('/api/admin/users/trip-shared','PUT',{disabled:true},f.admin)).status,409);
+  assert.equal((await f.call('/api/admin/users/trip-shared','DELETE',undefined,f.admin)).status,409);
+  assert.equal((await f.call('/api/data','GET',undefined,f.admin)).status,200);
+  assert.equal(f.DB.sqlite.prepare('SELECT COUNT(*) n FROM memberships WHERE role=?').get('admin').n,2);
+ }finally{f.DB.close()}
+});
+
+test('deletion revokes access and credentials, frees the login and preserves map notes, versions and author history',async()=>{
+ const f=await fixture();try{
+  const writer=await f.add('writer','editor');
+  assert.equal((await f.call('/api/places/taipei-101/state','PUT',{version:1,status_id:'want',note:'Keep this note'},writer.token)).status,200);
+  assert.equal((await f.call('/api/statuses','POST',{label:'Keep this status',color:'#123456'},writer.token)).status,201);
+  const subject='telegram:deleted-writer';
+  f.DB.sqlite.prepare('UPDATE users SET auth_subject=? WHERE id=?').run(subject,writer.id);
+  f.DB.sqlite.prepare('INSERT INTO auth_challenges VALUES(?,?,?,?)').run('a'.repeat(64),'link',writer.id,Date.now()+300000);
+  assert.equal((await f.call('/api/admin/users/'+writer.id,'DELETE',undefined,f.admin)).status,200);
+  assert.equal((await f.call('/api/data','GET',undefined,writer.token)).status,401);
+  assert.equal((await f.call('/api/login','POST',{username:'writer',password:'member-password-123'})).status,401);
+  const users=await(await f.call('/api/admin/users','GET',undefined,f.admin)).json();assert.ok(!users.users.some(u=>u.id===writer.id));
+  const deleted=f.DB.sqlite.prepare('SELECT * FROM users WHERE id=?').get(writer.id);
+  assert.equal(deleted.username,null);assert.equal(deleted.password_hash,null);assert.equal(deleted.auth_subject,null);assert.equal(deleted.disabled,1);
+  assert.equal(f.DB.sqlite.prepare('SELECT COUNT(*) n FROM sessions WHERE user_id=?').get(writer.id).n,0);
+  assert.equal(f.DB.sqlite.prepare('SELECT COUNT(*) n FROM auth_challenges WHERE user_id=?').get(writer.id).n,0);
+  const data=await(await f.call('/api/data','GET',undefined,f.admin)).json();const place=data.places.find(p=>p.id==='taipei-101');
+  assert.equal(place.note,'Keep this note');assert.equal(place.version,2);assert.ok(data.statuses.some(s=>s.label==='Keep this status'));
+  assert.equal(f.DB.sqlite.prepare('SELECT user_id FROM state_events WHERE version=2').get().user_id,writer.id);
+  assert.equal((await f.call('/api/admin/users/'+writer.id,'DELETE',undefined,f.admin)).status,404);
+  const replacement=await f.add('writer');assert.notEqual(replacement.id,writer.id);
+  assert.equal(f.DB.sqlite.prepare('PRAGMA foreign_key_check').all().length,0);
+ }finally{f.DB.close()}
+});
+
+test('deleting the original admin preserves the shared state owner and at least one active admin',async()=>{
+ const f=await fixture();try{
+  const second=await f.add('second-admin','admin');
+  assert.equal((await f.call('/api/admin/users/trip-shared','DELETE',undefined,second.token)).status,200);
+  assert.equal((await f.call('/api/data','GET',undefined,f.admin)).status,401);
+  const data=await(await f.call('/api/data','GET',undefined,second.token)).json();
+  assert.equal(data.places.find(p=>p.id==='taipei-101').note,'Existing production note');
+  assert.equal((await f.call('/api/places/taipei-101/state','PUT',{version:1,status_id:'want',note:'Still editable'},second.token)).status,200);
+  assert.equal((await f.call('/api/admin/users/'+second.id,'PUT',{role:'viewer'},second.token)).status,409);
+  assert.equal((await f.call('/api/admin/users/'+second.id,'PUT',{disabled:true},second.token)).status,409);
+  assert.equal(f.DB.sqlite.prepare('PRAGMA foreign_key_check').all().length,0);
+ }finally{f.DB.close()}
+});
+
+test('simultaneous admin deletions or deletion and demotion leave an active admin',async()=>{
+ for(const method of ['DELETE','PUT']){
+  const f=await fixture();try{
+   const second=await f.add('second-admin','admin');
+   const results=await Promise.all([
+    f.call('/api/admin/users/trip-shared','DELETE',undefined,second.token),
+    f.call('/api/admin/users/'+second.id,method,method==='PUT'?{role:'viewer'}:undefined,f.admin)
+   ]);
+   assert.equal(results.filter(r=>r.status===200).length,1);
+   assert.ok(results.some(r=>[401,403,409].includes(r.status)));
+   assert.equal(f.DB.sqlite.prepare("SELECT COUNT(*) n FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.role='admin' AND u.disabled=0").get().n,1);
+  }finally{f.DB.close()}
+ }
+});
+
+test('viewers and editors can link their own Telegram; Telegram-only users can add password login',async()=>{
+ const f=await fixture();try{
+  const context={telegramKeys:keySet};
+  for(const [i,user] of [await f.add('reader'),await f.add('writer','editor')].entries()){
+   const {nonce}=await(await f.call('/api/auth/telegram/challenge','POST',{purpose:'link'},user.token,context)).json();
+   assert.equal((await f.call('/api/auth/telegram/link','POST',{nonce,id_token:await telegramToken(nonce,{sub:'11111111'+i})},user.token,context)).status,200);
+   const data=await(await f.call('/api/data','GET',undefined,user.token)).json();assert.equal(data.user.telegram_linked,true);
+  }
+  let {nonce}=await(await f.call('/api/auth/telegram/challenge','POST',{},'',context)).json();
+  assert.equal((await f.call('/api/auth/telegram/login','POST',{nonce,id_token:await telegramToken(nonce)},'',context)).status,403);
+  assert.equal((await f.call('/api/admin/users','POST',{telegram_request:'telegram:987654321',name:'Telegram-only',role:'viewer'},f.admin)).status,201);
+  ({nonce}=await(await f.call('/api/auth/telegram/challenge','POST',{},'',context)).json());
+  const token=await f.credential(await f.call('/api/auth/telegram/login','POST',{nonce,id_token:await telegramToken(nonce)},'',context));
+  const payload={username:'telegram-user',password:'abcdef',password_confirmation:'abcdef'};
+  assert.equal((await f.call('/api/auth/password','POST',{...payload,username:'danil'},token)).status,409);
+  assert.equal((await f.call('/api/auth/password','POST',payload,token)).status,200);
+  const login=await f.call('/api/login','POST',{username:'telegram-user',password:'abcdef'});assert.equal(login.status,200);
+  const data=await(await f.call('/api/data','GET',undefined,await f.credential(login))).json();assert.equal(data.user.telegram_linked,true);assert.equal(data.user.has_password,true);
+ }finally{f.DB.close()}
+});
+
+test('Pages origin can preflight authenticated account deletion and other origins cannot',async()=>{
+ const f=await fixture();try{
+  for(const [origin,status] of [[f.env.FRONTEND_ORIGIN,204],['https://other.example',403]]){
+   const r=await handle(new Request(f.env.APP_ORIGIN+'/api/admin/users/example',{method:'OPTIONS',headers:{Origin:origin,'Access-Control-Request-Method':'DELETE','Access-Control-Request-Headers':'authorization'}}),f.env);
+   assert.equal(r.status,status);if(status===204)assert.ok(r.headers.get('Access-Control-Allow-Methods').includes('DELETE'));
+  }
+ }finally{f.DB.close()}
+});
+
+
+test('an admin update cannot restore a password changed while the update was in flight',async()=>{
+ const f=await fixture();try{
+  const user=await f.add('reader'),hash=await passwordHash('changed-by-user');
+  let raced=false;f.env.DB={...f.DB,batch:async statements=>{
+   if(!raced){raced=true;f.DB.sqlite.prepare('UPDATE users SET password_hash=? WHERE id=?').run(hash,user.id);}
+   return f.DB.batch(statements);
+  }};
+  assert.equal((await f.call('/api/admin/users/'+user.id,'PUT',{name:'Changed',role:'editor'},f.admin)).status,409);
+  assert.equal(f.DB.sqlite.prepare('SELECT password_hash FROM users WHERE id=?').get(user.id).password_hash,hash);
+  assert.equal(f.DB.sqlite.prepare('SELECT role FROM memberships WHERE user_id=?').get(user.id).role,'viewer');
+  assert.equal((await f.call('/api/login','POST',{username:'reader',password:'changed-by-user'})).status,200);
  }finally{f.DB.close()}
 });

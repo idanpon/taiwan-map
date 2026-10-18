@@ -31,7 +31,7 @@ export function sessionToken(request,env){
 }
 export async function session(request,db,env){
  const token=sessionToken(request,env);if(!token)return null;
- return stmt(db,'SELECT u.id,u.display_name,u.username,u.auth_subject,m.role FROM sessions s JOIN users u ON u.id=s.user_id JOIN memberships m ON m.user_id=u.id AND m.trip_id=? WHERE s.token_hash=? AND s.expires_at>? AND u.disabled=0',TRIP,await sha(token),Date.now()).first();
+ return stmt(db,'SELECT u.id,u.display_name,u.username,u.auth_subject,u.password_hash IS NOT NULL has_password,m.role FROM sessions s JOIN users u ON u.id=s.user_id JOIN memberships m ON m.user_id=u.id AND m.trip_id=? WHERE s.token_hash=? AND s.expires_at>? AND u.disabled=0',TRIP,await sha(token),Date.now()).first();
 }
 export function cookie(token,secure,max=TTL,path='/'){return `tw_session=${token}; Path=${path}; HttpOnly; SameSite=Strict; Max-Age=${max}${secure?'; Secure':''}`}
 export async function issueSession(request,env,userId,{legacy=false,expectedPassword=null,expectedSubject=null}={}){
