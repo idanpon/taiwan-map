@@ -3,7 +3,7 @@ import {openDatabase,migrate} from '../server/database.mjs';import {handle,passw
 const temp=mkdtempSync(resolve(tmpdir(),'taiwan-test-'));let DB=openDatabase(resolve(temp,'test.sqlite'));migrate(DB,resolve('drizzle'));
 const env={DB,APP_PASSWORD_HASH:await passwordHash('test-password-only'),APP_ORIGIN:'https://test.example'};let cookie='';
 const call=async(path,method='GET',body,extra={},ip='test-ip')=>handle(new Request('https://test.example'+path,{method,headers:{Origin:'https://test.example',Cookie:cookie,...(body!==undefined?{'Content-Type':'application/json'}:{}),...extra},...(body!==undefined?{body:JSON.stringify(body)}:{})}),env,{clientIp:ip});
-test('authentication, seeded catalog, server persistence, custom status, isolation and conflicts',async()=>{
+test('authentication, seeded catalog, server persistence, custom status, isolation and conflicts',async t=>{
  assert.equal((await call('/api/data')).status,401);
  assert.equal((await call('/api/login','POST',{password:'wrong'})).status,401);
  assert.equal((await call('/api/login','POST',{password:'test-password-only'},{Origin:'https://evil.example'})).status,403);
@@ -25,8 +25,11 @@ test('authentication, seeded catalog, server persistence, custom status, isolati
  DB.close();DB=openDatabase(resolve(temp,'test.sqlite'));migrate(DB,resolve('drizzle'));env.DB=DB;data=await(await call('/api/data')).json();const saved=data.places.find(p=>p.id==='taipei-101');assert.equal(saved.status_id,'visited');assert.equal(saved.version,2);assert.equal(saved.note,state.note);assert.ok(data.statuses.some(s=>s.id===custom.id));
  const exported=await call('/api/export');assert.equal(exported.status,200);assert.match(exported.headers.get('content-disposition'),/attachment/);assert.ok(!(await exported.text()).includes('password_hash'));
  assert.equal((await call('/api/logout','POST')).status,200);assert.equal((await call('/api/data')).status,401);
- // Persistent per-IP rate limit, including worker/process boundaries.
+ // Keep this check in one rate-limit window, even across a wall-clock boundary.
+ t.mock.timers.enable({apis:['Date'],now:Date.now()});
  for(let i=0;i<10;i++)assert.equal((await call('/api/login','POST',{password:'wrong'},{},'rate-test')).status,401);
  assert.equal((await call('/api/login','POST',{password:'test-password-only'},{},'rate-test')).status,429);
+ t.mock.timers.tick(900000);
+ assert.equal((await call('/api/login','POST',{password:'test-password-only'},{},'rate-test')).status,200);
  DB.close();rmSync(temp,{recursive:true,force:true});
 });
