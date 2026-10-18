@@ -351,8 +351,8 @@ input[type=checkbox] { accent-color: var(--action); }
 }
 
 /* One icon shows the action available from the current theme, before JS too. */
-.theme-control button { display: grid; place-items: center; width: 44px; height: 44px; padding: 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--green); }
-.theme-control button:hover { background: var(--soft); }
+.theme-control button { display: grid; place-items: center; width: 44px; height: 44px; padding: 10px; border: 0; background: none; color: var(--green); }
+.theme-control button:hover { color: var(--ink); }
 .theme-control svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .theme-control .theme-sun, :root[data-theme=dark] .theme-control .theme-moon { display: none; }
 :root[data-theme=dark] .theme-control .theme-sun { display: block; }
