@@ -47,7 +47,15 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true})
  }
  async function refreshUsers(){
   const result=await api('/api/admin/users');
-  $('account-users').innerHTML=result.users.map(u=>`<details class="account-user"><summary>${esc(u.name)} · ${roleNames[u.role]}${u.disabled?' · отключён':''}</summary><form data-user="${esc(u.id)}"><label>Имя<input name="name" value="${esc(u.name)}" maxlength="80" required></label><label>Логин<input name="username" value="${esc(u.username||'')}" minlength="3" maxlength="40" autocomplete="off" placeholder="${u.telegram_linked?'Необязательно для Telegram':'Логин'}"></label><p class="muted">Telegram: ${u.telegram_linked?'привязан':'не привязан'}</p><label>Права<select name="role">${options(u.role)}</select></label><label>Новый пароль<input name="password" type="password" minlength="6" maxlength="256" autocomplete="new-password" placeholder="Оставьте пустым, чтобы сохранить"></label><label class="checkbox-label"><input name="disabled" type="checkbox" ${u.disabled?'checked':''}> Доступ отключён</label><button class="primary" type="submit">Сохранить</button></form></details>`).join('');
+  const actor=getData().user,activeAdmins=result.users.filter(u=>u.role==='admin'&&!u.disabled).length;
+  $('account-users').innerHTML=result.users.map(u=>{
+   const self=u.id===actor.id,lastAdmin=u.role==='admin'&&!u.disabled&&activeAdmins===1;
+   return `<details class="account-user"><summary>${esc(u.name)} · ${roleNames[u.role]}${self?' · это вы':''}${u.disabled?' · доступ отключён':''}</summary><form data-user="${esc(u.id)}" data-name="${esc(u.name)}"><label>Имя<input name="name" value="${esc(u.name)}" maxlength="80" required></label><label>Логин<input name="username" value="${esc(u.username||'')}" minlength="3" maxlength="40" autocomplete="off" placeholder="${u.telegram_linked?'Необязательно для Telegram':'Логин'}"></label><p class="muted">Telegram: ${u.telegram_linked?'привязан':'не привязан'}</p><label>Права<select name="role">${options(u.role)}</select></label>${lastAdmin?'<p class="muted">Последний активный admin: понижение прав и отключение недоступны.</p>':''}<label>Новый пароль<input name="password" type="password" minlength="6" maxlength="256" autocomplete="new-password" placeholder="Оставьте пустым, чтобы сохранить"></label><label>Повторите новый пароль<input name="password_confirmation" type="password" minlength="6" maxlength="256" autocomplete="new-password" placeholder="Если меняете пароль"></label><label class="checkbox-label"><input name="disabled" type="checkbox" ${u.disabled?'checked':''} ${self||lastAdmin?'disabled':''}> Доступ отключён${self?' (свой аккаунт отключить нельзя)':''}</label><div class="account-actions"><button class="primary" type="submit">Сохранить</button><button class="danger-button" type="button" data-delete-user ${self||lastAdmin?'disabled':''}>Удалить аккаунт</button></div></form></details>`;
+  }).join('');
+  for(const form of $('account-users').querySelectorAll('form')){
+   const user=result.users.find(u=>u.id===form.dataset.user);
+   if(user.role==='admin'&&!user.disabled&&activeAdmins===1)for(const option of form.elements.role.options)option.disabled=option.value!=='admin';
+  }
   enhancePasswordFields($('account-users'));
   $('telegram-requests').innerHTML=result.requests.length?'<h3>Заявки Telegram</h3>'+result.requests.map(u=>`<div class="telegram-request" data-request="${esc(u.subject)}"><strong>${esc(u.name)}</strong><select aria-label="Права нового участника">${options('viewer')}</select><button type="button" class="primary" data-approve>Одобрить</button><button type="button" class="text-button" data-reject>Отклонить</button></div>`).join(''):'<p class="muted">Новых заявок нет.</p>';
   $('telegram-requests').onclick=async event=>{
@@ -61,7 +69,11 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true})
  }
  $('accounts-open').onclick=async()=>{
   const user=getData()?.user;if(!user||!canOpen())return;error('');$('accounts-dialog').showModal();
-  $('account-title').textContent=user.can_setup?'Первый admin':'Профиль и пользователи';
+  $('account-title').textContent=user.can_setup?'Первый admin':user.role==='admin'?'Профиль и пользователи':'Мой профиль';
+  resetPasswordFields($('change-password'));$('change-password').reset();
+  $('own-profile').hidden=user.can_setup;$('own-profile').querySelector('h3').hidden=user.role!=='admin';
+  $('current-password-field').hidden=!user.has_password;$('change-password').elements.current_password.required=user.has_password;
+  $('own-username-field').hidden=Boolean(user.username);$('change-password').elements.username.required=!user.username;
   $('setup-account').hidden=!user.can_setup;$('admin-section').hidden=user.can_setup||user.role!=='admin';
   $('profile-description').textContent=user.can_setup?'Задайте личный логин и новый пароль. Нынешний общий пароль после настройки перестанет действовать.':`${user.name} · ${roleNames[user.role]}`;
   $('telegram-link').hidden=user.can_setup||user.telegram_linked||!authConfig.telegram_client_id;
@@ -86,15 +98,34 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true})
    form.reset();resetPasswordFields(form);await refreshUsers();toast('Пользователь добавлен.');
   }catch(e){error(e.message)}finally{button.disabled=false}
  };
+ $('change-password').onsubmit=async event=>{
+  event.preventDefault();const form=event.currentTarget,button=form.querySelector('button[type=submit]');error('');
+  if(!confirmPassword(form)){error('Пароли не совпадают.');return}button.disabled=true;
+  try{
+   await api('/api/auth/password',{method:'POST',body:JSON.stringify({current_password:form.elements.current_password.value,username:form.elements.username.value,password:form.elements.password.value,password_confirmation:form.elements.password_confirmation.value})});
+   resetPasswordFields(form);$('accounts-dialog').close();await load();toast('Пароль изменён. Войдите с новым паролем.');
+  }catch(e){error(e.message)}finally{button.disabled=false}
+ };
+ $('account-users').oninput=event=>{
+  const form=event.target.closest('form');if(form&&event.target.name==='password')form.elements.password_confirmation.required=Boolean(event.target.value);
+ };
+ $('account-users').onclick=async event=>{
+  const button=event.target.closest('[data-delete-user]');if(!button)return;
+  const form=button.closest('form');
+  if(!window.confirm(`Удалить аккаунт «${form.dataset.name}»? Вход станет недоступен. Заметки и история карты сохранятся. Это действие нельзя отменить.`))return;
+  button.disabled=true;error('');
+  try{await api('/api/admin/users/'+form.dataset.user,{method:'DELETE'});await refreshUsers();toast('Аккаунт удалён.');}
+  catch(e){error(e.message);button.disabled=false}
+ };
  $('account-users').onsubmit=async event=>{
-  event.preventDefault();const form=event.target,button=form.querySelector('button[type=submit]');button.disabled=true;error('');
+  event.preventDefault();const form=event.target,button=form.querySelector('button[type=submit]');error('');if(!confirmPassword(form)){error('Пароли не совпадают.');return}button.disabled=true;
   const payload={name:form.elements.name.value,role:form.elements.role.value,disabled:form.elements.disabled.checked};
   if(form.elements.username.value)payload.username=form.elements.username.value;
-  if(form.elements.password.value)payload.password=form.elements.password.value;
+  if(form.elements.password.value){payload.password=form.elements.password.value;payload.password_confirmation=form.elements.password_confirmation.value;}
   try{
    const result=await api('/api/admin/users/'+form.dataset.user,{method:'PUT',body:JSON.stringify(payload)});
-   form.elements.password.value='';
-   if(result.reauthenticate){$('accounts-dialog').close();await load()}
+   resetPasswordFields(form);
+   if(result.reauthenticate){$('accounts-dialog').close();await load();toast('Аккаунт обновлён. Войдите снова.');}
    else{await refreshUsers();toast('Доступ обновлён. Пользователю нужно войти заново.');}
   }catch(e){error(e.message)}finally{button.disabled=false}
  };

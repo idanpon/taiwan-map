@@ -45,7 +45,7 @@ async function handleApi(request,env,context={}){
    stmt(db,`SELECT p.*,s.status_id,s.note,COALESCE(s.version,0) version FROM places p LEFT JOIN user_place_states s ON s.place_id=p.id AND s.user_id=? WHERE p.trip_id=? ORDER BY p.city,p.name`,stateUser,TRIP),
    db.prepare('SELECT * FROM categories ORDER BY sort_order'),stmt(db,'SELECT id,label,color,sort_order FROM statuses WHERE trip_id=? AND archived=0 ORDER BY sort_order,label',TRIP),stmt(db,'SELECT l.* FROM place_links l JOIN places p ON p.id=l.place_id WHERE p.trip_id=?',TRIP)
   ]);
-  const data={schema_version:1,trip:{id:TRIP,name:'Тайвань',timezone:'Asia/Taipei'},state_scope:scope||'shared',user:{id:user.id,name:user.display_name,username:user.username,role:user.role==='owner'?'admin':user.role,telegram_linked:Boolean(user.auth_subject),can_setup:!scope&&user.role==='owner'},verified_at:verifiedAt,categories:cs.results,statuses:ss.results,places:ps.results.map(p=>({...p,hours:JSON.parse(p.hours_json),hours_json:undefined,note:p.note||'',links:ls.results.filter(l=>l.place_id===p.id)}))};
+  const data={schema_version:1,trip:{id:TRIP,name:'Тайвань',timezone:'Asia/Taipei'},state_scope:scope||'shared',user:{id:user.id,name:user.display_name,username:user.username,role:user.role==='owner'?'admin':user.role,telegram_linked:Boolean(user.auth_subject),has_password:Boolean(user.has_password),can_setup:!scope&&user.role==='owner'},verified_at:verifiedAt,categories:cs.results,statuses:ss.results,places:ps.results.map(p=>({...p,hours:JSON.parse(p.hours_json),hours_json:undefined,note:p.note||'',links:ls.results.filter(l=>l.place_id===p.id)}))};
   return json(data,200,path==='/api/export'?{'Content-Disposition':'attachment; filename="taiwan-map.json"'}:{});
  }
  if(path==='/api/statuses'&&request.method==='POST'){
@@ -86,8 +86,8 @@ export async function handle(request,env,context={}){
   const method=request.headers.get('access-control-request-method');
   const requested=(request.headers.get('access-control-request-headers')||'').split(',').map(h=>h.trim().toLowerCase()).filter(Boolean);
   const allowedHeaders=env.AUTH_MODE==='bearer'?['content-type','authorization']:['content-type'];
-  if(!origin||!['GET','POST','PUT'].includes(method)||requested.some(h=>!allowedHeaders.includes(h)))return json({error:'Preflight не разрешён.'},403,{'Vary':'Origin'});
-  response=new Response(null,{status:204,headers:{'Access-Control-Allow-Methods':'GET, POST, PUT','Access-Control-Allow-Headers':env.AUTH_MODE==='bearer'?'Content-Type, Authorization':'Content-Type','Access-Control-Max-Age':'600','Cache-Control':'no-store'}});
+  if(!origin||!['GET','POST','PUT','DELETE'].includes(method)||requested.some(h=>!allowedHeaders.includes(h)))return json({error:'Preflight не разрешён.'},403,{'Vary':'Origin'});
+  response=new Response(null,{status:204,headers:{'Access-Control-Allow-Methods':'GET, POST, PUT, DELETE','Access-Control-Allow-Headers':env.AUTH_MODE==='bearer'?'Content-Type, Authorization':'Content-Type','Access-Control-Max-Age':'600','Cache-Control':'no-store'}});
  }else response=await handleApi(request,env,context);
  const headers=new Headers(response.headers);headers.set('Vary','Origin');
  if(origin){headers.set('Access-Control-Allow-Origin',origin);if(env.AUTH_MODE!=='bearer')headers.set('Access-Control-Allow-Credentials','true');headers.set('Access-Control-Expose-Headers','Content-Disposition')}

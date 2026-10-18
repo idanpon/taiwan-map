@@ -1,4 +1,4 @@
-import {TRIP,SHARED_USER,body,fail,json,stmt,session,sha,random,passwordHash,verify,issueSession,limitLogin} from './auth.mjs';
+import {TRIP,SHARED_USER,body,fail,json,stmt,session,sessionToken,sha,random,passwordHash,verify,issueSession,limitLogin} from './auth.mjs';
 import {verifyTelegram} from './telegram.mjs';
 export const roles=['admin','editor','viewer'];
 export async function accountScope(db){return (await stmt(db,'SELECT value FROM app_meta WHERE key=?','accounts_v1').first())?.value||null}
@@ -14,7 +14,7 @@ const telegramClientId=env=>/^\d{1,30}$/.test(env.TELEGRAM_CLIENT_ID||'')?env.TE
 
 export async function handleAccounts(request,env,context={}){
  const db=env.DB,path=new URL(request.url).pathname,method=request.method;
- if(!['/api/login','/api/auth/config','/api/auth/setup'].includes(path)&&!path.startsWith('/api/auth/telegram/')&&!path.startsWith('/api/admin/'))return;
+ if(!['/api/login','/api/auth/config','/api/auth/setup','/api/auth/password'].includes(path)&&!path.startsWith('/api/auth/telegram/')&&!path.startsWith('/api/admin/'))return;
  const scope=await accountScope(db);
  if(path==='/api/auth/config'&&method==='GET')return json({mode:scope?'accounts':'shared',state_scope:scope,telegram_client_id:scope?telegramClientId(env):null});
  if(path==='/api/auth/setup'&&method==='POST'){
@@ -41,6 +41,19 @@ export async function handleAccounts(request,env,context={}){
   return issueSession(request,env,user.id,{expectedPassword:user.password_hash});
  }
  if(!scope)fail(409,'Сначала настройте учётную запись admin.');
+ if(path==='/api/auth/password'&&method==='POST'){
+  const actor=await requireUser(request,env),b=await body(request);
+  const value=newPassword(b),current=await stmt(db,'SELECT password_hash FROM users WHERE id=?',actor.id).first();
+  await limitLogin(db,context,{account:'password-change:'+actor.id});
+  if(current.password_hash&&(typeof b.current_password!=='string'||b.current_password.length>256||!await verify(b.current_password,current.password_hash)))fail(400,'Неверный текущий пароль.');
+  const login=actor.username||username(b.username),hash=await passwordHash(value),tokenHash=await sha(sessionToken(request,env));
+  let result;try{result=await db.batch([
+   stmt(db,`UPDATE users SET password_hash=?,username=? WHERE id=? AND disabled=0 AND password_hash IS ? AND EXISTS (SELECT 1 FROM sessions WHERE user_id=? AND token_hash=? AND expires_at>?) AND EXISTS (SELECT 1 FROM memberships WHERE trip_id=? AND user_id=?)`,hash,login,actor.id,current.password_hash,actor.id,tokenHash,Date.now(),TRIP,actor.id),
+   stmt(db,'DELETE FROM sessions WHERE user_id=? AND changes()=1',actor.id)
+  ])}catch(error){if(String(error.message).includes('UNIQUE'))fail(409,'Этот логин уже используется.');throw error}
+  if(!result[0].meta.changes)fail(409,'Данные входа изменились. Войдите снова.');
+  return json({ok:true,reauthenticate:true});
+ }
  if(path==='/api/auth/telegram/challenge'&&method==='POST'){
   if(!telegramClientId(env))fail(503,'Вход через Telegram ещё не подключён.');
   const b=await body(request),purpose=b.purpose||'login';if(!['login','link'].includes(purpose))fail(400,'Некорректное назначение входа.');
@@ -85,7 +98,7 @@ export async function handleAccounts(request,env,context={}){
   }
   if(path==='/api/admin/users'&&method==='POST'){
    const b=await body(request),name=displayName(b.name),newRole=role(b.role);
-   if((await db.prepare('SELECT COUNT(*) n FROM users').first()).n>=500)fail(409,'Достигнут лимит учётных записей.');
+   if((await stmt(db,'SELECT COUNT(*) n FROM memberships WHERE trip_id=?',TRIP).first()).n>=500)fail(409,'Достигнут лимит учётных записей.');
    let login=null,hash=null,subject=null;
    if(b.telegram_request){
     const pending=await stmt(db,'SELECT subject FROM telegram_requests WHERE subject=?',String(b.telegram_request)).first();if(!pending)fail(404,'Заявка не найдена.');subject=pending.subject;
@@ -102,15 +115,31 @@ export async function handleAccounts(request,env,context={}){
    const current=await stmt(db,'SELECT u.*,m.role FROM users u JOIN memberships m ON m.user_id=u.id AND m.trip_id=? WHERE u.id=?',TRIP,match[1]).first();if(!current)fail(404,'Пользователь не найден.');
    const b=await body(request),name=b.name===undefined?current.display_name:displayName(b.name),newRole=b.role===undefined?current.role:role(b.role);
    if(b.disabled!==undefined&&typeof b.disabled!=='boolean')fail(400,'Некорректное состояние доступа.');
-   const disabled=b.disabled===undefined?current.disabled:Number(b.disabled),login=b.username===undefined?current.username:username(b.username),hash=b.password===undefined?current.password_hash:await passwordHash(password(b.password));
+   const disabled=b.disabled===undefined?current.disabled:Number(b.disabled);
+   if(actor.id===current.id&&disabled)fail(409,'Нельзя отключить свой аккаунт.');
+   const login=b.username===undefined?current.username:username(b.username),hash=b.password===undefined?current.password_hash:await passwordHash(newPassword(b));
    if((login&&!hash)||(!current.auth_subject&&(!login||!hash)))fail(400,'Для входа по логину нужен пароль.');
    let result;try{result=await db.batch([
-    stmt(db,`UPDATE memberships SET role=? WHERE trip_id=? AND user_id=? AND ((?='admin' AND ?=0) OR role<>'admin' OR EXISTS (SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.trip_id=? AND m.role='admin' AND u.disabled=0 AND m.user_id<>?))`,newRole,TRIP,current.id,newRole,disabled,TRIP,current.id),
+    stmt(db,`UPDATE memberships SET role=? WHERE trip_id=? AND user_id=? AND role=? AND EXISTS (SELECT 1 FROM users target WHERE target.id=? AND target.password_hash IS ? AND target.disabled=? AND target.username IS ? AND target.display_name=? AND target.auth_subject IS ?) AND EXISTS (SELECT 1 FROM memberships am JOIN users a ON a.id=am.user_id WHERE am.trip_id=? AND am.user_id=? AND am.role='admin' AND a.disabled=0) AND ((?='admin' AND ?=0) OR role<>'admin' OR EXISTS (SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.trip_id=? AND m.role='admin' AND u.disabled=0 AND m.user_id<>?))`,newRole,TRIP,current.id,current.role,current.id,current.password_hash,current.disabled,current.username,current.display_name,current.auth_subject,TRIP,actor.id,newRole,disabled,TRIP,current.id),
     stmt(db,'UPDATE users SET display_name=?,username=?,password_hash=?,disabled=? WHERE id=? AND changes()=1',name,login,hash,disabled,current.id),
     stmt(db,'DELETE FROM sessions WHERE user_id=? AND changes()=1',current.id)
    ])}catch(error){if(String(error.message).includes('UNIQUE'))fail(409,'Этот логин уже используется.');throw error}
-   if(!result[0].meta.changes)fail(409,'Нельзя отключить или понизить последнего активного admin.');
+   if(!result[0].meta.changes)fail(409,'Изменения не сохранены: нельзя отключить или понизить последнего активного admin, либо данные аккаунта изменились. Обновите список.');
    return json({ok:true,reauthenticate:actor.id===current.id});
+  }
+  if(match&&method==='DELETE'){
+   if(match[1]===actor.id)fail(409,'Нельзя удалить свой аккаунт.');
+   const current=await stmt(db,'SELECT u.id FROM users u JOIN memberships m ON m.user_id=u.id AND m.trip_id=? WHERE u.id=?',TRIP,match[1]).first();if(!current)fail(404,'Пользователь не найден.');
+   // Retain the identity row for map history and the shared state owner, but
+   // erase credentials and membership. Deleting an account never deletes trip data.
+   const result=await db.batch([
+    stmt(db,`DELETE FROM memberships WHERE trip_id=? AND user_id=? AND EXISTS (SELECT 1 FROM memberships am JOIN users a ON a.id=am.user_id WHERE am.trip_id=? AND am.user_id=? AND am.role='admin' AND a.disabled=0) AND (role<>'admin' OR EXISTS (SELECT 1 FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.trip_id=? AND m.role='admin' AND u.disabled=0 AND m.user_id<>?))`,TRIP,current.id,TRIP,actor.id,TRIP,current.id),
+    stmt(db,`UPDATE users SET display_name='Удалённый пользователь',username=NULL,password_hash=NULL,auth_subject=NULL,disabled=1 WHERE id=? AND NOT EXISTS (SELECT 1 FROM memberships WHERE user_id=?)`,current.id,current.id),
+    stmt(db,'DELETE FROM sessions WHERE user_id=? AND NOT EXISTS (SELECT 1 FROM memberships WHERE user_id=?)',current.id,current.id),
+    stmt(db,'DELETE FROM auth_challenges WHERE user_id=? AND NOT EXISTS (SELECT 1 FROM memberships WHERE user_id=?)',current.id,current.id)
+   ]);
+   if(!result[0].meta.changes)fail(409,'Нельзя удалить последнего активного admin. Обновите список пользователей.');
+   return json({ok:true});
   }
   if(path==='/api/admin/telegram-requests/reject'&&method==='POST'){
    const b=await body(request);await stmt(db,'DELETE FROM telegram_requests WHERE subject=?',String(b.subject||'')).run();return json({ok:true});
