@@ -1,11 +1,13 @@
+import {installDialogBackdrop} from './dialogs.js';
 export function createPlaceLifecycleUI({api,$,esc,getData,onChange,canOpen,canChange,toast,onBusy=()=>{}}){
  let hidden=[],busy=false,loading=false,sequence=0;
  const dialog=$('hidden-places-dialog');
+ installDialogBackdrop(dialog,{canClose:()=>!busy});
  const allowed=()=>['admin','editor'].includes(getData()?.user.role);
  function render(){
   $('hidden-places-list').innerHTML=loading?'<p class="muted">Загрузка скрытых мест…</p>':hidden.length?hidden.map(p=>{
    const category=getData()?.categories.find(c=>c.id===p.category_id),status=getData()?.statuses.find(s=>s.id===p.status_id);
-   return `<article class="hidden-place" data-hidden-place="${esc(p.id)}"><h3>${esc(p.name)}</h3><p class="muted">${esc(p.city)} · ${esc(category?.label||'')}</p>${status?`<p>Статус: ${esc(status.label)}</p>`:''}${p.note?`<p class="hidden-place-note">${esc(p.note)}</p>`:''}<a target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name+' '+p.address)}">Открыть в Google Maps ↗</a><div class="place-actions"><button type="button" class="primary" data-restore-place ${busy?'disabled':''}>Вернуть на карту</button><button type="button" class="danger-button" data-delete-place ${busy?'disabled':''}>Удалить навсегда</button></div></article>`;
+   return `<article class="hidden-place" data-hidden-place="${esc(p.id)}"><h3>${esc(p.name)}</h3><p class="muted">${esc(p.city)} · ${esc(category?.label||'')}</p>${status?`<p>Статус: ${esc(status.label)}</p>`:''}${p.note?`<p class="hidden-place-note">${esc(p.note)}</p>`:''}<a target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name+' '+p.address)}">Открыть в Google Maps ↗</a><div class="place-actions"><button type="button" class="primary" data-restore-place ${busy?'disabled':''}>Вернуть на карту</button><button type="button" class="text-button" data-delete-place ${busy?'disabled':''}>Удалить</button></div></article>`;
   }).join(''):'<p class="muted">Скрытых мест нет.</p>';
  }
  async function refresh(){
@@ -15,14 +17,14 @@ export function createPlaceLifecycleUI({api,$,esc,getData,onChange,canOpen,canCh
  }
  async function change(place,action){
   if(!allowed()||busy||loading)return;
-  const permanent=action==='delete',question=permanent?`Удалить «${place.name}» навсегда? Место, его статусы, заметки и история будут удалены с сервера для всех участников. Восстановить их в приложении нельзя.`:null;
+  const permanent=action==='delete',question=permanent?`Удалить «${place.name}»? Место, его статусы, заметки и история будут удалены для всех участников. Восстановить их в приложении нельзя.`:null;
   if(!canChange(place,question))return;
   busy=true;onBusy(true);$('hidden-places-error').textContent='';if(dialog.open)render();
   for(const button of $('detail').querySelectorAll('[data-place-action]'))button.disabled=true;
   try{
    const saved=await api('/api/places/'+encodeURIComponent(place.id)+(permanent?'':'/visibility'),{method:permanent?'DELETE':'PUT',body:JSON.stringify({version:place.visibility_version,...(permanent?{}:{hidden:action==='hide'})})});
    Object.assign(place,saved);hidden=hidden.filter(p=>p.id!==place.id);await onChange(place,action);if(dialog.open)await refresh();
-   toast(permanent?'Место удалено навсегда.':action==='hide'?'Место скрыто. Вернуть его можно из раздела «Скрытые места».':'Место возвращено на карту.');
+   toast(permanent?'Место удалено.':action==='hide'?'Место скрыто. Вернуть его можно из раздела «Скрытые места».':'Место возвращено на карту.');
   }catch(error){
    if(dialog.open)$('hidden-places-error').textContent=error.message;else toast(error.message);
    if(dialog.open&&[404,409].includes(error.status))try{await refresh()}catch{}

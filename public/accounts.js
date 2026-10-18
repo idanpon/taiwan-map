@@ -1,7 +1,9 @@
+import {installDialogBackdrop} from './dialogs.js';
 import {installPasswordFields,enhancePasswordFields,confirmPassword,resetPasswordFields} from './password-fields.js';
 const roleNames={admin:'Admin',editor:'Редактирование',viewer:'Просмотр'};
 export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true}){
  installPasswordFields(document);
+ installDialogBackdrop($('accounts-dialog'));
  let authConfig={mode:'shared',telegram_client_id:null},sdkPromise;
  const options=selected=>Object.entries(roleNames).map(([id,name])=>`<option value="${id}" ${id===selected?'selected':''}>${name}</option>`).join('');
  function error(message){$('account-error').textContent=message}

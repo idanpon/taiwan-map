@@ -17,7 +17,7 @@ and has only standard OSM raster tiles and attribution.
 `theme-init.js` is a small, blocking head script before all CSS. It selects a
 stored light/dark preference or the system preference and applies color-scheme
 and the browser theme color before the body renders. `theme.js` synchronizes
-the login and app selectors. System changes apply until a manual choice is
+the login and app theme buttons. System changes apply until a manual choice is
 made. Storage failures do not disable the controls. Shared CSS variables cover
 the login, panels, dialogs, forms, markers' tooltips and map controls. Category
 and status colors/symbols/opacity remain data-owned; text contrast can use a
@@ -31,7 +31,7 @@ accuracy geometry. `setStyle` retains the camera explicitly; DOM markers and
 the user marker persist, and the accuracy source/layers are restored on
 `style.load`. Theme/provider changes do not call `load`, rebuild forms or
 reload the page. Without MapLibre/WebGL, the list and Google Maps links remain
-available; mobile opens the list automatically.
+available; mobile keeps the map view with an explicit action to open the list.
 
 ## Failure decisions
 
