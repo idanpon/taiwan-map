@@ -23,7 +23,8 @@ const server=http.createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,origin);let response;
   if(url.pathname.startsWith('/api/')){
-   let size=0,chunks=[];for await(const chunk of req){size+=chunk.length;if(size>8192){res.writeHead(413,{'Content-Type':'application/json'});res.end('{"error":"Слишком большой запрос."}');return}chunks.push(chunk)}
+   const maxBytes=/^\/api\/places\/[a-zA-Z0-9-]+\/state$/.test(url.pathname)?32768:8192;
+   let size=0,chunks=[];for await(const chunk of req){size+=chunk.length;if(size>maxBytes){res.writeHead(413,{'Content-Type':'application/json'});res.end('{"error":"Слишком большой запрос."}');return}chunks.push(chunk)}
    const headers=new Headers();for(const [k,v] of Object.entries(req.headers))if(v!==undefined)headers.set(k,Array.isArray(v)?v.join(','):v);
    const request=new Request(url,{method:req.method,headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})});
    const clientIp=process.env.TRUST_PROXY==='1'?headers.get('x-real-ip')||'unknown':req.socket.remoteAddress||'unknown';

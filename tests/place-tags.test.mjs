@@ -103,3 +103,47 @@ test('help documents tags, inclusive Taiwan dates, booking, disclosure, OR/AND a
  const text=helpContent({categories:[],user:{role:'viewer'}},esc);
  for(const term of ['Дополнительные ярлыки','Фотоспот','Ограничено по датам','Нужна бронь','Показать расписание','Событие завершилось','Asia/Taipei','ИЛИ','И между группами','управляющий аккаунт ChatGPT','Самостоятельное добавление мест через интерфейс сайта пока недоступно'])assert.ok(text.includes(term),term);
 });
+
+test('one state request atomically saves tags, status and note, retaining legacy state-only clients',async()=>{
+ const f=await fixture();try{
+  let response=await f.call('/api/places/taipei-101/state','PUT',{version:0,status_id:'visited',note:'All fields together',tags:example,tags_version:1},'editor');assert.equal(response.status,200);let saved=await response.json();assert.equal(saved.version,1);assert.equal(saved.tags_version,2);assert.deepEqual(saved.tags,mergeTags(undefined,example));
+  let p=(await(await f.call('/api/data','GET',undefined,'editor')).json()).places.find(p=>p.id==='taipei-101');assert.equal(p.note,'All fields together');assert.equal(p.status_id,'visited');assert.equal(p.tags.photoSpot,true);assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM state_events').get().n,1);
+  response=await f.call('/api/places/taipei-101/state','PUT',{version:1,status_id:null,note:'Legacy state save'},'editor');assert.equal(response.status,200);
+  p=(await(await f.call('/api/data','GET',undefined,'editor')).json()).places.find(p=>p.id==='taipei-101');assert.equal(p.tags_version,2);assert.equal(p.tags.photoSpot,true);assert.equal(p.version,2);
+ }finally{f.DB.close()}
+});
+test('stale note or tag versions, invalid metadata and viewer access never partially save a combined request',async()=>{
+ const f=await fixture();try{
+  const path='/api/places/taipei-101/state',payload={version:0,status_id:'visited',note:'Keep atomic',tags:example,tags_version:1};
+  assert.equal((await f.call(path,'PUT',payload,'viewer')).status,403);
+  assert.equal((await f.call(path,'PUT',{...payload,tags:{limitedDates:{endDate:'bad'}}})).status,400);
+  assert.equal((await f.call(path,'PUT',payload)).status,200);
+  const tables=['places','user_place_states','state_events'],before=tables.map(t=>f.DB.sqlite.prepare('SELECT * FROM '+t+' ORDER BY rowid').all());
+  for(const stale of [{...payload,version:0,tags_version:2},{...payload,version:1,tags_version:1}]){assert.equal((await f.call(path,'PUT',stale)).status,409);for(const [i,t] of tables.entries())assert.deepEqual(f.DB.sqlite.prepare('SELECT * FROM '+t+' ORDER BY rowid').all(),before[i])}
+ }finally{f.DB.close()}
+});
+test('a concurrent tag update after validation rolls back the entire note/status/history transaction',async()=>{
+ const f=await fixture();try{
+  const batch=f.DB.batch;let injected=false;
+  f.DB.batch=(statements,options)=>{if(options?.validate&&!injected){injected=true;f.DB.sqlite.prepare('UPDATE places SET tags_json=?,tags_version=2 WHERE id=?').run(JSON.stringify({reservation:{enabled:true,url:'https://example.com/new'}}),'taipei-101')}return batch(statements,options)};
+  const result=await f.call('/api/places/taipei-101/state','PUT',{version:0,status_id:'visited',note:'Must roll back',tags:{photoSpot:true},tags_version:1});assert.equal(result.status,409);
+  for(const table of ['user_place_states','state_events'])assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM '+table).get().n,0);
+  const p=f.DB.sqlite.prepare('SELECT tags_json,tags_version FROM places WHERE id=?').get('taipei-101');assert.equal(p.tags_version,2);assert.equal(readTags(p.tags_json).reservation.enabled,true);assert.equal(readTags(p.tags_json).photoSpot,false);
+ }finally{f.DB.close()}
+});
+test('even an ignored or failed tag write rolls back the already-applied note and history',async()=>{
+ for(const action of ["IGNORE","ABORT,'simulated failure'"]){const f=await fixture();try{
+  f.DB.sqlite.exec(`CREATE TRIGGER reject_tag_write BEFORE UPDATE OF tags_json ON places BEGIN SELECT RAISE(${action}); END`);
+  const result=await f.call('/api/places/taipei-101/state','PUT',{version:0,status_id:'visited',note:'Must roll back',tags:{photoSpot:true},tags_version:1});assert.equal(result.status,action==='IGNORE'?409:500);
+  for(const table of ['user_place_states','state_events'])assert.equal(f.DB.sqlite.prepare('SELECT count(*) n FROM '+table).get().n,0);
+  assert.equal(f.DB.sqlite.prepare('SELECT tags_version FROM places WHERE id=?').get('taipei-101').tags_version,1);
+ }finally{f.DB.close()}}
+});
+test('the bounded combined request accepts full multilingual note and schedule while other routes keep their smaller limit',async()=>{
+ const f=await fixture();try{
+  const data={version:0,status_id:null,note:'字'.repeat(2000),tags:{limitedDates:{enabled:true,scheduleText:'時'.repeat(2000)}},tags_version:1};assert.ok(Buffer.byteLength(JSON.stringify(data))>8192);
+  assert.equal((await f.call('/api/places/taipei-101/state','PUT',data)).status,200);
+  assert.equal((await f.call('/api/places/taipei-101/state','PUT',{...data,padding:'a'.repeat(32768)})).status,413);
+  assert.equal((await f.call('/api/places/taipei-101/tags','PUT',{version:2,tags:{},padding:'a'.repeat(8192)})).status,413);
+ }finally{f.DB.close()}
+});

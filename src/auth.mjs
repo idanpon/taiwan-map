@@ -16,11 +16,11 @@ export async function verify(password,stored) {
 export class Problem extends Error {constructor(status,message){super(message);this.status=status;}}
 export const fail=(status,message)=>{throw new Problem(status,message)};
 export function json(data,status=200,headers={}){return new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...headers}})}
-export async function body(request){
+export async function body(request,maxBytes=8192){
  if(!request.headers.get('content-type')?.startsWith('application/json'))fail(415,'Нужен JSON.');
- if(Number(request.headers.get('content-length'))>8192)fail(413,'Слишком большой запрос.');
+ if(Number(request.headers.get('content-length'))>maxBytes)fail(413,'Слишком большой запрос.');
  const reader=request.body?.getReader();let size=0,chunks=[];
- if(reader)while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>8192){await reader.cancel();fail(413,'Слишком большой запрос.')}chunks.push(value)}
+ if(reader)while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>maxBytes){await reader.cancel();fail(413,'Слишком большой запрос.')}chunks.push(value)}
  const bytes=new Uint8Array(size);let offset=0;for(const c of chunks){bytes.set(c,offset);offset+=c.length}
  try{const value=JSON.parse(new TextDecoder().decode(bytes));if(!value||Array.isArray(value)||typeof value!=='object')fail(400,'Нужен JSON-объект.');return value}catch{fail(400,'Некорректный JSON-объект.')}
 }
