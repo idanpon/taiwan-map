@@ -7,15 +7,18 @@ export async function buildPages({output=resolve('dist'),apiBase='',customDomain
  if(!['cookie','bearer'].includes(authMode))throw new Error('PAGES_AUTH_MODE must be cookie or bearer');
  if(apiBase){const url=new URL(apiBase);const normalized=url.origin+url.pathname.replace(/\/$/,'');if(url.protocol!=='https:'||normalized!==apiBase||url.search||url.hash||url.username||url.password||!/^[a-zA-Z0-9/_-]*$/.test(url.pathname))throw new Error('PAGES_API_BASE must be an HTTPS URL with an optional simple path prefix, no trailing slash or credentials');}
  if(customDomain&&!/^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$/.test(customDomain))throw new Error('Invalid PAGES_CUSTOM_DOMAIN');
+ const vendor=new URL('../public/vendor/maplibre-6.15.0/',import.meta.url),manifest=JSON.parse(await readFile(new URL('manifest.json',vendor),'utf8'));
+ if(manifest.version!=='6.15.0')throw new Error('Unexpected MapLibre version');
+ for(const [name,expected] of Object.entries(manifest.sha256))if(createHash('sha256').update(await readFile(new URL(name,vendor))).digest('hex')!==expected)throw new Error('MapLibre integrity mismatch: '+name);
  output=resolve(output);const root=fileURLToPath(new URL('..',import.meta.url));
  if(output===resolve(root)||resolve(root,'public').startsWith(output+'/'))throw new Error('Unsafe output directory');
  await rm(output,{recursive:true,force:true});await mkdir(output,{recursive:true});await cp(new URL('../public/',import.meta.url),output,{recursive:true});
- const assetNames=['app.js','api-client.js','style.css','accounts.js','password-fields.js','map-model.js','statuses.js','categories.js','help.js'];
+ const assetNames=['app.js','api-client.js','style.css','accounts.js','password-fields.js','map-model.js','statuses.js','categories.js','help.js','theme-init.js','theme.js','map-config.js','basemap.js','map-view.js'];
  const assets=Object.fromEntries(await Promise.all(assetNames.map(async name=>[name,await readFile(new URL('../public/'+name,import.meta.url),'utf8')])));
- const version=Object.values(assets).reduce((hash,source)=>hash.update(source),createHash('sha256').update(page).update(JSON.stringify({apiBase,authMode,customDomain}))).digest('hex').slice(0,12);
+ const version=Object.values(assets).reduce((hash,source)=>hash.update(source),createHash('sha256').update(page).update(JSON.stringify(manifest)).update(JSON.stringify({apiBase,authMode,customDomain}))).digest('hex').slice(0,12);
  const csp=securityHeaders['Content-Security-Policy'].replace(/; frame-ancestors[^;]*/,'').replace("connect-src 'self'",`connect-src 'self'${apiBase?' '+new URL(apiBase).origin:''}`);
  // Relative files support both /taiwan-map/ and a custom domain root.
- const html=page.replace(/(href|src)="\/(?!api\/)/g,'$1="./').replace(/((?:href|src)="\.\/(?:app\.js|style\.css|config\.js))"/g,`$1?v=${version}"`).replace('<meta name="theme-color"',`<meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="referrer" content="strict-origin-when-cross-origin"><meta name="theme-color"`);
+ const html=page.replace(/(href|src)="\/(?!api\/)/g,'$1="./').replace(/((?:href|src)="\.\/(?:app\.js|style\.css|config\.js|theme-init\.js))"/g,`$1?v=${version}"`).replace('<meta name="theme-color"',`<meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="referrer" content="strict-origin-when-cross-origin"><meta name="theme-color"`);
  await writeFile(resolve(output,'index.html'),html);
  for(const [name,source] of Object.entries(assets))if(name.endsWith('.js')){
   const versioned=source.replace(/from '(\.\/[a-z-]+\.js)'/g,(original,path)=>assets[path.slice(2)]?`from '${path}?v=${version}'`:original);
