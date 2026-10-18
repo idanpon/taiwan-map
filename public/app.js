@@ -29,11 +29,12 @@ function closeDetail(restoreFocus=false){
 }
 function getCategory(p){return data.categories.find(c=>c.id===p.category_id)}
 // Display palette also recognizes the custom status by its user-facing name.
-const statusColors={hype:'#dc2626',want:'#15803d',maybe:'#facc15',visited:'#6b7280'};
+const statusColors={hype:'#dc2626',want:'#1456e0',maybe:'#facc15',visited:'#6b7280'};
 const statusSymbols={want:'!',visited:'✓',maybe:'?'};
 function getStatus(p){
  const value=data.statuses.find(s=>s.id===p.status_id);if(!value)return undefined;
- const key=value.label.trim().toLocaleLowerCase('ru-RU')==='хайп'?'hype':value.id;
+ const label=value.label.normalize('NFKC').toLocaleLowerCase('ru-RU').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+ const key=label==='хайп'||label==='hype'?'hype':value.id;
  const color=statusColors[key]||value.color;
  return {...value,color,symbol:statusSymbols[key]||'',symbolColor:key==='maybe'?'#422006':'#ffffff',textColor:key==='maybe'?'#806000':color};
 }

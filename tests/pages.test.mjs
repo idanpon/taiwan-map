@@ -5,12 +5,13 @@ test('Pages build supports repository subpaths and publishes no server code or c
  try{
   await buildPages({output,apiBase:'https://taiwan-api.example.com',customDomain:'taiwan.example.com'});
   const html=await readFile(join(output,'index.html'),'utf8'),config=await readFile(join(output,'config.js'),'utf8');
-  assert.ok(html.includes('src="./config.js"'));assert.ok(html.includes('src="./app.js"'));assert.ok(html.includes('href="./style.css"'));assert.ok(html.includes("connect-src 'self' https://taiwan-api.example.com"));assert.ok(!html.includes('frame-ancestors'));
-  for(const match of html.matchAll(/(?:src|href)="(\.\/[^"#]*)"/g)){const file=match[1].slice(2);if(file)await readFile(join(output,file))}
-  assert.ok(config.includes('"requiresApi":true'));assert.ok(config.includes('"authMode":"bearer"'));assert.ok(html.includes('type="module" src="./app.js"'));await readFile(join(output,'api-client.js'));assert.ok(!html.includes('passwordHash'));assert.ok(!html.includes('APP_PASSWORD_HASH'));
+  const version=html.match(/app\.js\?v=([a-f0-9]{12})/)[1];
+  assert.ok(html.includes('src="./config.js?v='+version+'"'));assert.ok(html.includes('src="./app.js?v='+version+'"'));assert.ok(html.includes('href="./style.css?v='+version+'"'));assert.ok(html.includes("connect-src 'self' https://taiwan-api.example.com"));assert.ok(!html.includes('frame-ancestors'));
+  for(const match of html.matchAll(/(?:src|href)="(\.\/[^"#]*)"/g)){const file=match[1].slice(2).split('?')[0];if(file)await readFile(join(output,file))}
+  assert.ok(config.includes('"requiresApi":true'));assert.ok(config.includes('"authMode":"bearer"'));assert.ok(html.includes('type="module" src="./app.js?v='));assert.ok((await readFile(join(output,'app.js'),'utf8')).includes("from './api-client.js?v="+version+"'"));await readFile(join(output,'api-client.js'));assert.ok(!html.includes('passwordHash'));assert.ok(!html.includes('APP_PASSWORD_HASH'));
   const names=await readdir(output);for(const forbidden of ['src','server','drizzle','places.mjs','.env'])assert.ok(!names.includes(forbidden));assert.equal(await readFile(join(output,'CNAME'),'utf8'),'taiwan.example.com\n');
   await assert.rejects(buildPages({output,apiBase:'http://untrusted.example'}));await buildPages({output,apiBase:'https://api.example.com/taiwan',authMode:'cookie'});assert.ok((await readFile(join(output,'config.js'),'utf8')).includes('https://api.example.com/taiwan'));assert.ok((await readFile(join(output,'config.js'),'utf8')).includes('"authMode":"cookie"'));assert.ok((await readFile(join(output,'index.html'),'utf8')).includes("connect-src 'self' https://api.example.com"));await assert.rejects(buildPages({output,authMode:'invalid'}));await assert.rejects(buildPages({output,apiBase:'https://api.example.com/path?token=no'}));await assert.rejects(buildPages({output,customDomain:'bad\nexample.com'}));
-  await buildPages({output});assert.ok((await readFile(join(output,'config.js'),'utf8')).includes('"apiBase":""'));assert.ok(!(await readdir(output)).includes('CNAME'));
+  await buildPages({output});assert.ok((await readFile(join(output,'config.js'),'utf8')).includes('"apiBase":""'));assert.ok(!(await readdir(output)).includes('CNAME'));assert.ok(!(await readFile(join(output,'index.html'),'utf8')).includes('app.js?v='+version));
  }finally{await rm(temp,{recursive:true,force:true})}
 });
 test('CLI publishes the tracked public API configuration when repository variables are unset',async()=>{
