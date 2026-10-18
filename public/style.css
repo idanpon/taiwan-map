@@ -153,6 +153,10 @@ button:disabled { opacity: .55; cursor: default; }
 .map-tools { position: absolute; right: 20px; top: 20px; z-index: 450; display: flex; gap: 8px; }
 .map-button { display: flex; align-items: center; justify-content: center; gap: 6px; background: var(--overlay); border: 1px solid var(--line); box-shadow: 0 3px 14px var(--shadow); border-radius: 7px; min-width: 42px; min-height: 42px; padding: 8px 12px; font-size: 20px; color: var(--green); }
 .map-button span { font-size: 12px; }
+.map-compass { width: 44px; padding: 10px; }
+.map-compass svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.5; transform: rotate(var(--north-bearing, 0deg)); }
+.map-compass .compass-north { fill: var(--danger); stroke: none; }
+.map-compass .compass-south { fill: currentColor; stroke: none; opacity: .55; }
 
 .pin { opacity: var(--status-opacity, 1); width: 40px; height: 40px; background: var(--category); color: white; border: 2px solid #fffcf6; border-radius: 50%; box-shadow: 0 0 0 1px #172a3c66, 0 3px 9px #13283866; position: relative; display: grid; place-items: center; }
 .pin svg { width: 19px; height: 19px; }
@@ -396,6 +400,7 @@ input[type=checkbox] { accent-color: var(--action); }
  .help-entry { width: 44px; padding: 0; }
  .help-entry > span { display: none; }
  .map-heading { max-width: calc(100% - 136px); }
+ .map-area:has(.map-compass:not([hidden])) .map-heading { max-width: calc(100% - 188px); }
 }
 @media (max-width: 600px) {
  .topbar .brand { width: 32px; flex: none; }
