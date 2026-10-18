@@ -1,4 +1,4 @@
-'use strict';
+import {createApiClient} from './api-client.js';
 const $=id=>document.getElementById(id);
 const config=window.TAIWAN_CONFIG||{apiBase:'',requiresApi:false};
 let apiBase='',configurationError='';
@@ -13,7 +13,9 @@ const icon=name=>`<svg viewBox="0 0 24 24" aria-hidden="true">${shapes[name]||sh
 let data,map,layers,positionLayer,accuracyLayer,selected=null,city='',types=new Set(),status='',query='',dirty=false,busy=false,lastZoomGroup=false;
 let toastTimer;
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5500)}
-async function api(path,options={}){if(configurationError)throw new Error(configurationError);const response=await fetch(apiBase+path,{credentials:'include',...options,headers:{...(options.body?{'Content-Type':'application/json'}:{}),...options.headers}});let b;try{b=await response.json()}catch{throw new Error('Сервер вернул неожиданный ответ.')}if(!response.ok){if(response.status===401&&path!='/api/login')showLogin();const e=new Error(b.error||'Не удалось выполнить запрос.');e.status=response.status;throw e}return b}
+let sessionStorageForApp;try{sessionStorageForApp=window.sessionStorage}catch{}
+const transport=createApiClient({apiBase,authMode:config.authMode||'cookie',storage:sessionStorageForApp,onUnauthorized:()=>showLogin()});
+async function api(path,options={}){if(configurationError)throw new Error(configurationError);return transport(path,options)}
 async function exportData(event){event.preventDefault();try{const content=await api('/api/export');const blob=new Blob([JSON.stringify(content,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='taiwan-map.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(e){toast(e.message)}}
 function showLogin(){$('application').hidden=true;$('login').hidden=false;data=null;selected=null;dirty=false;if(map){map.remove();map=null}}
 function getCategory(p){return data.categories.find(c=>c.id===p.category_id)}

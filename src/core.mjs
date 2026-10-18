@@ -42,8 +42,12 @@ async function seed(db){
  }
  q.push(stmt(db,'INSERT OR IGNORE INTO app_meta(key,value) VALUES(?,?)','seed_v1',verifiedAt));await db.batch(q);
 }
-async function session(request,db){
- const token=request.headers.get('cookie')?.match(/(?:^|;\s*)tw_session=([a-f0-9]{64})(?:;|$)/)?.[1];if(!token)return null;
+function sessionToken(request,env){
+ if(env.AUTH_MODE==='bearer')return request.headers.get('authorization')?.match(/^Bearer ([a-f0-9]{64})$/i)?.[1]?.toLowerCase();
+ return request.headers.get('cookie')?.match(/(?:^|;\s*)tw_session=([a-f0-9]{64})(?:;|$)/)?.[1];
+}
+async function session(request,db,env){
+ const token=sessionToken(request,env);if(!token)return null;
  return stmt(db,'SELECT u.id,u.display_name,m.role FROM sessions s JOIN users u ON u.id=s.user_id JOIN memberships m ON m.user_id=u.id AND m.trip_id=? WHERE s.token_hash=? AND s.expires_at>?',TRIP,await sha(token),Date.now()).first();
 }
 function cookie(token,secure,max=TTL,path='/'){return `tw_session=${token}; Path=${path}; HttpOnly; SameSite=Strict; Max-Age=${max}${secure?'; Secure':''}`}
@@ -64,12 +68,13 @@ async function handleApi(request,env,context={}){
   if(!await verify(b.password,env.APP_PASSWORD_HASH))fail(401,'Неверный пароль.');
   await seed(db);const token=random();
   await db.batch([stmt(db,'DELETE FROM sessions WHERE expires_at<?',now),stmt(db,'DELETE FROM login_attempts WHERE expires_at<?',now),stmt(db,'INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)',await sha(token),USER,now+TTL*1000)]);
+  if(env.AUTH_MODE==='bearer')return json({ok:true,token,expires_at:now+TTL*1000});
   return json({ok:true},200,{'Set-Cookie':cookie(token,secure,TTL,env.SESSION_COOKIE_PATH||'/')});
  }
- const user=await session(request,db);if(!user)fail(401,'Войдите, чтобы открыть карту.');
+ const user=await session(request,db,env);if(!user)fail(401,'Войдите, чтобы открыть карту.');
  if(path==='/api/logout'&&request.method==='POST'){
-  const token=request.headers.get('cookie')?.match(/tw_session=([a-f0-9]{64})/)?.[1];if(token)await stmt(db,'DELETE FROM sessions WHERE token_hash=?',await sha(token)).run();
-  return json({ok:true},200,{'Set-Cookie':cookie('',secure,0,env.SESSION_COOKIE_PATH||'/')});
+  const token=sessionToken(request,env);if(token)await stmt(db,'DELETE FROM sessions WHERE token_hash=?',await sha(token)).run();
+  return json({ok:true},200,env.AUTH_MODE==='bearer'?{}:{'Set-Cookie':cookie('',secure,0,env.SESSION_COOKIE_PATH||'/')});
  }
  if((path==='/api/data'||path==='/api/export')&&request.method==='GET'){
   const [ps,cs,ss,ls]=await db.batch([
@@ -115,10 +120,11 @@ export async function handle(request,env,context={}){
  if(request.method==='OPTIONS'){
   const method=request.headers.get('access-control-request-method');
   const requested=(request.headers.get('access-control-request-headers')||'').split(',').map(h=>h.trim().toLowerCase()).filter(Boolean);
-  if(!origin||!['GET','POST','PUT'].includes(method)||requested.some(h=>h!=='content-type'))return json({error:'Preflight не разрешён.'},403,{'Vary':'Origin'});
-  response=new Response(null,{status:204,headers:{'Access-Control-Allow-Methods':'GET, POST, PUT','Access-Control-Allow-Headers':'Content-Type','Access-Control-Max-Age':'600','Cache-Control':'no-store'}});
+  const allowedHeaders=env.AUTH_MODE==='bearer'?['content-type','authorization']:['content-type'];
+  if(!origin||!['GET','POST','PUT'].includes(method)||requested.some(h=>!allowedHeaders.includes(h)))return json({error:'Preflight не разрешён.'},403,{'Vary':'Origin'});
+  response=new Response(null,{status:204,headers:{'Access-Control-Allow-Methods':'GET, POST, PUT','Access-Control-Allow-Headers':env.AUTH_MODE==='bearer'?'Content-Type, Authorization':'Content-Type','Access-Control-Max-Age':'600','Cache-Control':'no-store'}});
  }else response=await handleApi(request,env,context);
  const headers=new Headers(response.headers);headers.set('Vary','Origin');
- if(origin){headers.set('Access-Control-Allow-Origin',origin);headers.set('Access-Control-Allow-Credentials','true');headers.set('Access-Control-Expose-Headers','Content-Disposition')}
+ if(origin){headers.set('Access-Control-Allow-Origin',origin);if(env.AUTH_MODE!=='bearer')headers.set('Access-Control-Allow-Credentials','true');headers.set('Access-Control-Expose-Headers','Content-Disposition')}
  return new Response(response.body,{status:response.status,headers});
 }

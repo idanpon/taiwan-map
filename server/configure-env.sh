@@ -19,7 +19,7 @@ env_temp="$(mktemp /etc/.taiwan-map.env.XXXXXX)"
 trap 'rm -f -- "$env_temp"' EXIT
 {
  printf '%s\n' "$hash_line"
- printf '%s\n' 'APP_ORIGIN=https://svobodadlaseti.shop' 'FRONTEND_ORIGIN=https://taiwan.svobodadlaseti.shop' 'SESSION_COOKIE_PATH=/taiwan/api' 'TRUST_PROXY=0'
+ printf '%s\n' 'APP_ORIGIN=https://taiwan-api.example.net' 'FRONTEND_ORIGIN=https://idanpon.github.io' 'AUTH_MODE=bearer' 'SESSION_COOKIE_PATH=/api' 'TRUST_PROXY=0'
 } > "$env_temp"
 unset hash_line
 chmod 600 "$env_temp"

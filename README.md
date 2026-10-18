@@ -10,25 +10,27 @@
 
 ## Схема размещения
 
-| Компонент | Предлагаемый адрес |
+| Компонент | Адрес |
 |---|---|
-| Интерфейс | `https://taiwan.svobodadlaseti.shop` → GitHub Pages |
-| API base | `https://svobodadlaseti.shop/taiwan` |
-| Пример endpoint | `https://svobodadlaseti.shop/taiwan/api/data` |
+| Интерфейс | `https://idanpon.github.io/taiwan-map/` |
+| API | Отдельный HTTPS hostname VPS; собственный домен для интерфейса не нужен |
 | API-процесс | `127.0.0.1:18080`, Node.js 24 + SQLite, systemd |
 
-Caddy уже обслуживает основной домен на внутреннем `127.0.0.1:8444`. В его существующий site добавляется `handle_path /taiwan/*`, который снимает `/taiwan` и проксирует `/api/...` на API-процесс. Это использует действующие домен, сертификат и SNI-маршрут. Точный порядок маршрутов и отсутствие занятого `/taiwan/*` ещё нужно проверить. Шаблон — `server/Caddy-route.snippet`; он не является изменением конфигурации VPS.
+Для API можно использовать технический hostname с IP на sslip.io. До подключения необходимо проверить DNS, маршрутизацию nginx/Caddy и выпуск сертификата. Это зависимость от внешнего DNS-сервиса; при смене IP потребуется изменить адрес API. Домен знакомого не используется. Ранее добавленный маршрут `/taiwan/*` на чужом домене нужно удалить отдельно на VPS; обновление репозитория не меняет Caddy.
 
-GitHub Pages и API имеют разные origins, но относятся к одному HTTPS site. API использует точный CORS allowlist, OPTIONS и `credentials: include`; cookie остаётся `HttpOnly; Secure; SameSite=Strict`, без Domain, с Path=/taiwan/api. Схема `github.io` + API на `svobodadlaseti.shop` будет cross-site и может не работать из-за third-party cookie restrictions. Для текущего механизма входа нужен custom domain интерфейса. Bearer-токены в localStorage и обходы настроек браузера не используются.
+В режиме `AUTH_MODE=bearer` API после проверки пароля выдаёт случайный токен на 14 дней, сервер хранит только SHA-256 токена. Клиент отправляет его в Authorization и использует `credentials: omit`. Cookie не выдаются и не принимаются в этом режиме. Поэтому сторонние cookie для работы входа не нужны. Точный CORS allowlist и проверка членства остаются обязательными.
+
+Токен сохраняется в sessionStorage этой вкладки, переживает обновление страницы; обычно после закрытия вкладки нужен новый вход (восстановление вкладок браузером может восстановить sessionStorage). Пароль не сохраняется. Если sessionStorage недоступен, токен остаётся только в памяти. Сервер отзывает сессию при выходе и проверяет срок действия. Токены никогда не передаются в URL. Как любой токен в JS, он доступен скриптам того же origin: нужно доверять коду всех проектов на `idanpon.github.io`. Применяется CSP, пользовательский текст экранируется, сторонний JS не загружается.
+
+Прежний `AUTH_MODE=cookie` сохранён как отдельный режим для будущего размещения на одном HTTPS site: HttpOnly, Secure, SameSite=Strict. Режимы не смешиваются. Схему БД при переключении менять не требуется.
 
 ## GitHub Pages
 
-1. Создать отдельный `idanpon/taiwan-map`, дать подключённому GitHub-приложению доступ и загрузить этот проект. На GitHub Free Pages нужен публичный репозиторий; возможности приватного зависят от тарифа.
-2. Settings → Pages → Source → GitHub Actions. CI/environment `github-pages` должны разрешать публикацию.
-3. Когда API и DNS готовы, задать Repository Variables: `PAGES_API_BASE=https://svobodadlaseti.shop/taiwan`, `PAGES_CUSTOM_DOMAIN=taiwan.svobodadlaseti.shop`. Это публичные адреса, не секреты.
-4. Настроить custom domain и подтвердить владение в GitHub, затем CNAME `taiwan` → `idanpon.github.io` и HTTPS по документации GitHub. Workflow из main проверяет и публикует только `dist/`.
+1. Pages → Source → GitHub Actions. В текущем варианте Custom domain оставить пустым.
+2. Когда независимый API проверен, задать Repository Variable `PAGES_API_BASE` — его HTTPS origin без завершающего слеша. `PAGES_AUTH_MODE=bearer` используется по умолчанию; `PAGES_CUSTOM_DOMAIN` оставить пустой.
+3. Запустить workflow вручную или отправить commit в main. Сборка тестирует код и публикует только `dist/`.
 
-Без `PAGES_API_BASE` сборка показывает «Сервер данных ещё не подключён» и блокирует форму. Она не имитирует парольную защиту и не подменяет серверное сохранение localStorage. Относительные файлы работают и в `/taiwan-map/`, и в корне custom domain. Экспорт JSON идёт через API с cookies.
+Без `PAGES_API_BASE` сборка показывает «Сервер данных ещё не подключён» и блокирует форму. Относительные файлы и ES-модули работают в `/taiwan-map/` и в корне будущего custom domain. Статусы и заметки сохраняются через API в SQLite; sessionStorage содержит только токен авторизации. Экспорт JSON тоже требует авторизации.
 
 Публичные HTML/JS доступны без пароля — это оболочка. Все персональные данные, статусы и заметки выдаёт защищённый API после входа. В `dist/` нет backend-кода, seed-каталога, БД, пароля или хеша. В исходниках репозитория находятся только стартовые 10 публичных туристических мест; персональные экспорты туда не добавлять.
 
@@ -36,7 +38,9 @@ GitHub Pages и API имеют разные origins, но относятся к 
 
 Основной вариант для имеющихся ресурсов — systemd, без Docker и отдельного БД-сервера. `server/taiwan-map.service`: отдельный пользователь, код `/opt/taiwan-map`, данные `/var/lib/taiwan-map`, память до 192 MiB, loopback:18080. Перед установкой подтвердить Node 24+ и его путь в ExecStart. Env хранить в `/etc/taiwan-map.env`, root:root, 0600; ключи — `.env.example`.
 
-`APP_PASSWORD_HASH` создаётся `node server/password.mjs`, пароль подаётся через stdin, а не через аргументы/историю shell. `APP_ORIGIN=https://svobodadlaseti.shop`, `FRONTEND_ORIGIN=https://taiwan.svobodadlaseti.shop`, `SESSION_COOKIE_PATH=/taiwan/api`. На время диагностики `TRUST_PROXY=0`; в схеме nginx TCP/SNI → Caddy реальный IP не подтверждён. Тогда лимит входов считается общим для источника-прокси. Перед регулярным использованием согласовать передачу реального IP или общий лимит. Нельзя доверять произвольному X-Forwarded-For либо включать PROXY protocol сразу для всех upstream.
+`APP_PASSWORD_HASH` создаётся `node server/password.mjs`, пароль подаётся через stdin. После создания `/etc/taiwan-map.env` скрипт `python3 server/configure-pages-env.py https://API-HOST` переключает настройки на GitHub Pages, сохраняя существующий хеш пароля и создавая частную резервную копию env. Он не меняет базу и не перезапускает службу. Затем нужно проверить proxy и перезапустить taiwan-map.
+
+Параметры: `APP_ORIGIN=https://API-HOST`, `FRONTEND_ORIGIN=https://idanpon.github.io`, `AUTH_MODE=bearer`. Пока `TRUST_PROXY=0`: реальный IP в цепочке nginx TCP/SNI → Caddy не подтверждён. Тогда лимит входов общий для источника-прокси. Нельзя доверять произвольному X-Forwarded-For либо включать PROXY protocol сразу для всех upstream.
 
 Нельзя заменять существующие nginx/Caddy-конфиги: nginx занимает 443, Caddy — 80 и внутренний 8444, работают xray и другие сервисы. Docker Compose и примеры отдельного API-поддомена оставлены как альтернативы, не как основной способ для этого VPS.
 
@@ -66,4 +70,4 @@ SQLite: foreign keys, WAL, busy timeout, SQL-миграции с проверк�
 - `drizzle/`: SQL-миграции; `db/schema.ts` — описание схемы. Для разработки новых миграций нужен Drizzle generator, но запуск и Pages от него не зависят.
 - `.github/workflows/pages.yml`: тесты на push/PR, публикация из main.
 
-`npm test` проверяет вход/выход, persistence, членство, конфликты, limiter, CORS/OPTIONS/ошибки/запрещённые origins, импорт/откат и Pages-сборку без backend-файлов. `npm run build:pages` собирает интерфейс. Визуальный прогон в браузере и проверка самого VPS пока не выполнены.
+`npm test` проверяет вход/выход, persistence, членство, конфликты, limiter, CORS/OPTIONS/ошибки/запрещённые origins, импорт/откат и Pages-сборку без backend-файлов. `npm run build:pages` собирает интерфейс. Независимый HTTPS hostname, проверка в браузере и полное переключение ещё требуют настройки VPS/Pages.

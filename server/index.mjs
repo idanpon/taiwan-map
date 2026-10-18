@@ -15,7 +15,9 @@ const frontend=process.env.FRONTEND_ORIGIN?new URL(process.env.FRONTEND_ORIGIN):
 if(frontend&&(frontend.origin!==process.env.FRONTEND_ORIGIN||frontend.protocol!=='https:'))throw new Error('FRONTEND_ORIGIN must be an exact HTTPS origin without a path.');
 const cookiePath=process.env.SESSION_COOKIE_PATH||'/';
 if(!/^\/[a-zA-Z0-9/_-]*$/.test(cookiePath))throw new Error('Invalid SESSION_COOKIE_PATH');
-const env={DB,APP_PASSWORD_HASH:process.env.APP_PASSWORD_HASH,APP_ORIGIN:origin.origin,FRONTEND_ORIGIN:frontend?.origin,SESSION_COOKIE_PATH:cookiePath};
+const authMode=process.env.AUTH_MODE||'cookie';
+if(!['cookie','bearer'].includes(authMode))throw new Error('AUTH_MODE must be cookie or bearer');
+const env={DB,APP_PASSWORD_HASH:process.env.APP_PASSWORD_HASH,APP_ORIGIN:origin.origin,FRONTEND_ORIGIN:frontend?.origin,SESSION_COOKIE_PATH:cookiePath,AUTH_MODE:authMode};
 const mime={'.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.txt':'text/plain; charset=utf-8'};
 const server=http.createServer(async(req,res)=>{
  try{
@@ -29,6 +31,7 @@ const server=http.createServer(async(req,res)=>{
    if(response.ok&&req.method==='POST'&&url.pathname==='/api/login'){try{backup()}catch(e){console.error('Backup failed',e.name)}}
   }else if(req.method!=='GET'&&req.method!=='HEAD'){response=new Response('Method not allowed',{status:405})}
   else if(url.pathname==='/'){response=new Response(page,{headers:securityHeaders})}
+  else if(url.pathname==='/config.js'){response=new Response('window.TAIWAN_CONFIG = Object.freeze('+JSON.stringify({apiBase:'',requiresApi:false,authMode})+');',{headers:{'Content-Type':mime['.js'],'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})}
   else{
    let path;try{path=resolve(root,'public','.'+decodeURIComponent(url.pathname))}catch{path=''}
    if(!path.startsWith(resolve(root,'public')+'/'))response=new Response('Not found',{status:404});
