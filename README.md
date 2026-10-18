@@ -85,8 +85,8 @@ Place information continues to be managed through ChatGPT. Admins and editors
 can additionally edit the three tags and their optional fields in the place card;
 viewers see the tags without editing controls. The card uses one Save button for tags, notes and statuses in one SQLite
 transaction with version checks and rollback on any conflict. The schedule
-editor starts collapsed. Date fields stack on narrow screens to avoid Safari
-intrinsic-width overflow. To review a private
+editor starts collapsed. Dates share a row from 380 CSS px and stack on smaller screens; padding lives
+on the input wrapper to avoid Safari intrinsic-width overflow. To review a private
 batch, use `server/update-place-tags.mjs` with this format:
 
 ```json
@@ -117,3 +117,8 @@ patch) and `tags_version`. A stale note or tag version aborts the whole batch
 before COMMIT. Legacy requests without tags remain supported. Only this route
 allows up to 32 KiB for the combined note and schedule; other request limits
 remain at 8 KiB. Field length limits are unchanged.
+
+The initial map view uses the same fit-to-places operation as “Все на карте”,
+once both the map engine and places are ready. Later data refreshes, theme
+changes and filtering do not reset a manually positioned camera. Explicit
+focus, geolocation or fit requests take priority over initial framing.

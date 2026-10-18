@@ -1,3 +1,4 @@
+import {createInitialMapFraming} from './map-framing.js';
 import {mapConfiguration} from './map-config.js';
 import {createBasemapController} from './basemap.js';
 import {categoryIcon} from './categories.js';
@@ -15,6 +16,7 @@ export function accuracyPolygon(lng,lat,meters){
 
 export function createMapView({container,statusElement,retryButton,statusText,listButton,zoomIn,zoomOut,northButton,onSelect,onZoomGroupChange,onUnavailable,theme='light',config=mapConfiguration}){
  let map,lib,basemap,compass,attribution,disposed=false,usable=false,places=[],selected=null,markers=[],lastGrouped=false,position,positionMarker,focusRequest,fitRequested=false;
+ const initialFraming=createInitialMapFraming({fit:fitPlaces});
  const controls=[zoomIn,zoomOut,northButton];
  const messages={
   loading:'Загрузка основной карты…',
@@ -69,11 +71,13 @@ export function createMapView({container,statusElement,retryButton,statusText,li
   }
  }
  function fitPlaces(values=places){
+  initialFraming.cancel();
   if(!map){fitRequested=true;return}if(!values.length)return;
   const bounds=new lib.LngLatBounds();for(const p of values)bounds.extend([p.lon,p.lat]);
   map.fitBounds(bounds,{padding:{top:70,bottom:70,left:60,right:60},maxZoom:14,duration:0});
  }
  function focusPlace(p,offset){
+  initialFraming.cancel();
   if(!map){focusRequest={p,offset};return}
   map.jumpTo({center:[p.lon,p.lat],zoom:Math.max(14,map.getZoom())});
   // Pan opposite the panel so the marker stays in the uncovered map area.
@@ -96,7 +100,7 @@ export function createMapView({container,statusElement,retryButton,statusText,li
   try{
    lib=await import('./vendor/maplibre-6.15.0/maplibre-gl.js');if(disposed)return;
    lib.setWorkerUrl(new URL(config.worker,import.meta.url).href);
-   map=new lib.Map({container,style:{version:8,sources:{},layers:[]},center:[121.541,25.038],zoom:13,attributionControl:false,renderWorldCopies:false,refreshExpiredTiles:true,cancelPendingTileRequestsWhileZooming:true});usable=true;
+   map=new lib.Map({container,style:{version:8,sources:{},layers:[]},center:[120.9,23.7],zoom:6.5,attributionControl:false,renderWorldCopies:false,refreshExpiredTiles:true,cancelPendingTileRequestsWhileZooming:true});usable=true;
    compass=createCompassControl({map,button:northButton});
    basemap=createBasemapController({map,lib,theme,onState:state,config});map.setTransformRequest(basemap.transformRequest);
    map.on('style.load',restorePosition);
@@ -104,18 +108,19 @@ export function createMapView({container,statusElement,retryButton,statusText,li
    map.on('zoomend',()=>{const grouped=map.getZoom()<10;if(grouped!==lastGrouped){render();onZoomGroupChange?.()}});
    map.getCanvas().addEventListener('webglcontextlost',()=>{basemap?.dispose();unsupported()});
    map.getCanvas().addEventListener('webglcontextrestored',()=>{if(!disposed)unsupported()});
+   if(focusRequest)focusPlace(focusRequest.p,focusRequest.offset);else if(fitRequested)fitPlaces();else initialFraming.update(Boolean(map),places);
    basemap.start();render();
-   if(focusRequest)focusPlace(focusRequest.p,focusRequest.offset);else if(fitRequested)fitPlaces();
   }catch{map?.remove();map=null;unsupported()}
  })();
  return {
   initialized,
-  setPlaces(values,id){places=values;selected=id;render()},
+  setPlaces(values,id){places=values;selected=id;initialFraming.update(Boolean(map),places);render()},
   setTheme(value){theme=value;basemap?.setTheme(value)},
   fit:fitPlaces,focusPlace,
   resize(){map?.resize()},
   get available(){return usable},
   showPosition(coords){
+   initialFraming.cancel();
    position={lng:coords.longitude,lat:coords.latitude,accuracy:coords.accuracy};
    if(!map)return;
    positionMarker?.remove();const element=document.createElement('span');element.className='user-position';element.setAttribute('aria-label','Моё местоположение');

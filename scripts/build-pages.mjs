@@ -13,7 +13,7 @@ export async function buildPages({output=resolve('dist'),apiBase='',customDomain
  output=resolve(output);const root=fileURLToPath(new URL('..',import.meta.url));
  if(output===resolve(root)||resolve(root,'public').startsWith(output+'/'))throw new Error('Unsafe output directory');
  await rm(output,{recursive:true,force:true});await mkdir(output,{recursive:true});await cp(new URL('../public/',import.meta.url),output,{recursive:true});
- const assetNames=['app.js','api-client.js','style.css','accounts.js','password-fields.js','map-model.js','statuses.js','categories.js','help.js','theme-init.js','theme.js','map-config.js','basemap.js','map-view.js','map-compass.js','auth-startup.js','place-lifecycle.js','dialogs.js','place-tags.js','place-tag-controls.js'];
+ const assetNames=['app.js','api-client.js','style.css','accounts.js','password-fields.js','map-model.js','statuses.js','categories.js','help.js','theme-init.js','theme.js','map-config.js','basemap.js','map-view.js','map-compass.js','auth-startup.js','place-lifecycle.js','dialogs.js','place-tags.js','place-tag-controls.js','map-framing.js'];
  const assets=Object.fromEntries(await Promise.all(assetNames.map(async name=>[name,await readFile(new URL('../public/'+name,import.meta.url),'utf8')])));
  const iconHash=createHash('sha256').update(await readFile(new URL('../public/favicon.svg',import.meta.url))).update(await readFile(new URL('../public/apple-touch-icon.png',import.meta.url))).digest('hex');
  const version=Object.values(assets).reduce((hash,source)=>hash.update(source),createHash('sha256').update(iconHash).update(page).update(JSON.stringify(manifest)).update(JSON.stringify({apiBase,authMode,customDomain}))).digest('hex').slice(0,12);
