@@ -81,7 +81,10 @@ module; Lucide paths are bundled locally under the existing ISC license.
 Missing tags in old imports mean no tags. Export/restore includes disabled
 metadata and `tags_version`; ordinary repeated CSV imports leave it untouched.
 
-Place information continues to be managed through ChatGPT. To review a private
+Place information continues to be managed through ChatGPT. Admins and editors
+can additionally edit the three tags and their optional fields in the place card;
+viewers see the tags without editing controls. Tag changes save separately from
+notes and statuses, with nested patches and optimistic concurrency. To review a private
 batch, use `server/update-place-tags.mjs` with this format:
 
 ```json
@@ -102,7 +105,7 @@ versions abort the batch. Nested patches preserve other fields and disabled
 values. The authenticated `PUT /api/places/:id/tags` route accepts
 `{"version":1,"tags":{"photoSpot":true}}` for admin/editor management using the
 same validation and conflict checks; viewer writes are rejected. This does not
-introduce a public place editor. Notes/statuses and visibility use independent
+introduce a general place editor; the card editor is restricted to these tags. Notes/statuses and visibility use independent
 versions. Schedule text is limited to 2000 characters and booking URLs to 1024;
 only HTTP/HTTPS without credentials is accepted. End dates are inclusive and
 checked against calendar days in Asia/Taipei, never parsed from free text.
