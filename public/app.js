@@ -53,7 +53,7 @@ function renderMarkers(ps=visible()){
  map?.setPlaces(ps.map(p=>({...p,category:getCategory(p),status:getStatus(p)})),selected);
 }
 function initMap(){
- map=createMapView({container:$('map'),statusElement:$('map-status'),statusText:$('map-status-text'),retryButton:$('map-retry'),listButton:$('map-list'),zoomIn:$('map-zoom-in'),zoomOut:$('map-zoom-out'),theme:themeUI.value,onSelect:openPlace});
+ map=createMapView({container:$('map'),statusElement:$('map-status'),statusText:$('map-status-text'),retryButton:$('map-retry'),listButton:$('map-list'),zoomIn:$('map-zoom-in'),zoomOut:$('map-zoom-out'),northButton:$('map-north'),theme:themeUI.value,onSelect:openPlace});
 }
 function fit(){map?.fit()}
 function detail(p){const c=getCategory(p),s=getStatus(p);$('detail').style.setProperty('--category',c.color);

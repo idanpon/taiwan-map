@@ -1,6 +1,7 @@
 import {mapConfiguration} from './map-config.js';
 import {createBasemapController} from './basemap.js';
 import {categoryIcon} from './categories.js';
+import {createCompassControl} from './map-compass.js';
 
 export function accuracyPolygon(lng,lat,meters){
  const radius=Math.max(0,meters)/6371008.8,phi=lat*Math.PI/180,lambda=lng*Math.PI/180,ring=[];
@@ -12,9 +13,9 @@ export function accuracyPolygon(lng,lat,meters){
  return {type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[ring]}};
 }
 
-export function createMapView({container,statusElement,retryButton,statusText,listButton,zoomIn,zoomOut,onSelect,onZoomGroupChange,onUnavailable,theme='light',config=mapConfiguration}){
- let map,lib,basemap,attribution,disposed=false,usable=false,places=[],selected=null,markers=[],lastGrouped=false,position,positionMarker,focusRequest,fitRequested=false;
- const controls=[zoomIn,zoomOut];
+export function createMapView({container,statusElement,retryButton,statusText,listButton,zoomIn,zoomOut,northButton,onSelect,onZoomGroupChange,onUnavailable,theme='light',config=mapConfiguration}){
+ let map,lib,basemap,compass,attribution,disposed=false,usable=false,places=[],selected=null,markers=[],lastGrouped=false,position,positionMarker,focusRequest,fitRequested=false;
+ const controls=[zoomIn,zoomOut,northButton];
  const messages={
   loading:'Загрузка основной карты…',
   'loading-fallback':'Включается резервная карта…',
@@ -39,7 +40,7 @@ export function createMapView({container,statusElement,retryButton,statusText,li
   }
  }
  function unsupported(){
-  usable=false;
+  usable=false;compass?.dispose();northButton.hidden=true;
   state({mode:'unsupported',provider:'none',canRetry:false});for(const control of controls)control.disabled=true;
   onUnavailable?.();
  }
@@ -96,6 +97,7 @@ export function createMapView({container,statusElement,retryButton,statusText,li
    lib=await import('./vendor/maplibre-6.15.0/maplibre-gl.js');if(disposed)return;
    lib.setWorkerUrl(new URL(config.worker,import.meta.url).href);
    map=new lib.Map({container,style:{version:8,sources:{},layers:[]},center:[121.541,25.038],zoom:13,attributionControl:false,renderWorldCopies:false,refreshExpiredTiles:true,cancelPendingTileRequestsWhileZooming:true});usable=true;
+   compass=createCompassControl({map,button:northButton});
    basemap=createBasemapController({map,lib,theme,onState:state,config});map.setTransformRequest(basemap.transformRequest);
    map.on('style.load',restorePosition);
    map.on('error',event=>{if(/WebGL|GPU context|worker.*(?:failed|error|load)/i.test(event.error?.message||'')){basemap?.dispose();unsupported()}});
@@ -120,6 +122,6 @@ export function createMapView({container,statusElement,retryButton,statusText,li
    positionMarker=new lib.Marker({element}).setLngLat([position.lng,position.lat]).addTo(map);restorePosition();
    map.jumpTo({center:[position.lng,position.lat],zoom:15});
   },
-  dispose(){disposed=true;basemap?.dispose();clearMarkers();positionMarker?.remove();map?.remove();map=null}
+  dispose(){disposed=true;basemap?.dispose();compass?.dispose();clearMarkers();positionMarker?.remove();map?.remove();map=null}
  };
 }
