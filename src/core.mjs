@@ -11,7 +11,7 @@ async function seed(db){
  stmt(db,'INSERT OR IGNORE INTO memberships(trip_id,user_id,role) VALUES(?,?,?)',TRIP,USER,'owner')
  ];
  for(const c of categories)q.push(stmt(db,'INSERT OR IGNORE INTO categories(id,label,color,icon,sort_order) VALUES(?,?,?,?,?)',c.id,c.label,c.color,c.icon,c.sort_order));
- for(const [i,s] of [['want','Хочу посетить','#1456e0','!'],['visited','Уже посетил','#6b7280','✓'],['maybe','Под вопросом','#facc15','?']].entries())q.push(stmt(db,'INSERT OR IGNORE INTO statuses(id,trip_id,label,color,sort_order,created_by,symbol) VALUES(?,?,?,?,?,?,?)',s[0],TRIP,s[1],s[2],i,USER,s[3]));
+ for(const [i,s] of [['want','Хочу посетить','#1456e0','!',0],['visited','Уже посетил','#6b7280','✓',1],['maybe','Под вопросом','#facc15','?',0]].entries())q.push(stmt(db,'INSERT OR IGNORE INTO statuses(id,trip_id,label,color,sort_order,created_by,symbol,dimmed) VALUES(?,?,?,?,?,?,?,?)',s[0],TRIP,s[1],s[2],i,USER,s[3],s[4]));
  for(const p of places){
   q.push(stmt(db,'INSERT OR IGNORE INTO places(id,trip_id,name,local_name,city,category_id,lat,lon,address,summary,tip,hours_json,verified_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',p.id,TRIP,p.name,p.local_name,p.city,p.category_id,p.lat,p.lon,p.address,p.summary,p.tip,JSON.stringify(p.hours),p.verified_at,now));
   q.push(stmt(db,'INSERT OR IGNORE INTO place_links(id,place_id,label,url,kind) VALUES(?,?,?,?,?)',p.id+'-source',p.id,'Источник часов',p.source,'source'));
@@ -44,9 +44,9 @@ async function handleApi(request,env,context={}){
  if((path==='/api/data'||path==='/api/export')&&request.method==='GET'){
   const [ps,cs,ss,ls]=await db.batch([
    stmt(db,`SELECT p.*,s.status_id,s.note,COALESCE(s.version,0) version FROM places p LEFT JOIN user_place_states s ON s.place_id=p.id AND s.user_id=? WHERE p.trip_id=? ORDER BY p.city,p.name`,stateUser,TRIP),
-   db.prepare('SELECT * FROM categories ORDER BY sort_order'),stmt(db,'SELECT id,label,color,symbol,version,sort_order FROM statuses WHERE trip_id=? AND archived=0 ORDER BY sort_order,label',TRIP),stmt(db,'SELECT l.* FROM place_links l JOIN places p ON p.id=l.place_id WHERE p.trip_id=?',TRIP)
+   db.prepare('SELECT * FROM categories ORDER BY sort_order'),stmt(db,'SELECT id,label,color,symbol,dimmed,version,sort_order FROM statuses WHERE trip_id=? AND archived=0 ORDER BY sort_order,label',TRIP),stmt(db,'SELECT l.* FROM place_links l JOIN places p ON p.id=l.place_id WHERE p.trip_id=?',TRIP)
   ]);
-  const data={schema_version:1,trip:{id:TRIP,name:'Тайвань',timezone:'Asia/Taipei'},state_scope:scope||'shared',user:{id:user.id,name:user.display_name,username:user.username,role:user.role==='owner'?'admin':user.role,telegram_linked:Boolean(user.auth_subject),has_password:Boolean(user.has_password),can_setup:!scope&&user.role==='owner'},verified_at:verifiedAt,categories:cs.results,statuses:ss.results,places:ps.results.map(p=>({...p,hours:JSON.parse(p.hours_json),hours_json:undefined,note:p.note||'',links:ls.results.filter(l=>l.place_id===p.id)}))};
+  const data={schema_version:1,trip:{id:TRIP,name:'Тайвань',timezone:'Asia/Taipei'},state_scope:scope||'shared',user:{id:user.id,name:user.display_name,username:user.username,role:user.role==='owner'?'admin':user.role,telegram_linked:Boolean(user.auth_subject),has_password:Boolean(user.has_password),can_setup:!scope&&user.role==='owner'},verified_at:verifiedAt,categories:cs.results,statuses:ss.results.map(s=>({...s,dimmed:Boolean(s.dimmed)})),places:ps.results.map(p=>({...p,hours:JSON.parse(p.hours_json),hours_json:undefined,note:p.note||'',links:ls.results.filter(l=>l.place_id===p.id)}))};
   return json(data,200,path==='/api/export'?{'Content-Disposition':'attachment; filename="taiwan-map.json"'}:{});
  }
  const statusMatch=path.match(/^\/api\/statuses\/([a-zA-Z0-9-]+)$/);
@@ -55,16 +55,18 @@ async function handleApi(request,env,context={}){
   const b=await body(request),label=typeof b.label==='string'?b.label.trim():'',symbol=typeof b.symbol==='string'?b.symbol.normalize('NFC'):b.symbol===undefined?'':b.symbol;
   if(!label||label.length>40||typeof b.color!=='string'||!/^#[0-9a-f]{6}$/i.test(b.color))fail(400,'Название: 1–40 символов; цвет: #RRGGBB.');
   if(!validStatusSymbol(symbol))fail(400,'Символ: одна буква, цифра или текстовый знак, либо пустое поле. Emoji, пробелы и невидимые знаки не поддерживаются.');
+  if(b.dimmed!==undefined&&typeof b.dimmed!=='boolean')fail(400,'Некорректная настройка полупрозрачности.');
   if(statusMatch){
    if(!Number.isSafeInteger(b.version)||b.version<1)fail(400,'Некорректная версия статуса.');
-   const current=await stmt(db,'SELECT id,sort_order FROM statuses WHERE id=? AND trip_id=? AND archived=0',statusMatch[1],TRIP).first();if(!current)fail(404,'Статус не найден.');
-   const updated=await stmt(db,`UPDATE statuses SET label=?,color=?,symbol=?,version=version+1 WHERE id=? AND trip_id=? AND archived=0 AND version=? AND NOT EXISTS (SELECT 1 FROM statuses WHERE trip_id=? AND label=? AND archived=0 AND id<>?)`,label,b.color,symbol,current.id,TRIP,b.version,TRIP,label,current.id).run();
+   const current=await stmt(db,'SELECT id,sort_order,dimmed FROM statuses WHERE id=? AND trip_id=? AND archived=0',statusMatch[1],TRIP).first();if(!current)fail(404,'Статус не найден.');
+   const dimmed=b.dimmed===undefined?current.dimmed:Number(b.dimmed);
+   const updated=await stmt(db,`UPDATE statuses SET label=?,color=?,symbol=?,dimmed=?,version=version+1 WHERE id=? AND trip_id=? AND archived=0 AND version=? AND NOT EXISTS (SELECT 1 FROM statuses WHERE trip_id=? AND label=? AND archived=0 AND id<>?)`,label,b.color,symbol,dimmed,current.id,TRIP,b.version,TRIP,label,current.id).run();
    if(!updated.meta.changes)fail(409,'Статус уже изменён или такое название занято. Выберите статус в списке заново и повторите изменения.');
-   return json({id:current.id,label,color:b.color,symbol,version:b.version+1,sort_order:current.sort_order});
+   return json({id:current.id,label,color:b.color,symbol,dimmed:Boolean(dimmed),version:b.version+1,sort_order:current.sort_order});
   }
-  const id=crypto.randomUUID(),sort_order=Date.now();
-  const created=await stmt(db,`INSERT INTO statuses(id,trip_id,label,color,symbol,sort_order,created_by) SELECT ?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM statuses WHERE trip_id=? AND archived=0)<100 AND NOT EXISTS (SELECT 1 FROM statuses WHERE trip_id=? AND label=? AND archived=0)`,id,TRIP,label,b.color,symbol,sort_order,user.id,TRIP,TRIP,label).run();
-  if(!created.meta.changes)fail(409,'Такой статус уже есть или достигнут лимит 100 статусов.');return json({id,label,color:b.color,symbol,version:1,sort_order},201);
+  const id=crypto.randomUUID(),sort_order=Date.now(),dimmed=Number(b.dimmed??false);
+  const created=await stmt(db,`INSERT INTO statuses(id,trip_id,label,color,symbol,dimmed,sort_order,created_by) SELECT ?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM statuses WHERE trip_id=? AND archived=0)<100 AND NOT EXISTS (SELECT 1 FROM statuses WHERE trip_id=? AND label=? AND archived=0)`,id,TRIP,label,b.color,symbol,dimmed,sort_order,user.id,TRIP,TRIP,label).run();
+  if(!created.meta.changes)fail(409,'Такой статус уже есть или достигнут лимит 100 статусов.');return json({id,label,color:b.color,symbol,dimmed:Boolean(dimmed),version:1,sort_order},201);
  }
  const match=path.match(/^\/api\/places\/([a-zA-Z0-9-]+)\/state$/);
  if(match&&request.method==='PUT'){

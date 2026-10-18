@@ -11,8 +11,8 @@ export function importExport(db,data){
   db.sqlite.prepare('INSERT INTO memberships VALUES(?,?,?)').run(TRIP,USER,'owner');
   for(const [i,c] of data.categories.entries())db.sqlite.prepare('INSERT INTO categories VALUES(?,?,?,?,?)').run(c.id,c.label,c.color,c.icon,c.sort_order??i);
   for(const [i,s] of data.statuses.entries()){
-   const symbol=s.symbol??'';if(!validStatusSymbol(symbol))throw new Error('Invalid status symbol in export');
-   db.sqlite.prepare('INSERT INTO statuses(id,trip_id,label,color,sort_order,archived,created_by,symbol,version) VALUES(?,?,?,?,?,0,?,?,?)').run(s.id,TRIP,s.label,s.color,s.sort_order??i,USER,symbol,Number.isSafeInteger(s.version)&&s.version>0?s.version:1);
+   const symbol=s.symbol??'';if(s.dimmed!==undefined&&typeof s.dimmed!=='boolean')throw new Error('Invalid status transparency in export');if(!validStatusSymbol(symbol))throw new Error('Invalid status symbol in export');
+   db.sqlite.prepare('INSERT INTO statuses(id,trip_id,label,color,sort_order,archived,created_by,symbol,version,dimmed) VALUES(?,?,?,?,?,0,?,?,?,?)').run(s.id,TRIP,s.label,s.color,s.sort_order??i,USER,symbol,Number.isSafeInteger(s.version)&&s.version>0?s.version:1,Number(s.dimmed??(s.id==='visited')));
   }
   for(const p of data.places){
    if(!p.hours||!Array.isArray(p.links)||!Number.isFinite(p.lat)||p.lat < -90||p.lat>90||!Number.isFinite(p.lon)||p.lon < -180||p.lon>180||!Number.isSafeInteger(p.version)||p.version<0)throw new Error('Invalid place in export');

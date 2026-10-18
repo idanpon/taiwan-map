@@ -12,5 +12,5 @@ function luminance(color){
 }
 export function statusAppearance(status){
  const color=/^#[0-9a-f]{6}$/i.test(status.color)?status.color:'#697568',light=luminance(color);
- return {...status,color,symbol:status.symbol||'',symbolColor:(light+.05)/.05>1.05/(light+.05)?'#000000':'#ffffff',textColor:(luminance('#f7f7f2')+.05)/(light+.05)>=3?color:'#354539'};
+ return {...status,dimmed:Boolean(status.dimmed),opacity:status.dimmed?0.7:1,color,symbol:status.symbol||'',symbolColor:(light+.05)/.05>1.05/(light+.05)?'#000000':'#ffffff',textColor:(luminance('#f7f7f2')+.05)/(light+.05)>=3?color:'#354539'};
 }
