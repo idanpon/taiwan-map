@@ -3,6 +3,20 @@ export function cityOptions(places){
  for(const {city} of places)if(typeof city==='string'&&city.trim())counts.set(city,(counts.get(city)||0)+1);
  return [...counts].sort(([a],[b])=>a.localeCompare(b,'ru')).map(([name,count])=>({name,count}));
 }
+function verifiedDate(value){
+ if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))return null;
+ const date=new Date(value+'T12:00:00Z');return !Number.isNaN(date.valueOf())&&date.toISOString().slice(0,10)===value?date:null;
+}
+export function hoursVerification(value){
+ const date=verifiedDate(value);
+ return date?'Часы проверены '+date.toLocaleDateString('ru-RU',{timeZone:'UTC'})+'. В праздники возможны изменения.':'Часы работы ещё не проверены.';
+}
+export function hoursOverview(places){
+ const verified=places.filter(p=>verifiedDate(p.verified_at));
+ if(verified.length!==places.length)return `Часы проверены у ${verified.length} из ${places.length} мест`;
+ const dates=[...new Set(verified.map(p=>p.verified_at))];
+ return dates.length===1?'Часы проверены '+verifiedDate(dates[0]).toLocaleDateString('ru-RU',{timeZone:'UTC'}):'Часы работы: см. карточки мест';
+}
 export function validStatusSymbol(value){
  return typeof value==='string'&&(value===''||(/^[\p{L}\p{N}\p{P}\p{S}]$/u.test(value)&&!/[\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Regional_Indicator}\p{Default_Ignorable_Code_Point}\u2800]/u.test(value)));
 }
