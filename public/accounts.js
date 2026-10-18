@@ -103,7 +103,7 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true})
   if(!confirmPassword(form)){error('Пароли не совпадают.');return}button.disabled=true;
   try{
    await api('/api/auth/password',{method:'POST',body:JSON.stringify({current_password:form.elements.current_password.value,username:form.elements.username.value,password:form.elements.password.value,password_confirmation:form.elements.password_confirmation.value})});
-   resetPasswordFields(form);$('accounts-dialog').close();await load();toast('Пароль изменён. Войдите с новым паролем.');
+   resetPasswordFields(form);$('accounts-dialog').close();await load().catch(e=>{if(e.status!==401)throw e});toast('Пароль изменён. Войдите с новым паролем.');
   }catch(e){error(e.message)}finally{button.disabled=false}
  };
  $('account-users').oninput=event=>{
@@ -125,7 +125,7 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true})
   try{
    const result=await api('/api/admin/users/'+form.dataset.user,{method:'PUT',body:JSON.stringify(payload)});
    resetPasswordFields(form);
-   if(result.reauthenticate){$('accounts-dialog').close();await load();toast('Аккаунт обновлён. Войдите снова.');}
+   if(result.reauthenticate){$('accounts-dialog').close();await load().catch(e=>{if(e.status!==401)throw e});toast('Аккаунт обновлён. Войдите снова.');}
    else{await refreshUsers();toast('Доступ обновлён. Пользователю нужно войти заново.');}
   }catch(e){error(e.message)}finally{button.disabled=false}
  };
