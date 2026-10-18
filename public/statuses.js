@@ -41,5 +41,5 @@ export function createStatusUI({api,$,esc,getData,onChange,toast}){
    if(error.status===409)try{const fresh=await api('/api/data');if(getData()){getData().statuses=fresh.statuses;onChange();renderList()}}catch{}
   }finally{busy=false;controls.forEach(control=>control.disabled=false)}
  };
- return {open(){if(!['admin','editor'].includes(getData()?.user.role))return;choose();$('status-dialog').showModal();$('status-name').focus()}};
+ return {open(){if(!['admin','editor'].includes(getData()?.user.role))return;choose();$('status-dialog').showModal();$('statuses-title').focus({preventScroll:true})}};
 }

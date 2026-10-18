@@ -2,6 +2,7 @@ import { categories, places, verifiedAt } from './places.mjs';
 import {TRIP,SHARED_USER as USER,sha,verify,Problem,fail,json,body,stmt,session,sessionToken,cookie,issueSession,limitLogin} from './auth.mjs';
 import {handleAccounts,accountScope} from './accounts.mjs';
 import {validStatusSymbol} from '../public/map-model.js';
+import {handlePlaceLifecycle} from './place-lifecycle.mjs';
 export {passwordHash,sha} from './auth.mjs';
 async function seed(db){
  if(await stmt(db,'SELECT value FROM app_meta WHERE key=?','seed_v1').first())return;
@@ -41,12 +42,13 @@ async function handleApi(request,env,context={}){
   return json({ok:true},200,env.AUTH_MODE==='bearer'?{}:{'Set-Cookie':cookie('',secure,0,env.SESSION_COOKIE_PATH||'/')});
  }
  const scope=await accountScope(db),stateUser=scope==='shared'?USER:user.id;
+ const lifecycle=await handlePlaceLifecycle(request,db,user,stateUser);if(lifecycle)return lifecycle;
  if((path==='/api/data'||path==='/api/export')&&request.method==='GET'){
   const [ps,cs,ss,ls]=await db.batch([
-   stmt(db,`SELECT p.*,s.status_id,s.note,COALESCE(s.version,0) version FROM places p LEFT JOIN user_place_states s ON s.place_id=p.id AND s.user_id=? WHERE p.trip_id=? ORDER BY p.city,p.name`,stateUser,TRIP),
+   stmt(db,`SELECT p.*,s.status_id,s.note,COALESCE(s.version,0) version FROM places p LEFT JOIN user_place_states s ON s.place_id=p.id AND s.user_id=? WHERE p.trip_id=? ${path==='/api/data'?'AND p.hidden=0':''} ORDER BY p.city,p.name`,stateUser,TRIP),
    db.prepare('SELECT * FROM categories ORDER BY sort_order'),stmt(db,'SELECT id,label,color,symbol,dimmed,version,sort_order FROM statuses WHERE trip_id=? AND archived=0 ORDER BY sort_order,label',TRIP),stmt(db,'SELECT l.* FROM place_links l JOIN places p ON p.id=l.place_id WHERE p.trip_id=?',TRIP)
   ]);
-  const data={schema_version:1,trip:{id:TRIP,name:'Тайвань',timezone:'Asia/Taipei'},state_scope:scope||'shared',user:{id:user.id,name:user.display_name,username:user.username,role:user.role==='owner'?'admin':user.role,telegram_linked:Boolean(user.auth_subject),has_password:Boolean(user.has_password),can_setup:!scope&&user.role==='owner'},verified_at:verifiedAt,categories:cs.results.map(c=>({...c,description:categories.find(definition=>definition.id===c.id)?.description||''})),statuses:ss.results.map(s=>({...s,dimmed:Boolean(s.dimmed)})),places:ps.results.map(p=>({...p,hours:JSON.parse(p.hours_json),hours_json:undefined,note:p.note||'',links:ls.results.filter(l=>l.place_id===p.id)}))};
+  const data={schema_version:1,trip:{id:TRIP,name:'Тайвань',timezone:'Asia/Taipei'},state_scope:scope||'shared',user:{id:user.id,name:user.display_name,username:user.username,role:user.role==='owner'?'admin':user.role,telegram_linked:Boolean(user.auth_subject),has_password:Boolean(user.has_password),can_setup:!scope&&user.role==='owner'},verified_at:verifiedAt,categories:cs.results.map(c=>({...c,description:categories.find(definition=>definition.id===c.id)?.description||''})),statuses:ss.results.map(s=>({...s,dimmed:Boolean(s.dimmed)})),places:ps.results.map(p=>({...p,hidden:Boolean(p.hidden),hours:JSON.parse(p.hours_json),hours_json:undefined,note:p.note||'',links:ls.results.filter(l=>l.place_id===p.id)}))};
   return json(data,200,path==='/api/export'?{'Content-Disposition':'attachment; filename="taiwan-map.json"'}:{});
  }
  const statusMatch=path.match(/^\/api\/statuses\/([a-zA-Z0-9-]+)$/);
@@ -71,12 +73,12 @@ async function handleApi(request,env,context={}){
  const match=path.match(/^\/api\/places\/([a-zA-Z0-9-]+)\/state$/);
  if(match&&request.method==='PUT'){
   if(!['owner','admin','editor'].includes(user.role))fail(403,'Доступ только для просмотра.');
-  const place=await stmt(db,'SELECT id FROM places WHERE id=? AND trip_id=?',match[1],TRIP).first();if(!place)fail(404,'Место не найдено.');
+  const place=await stmt(db,'SELECT id FROM places WHERE id=? AND trip_id=? AND hidden=0',match[1],TRIP).first();if(!place)fail(404,'Место не найдено.');
   const b=await body(request);if(!Number.isSafeInteger(b.version)||b.version<0||typeof b.note!=='string'||b.note.length>2000)fail(400,'Некорректная версия или заметка (до 2000 символов).');
   if(b.status_id!==null&&(typeof b.status_id!=='string'||!await stmt(db,'SELECT id FROM statuses WHERE id=? AND trip_id=? AND archived=0',b.status_id,TRIP).first()))fail(400,'Неизвестный статус.');
   const now=Date.now(),next=b.version+1,eventId=crypto.randomUUID();
   const result=await db.batch([
-   b.version===0 ? stmt(db,'INSERT OR IGNORE INTO user_place_states(user_id,place_id,status_id,note,version,updated_at) VALUES(?,?,?,?,1,?)',stateUser,place.id,b.status_id,b.note,now) : stmt(db,'UPDATE user_place_states SET status_id=?,note=?,version=version+1,updated_at=? WHERE user_id=? AND place_id=? AND version=?',b.status_id,b.note,now,stateUser,place.id,b.version),
+   b.version===0 ? stmt(db,'INSERT OR IGNORE INTO user_place_states(user_id,place_id,status_id,note,version,updated_at) SELECT ?,?,?,?,1,? WHERE EXISTS (SELECT 1 FROM places WHERE id=? AND trip_id=? AND hidden=0)',stateUser,place.id,b.status_id,b.note,now,place.id,TRIP) : stmt(db,'UPDATE user_place_states SET status_id=?,note=?,version=version+1,updated_at=? WHERE user_id=? AND place_id=? AND version=? AND EXISTS (SELECT 1 FROM places WHERE id=? AND trip_id=? AND hidden=0)',b.status_id,b.note,now,stateUser,place.id,b.version,place.id,TRIP),
    stmt(db,`INSERT INTO state_events(id,user_id,place_id,status_id,note,version,created_at) SELECT ?,?,place_id,status_id,note,version,? FROM user_place_states WHERE user_id=? AND place_id=? AND version=? AND changes()=1`,eventId,user.id,now,stateUser,place.id,next)
   ]);
   if(!result[0].meta.changes)fail(409,'Место изменили на другом устройстве. Обновите данные и повторите.');return json({version:next,updated_at:now});

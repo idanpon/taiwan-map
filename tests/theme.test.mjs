@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';import vm f
 import {createThemeUI} from '../public/theme.js';
 import {statusAppearance} from '../public/map-model.js';
 function fixture(saved,system=false,storageFails=false){
- const events={},media={matches:system,addEventListener(type,fn){this.change=fn}},controls=[0,1].map(()=>({value:'',addEventListener(type,fn){this.change=fn}}));
+ const events={},media={matches:system,addEventListener(type,fn){this.change=fn}},controls=[0,1].map(()=>({attributes:{},setAttribute(k,v){this.attributes[k]=v},addEventListener(type,fn){this[type]=fn}}));
  let stored=saved;const root={dataset:{},style:{}},meta={setAttribute(key,value){this[key]=value}};
  const document={documentElement:root,querySelector:()=>meta,querySelectorAll:()=>controls};
  const window={matchMedia:()=>media,addEventListener:(type,fn)=>events[type]=fn,localStorage:{getItem(){if(storageFails)throw new Error('Denied');return stored},setItem(k,v){if(storageFails)throw new Error('Denied');stored=v}}};
@@ -18,8 +18,8 @@ test('blocking bootstrap applies saved or system theme before page rendering, ev
 test('both visible theme controls stay in sync, manual choice survives system changes, and blocked storage does not break switching',()=>{
  for(const blocked of [false,true]){
   const f=fixture(null,false,blocked);f.root.dataset.theme='light';const changes=[];const ui=createThemeUI({...f,onChange:x=>changes.push(x)});
-  f.media.change({matches:true});assert.equal(ui.value,'dark');assert.ok(f.controls.every(x=>x.value==='dark'));
-  f.controls[1].value='light';f.controls[1].change();assert.equal(ui.value,'light');f.media.change({matches:true});assert.equal(ui.value,'light');assert.equal(f.controls[0].value,'light');
+  f.media.change({matches:true});assert.equal(ui.value,'dark');assert.ok(f.controls.every(x=>x.attributes['aria-label']==='Включить светлую тему'));
+  f.controls[1].click();assert.equal(ui.value,'light');f.media.change({matches:true});assert.equal(ui.value,'light');assert.equal(f.controls[0].attributes['aria-label'],'Включить тёмную тему');
   if(!blocked)assert.equal(f.saved,'light');assert.equal(changes.at(-1),'light');
   f.events.storage({key:'taiwan-map-theme',newValue:'dark'});assert.equal(ui.value,'dark');
  }

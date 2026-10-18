@@ -30,7 +30,7 @@ test('ten shared category definitions use the requested outline icons and normal
 test('category migration retains every place, note, link, status setting, session and history record',async()=>{
  const DB=openDatabase(),oldDirectory=mkdtempSync(join(tmpdir(),'taiwan-old-categories-'));
  try{
-  for(const file of ['0000_absurd_penance.sql','0001_accounts.sql','0002_status_symbols.sql','0003_status_transparency.sql'])copyFileSync('drizzle/'+file,join(oldDirectory,file));
+  for(const file of ['0000_absurd_penance.sql','0001_accounts.sql','0002_status_symbols.sql','0003_status_transparency.sql','0005_hidden_places.sql'])copyFileSync('drizzle/'+file,join(oldDirectory,file));
   migrate(DB,oldDirectory);const call=await fixture(DB);
   for(const [i,c] of legacyCategories.entries())DB.sqlite.prepare('INSERT INTO categories VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET label=excluded.label,color=excluded.color,icon=excluded.icon,sort_order=excluded.sort_order').run(...c,i);
   DB.sqlite.prepare('UPDATE places SET category_id=? WHERE id=?').run('cafe','simple-kaffa');
@@ -55,11 +55,12 @@ test('imports of older six-category exports merge café and food while retaining
   migrate(source,'drizzle');migrate(target,'drizzle');const call=await fixture(source);
   const exported=await(await call('/api/export')).json();
   exported.categories=legacyCategories.map(([id,label,color,icon],sort_order)=>({id,label,color,icon,sort_order}));
-  exported.places.find(p=>p.id==='simple-kaffa').category_id='cafe';
+  exported.places.find(p=>p.id==='simple-kaffa').category_id='cafe';exported.places.find(p=>p.id==='simple-kaffa').hidden=true;exported.places.find(p=>p.id==='simple-kaffa').visibility_version=7;
   assert.equal(target.sqlite.prepare('SELECT COUNT(*) n FROM categories').get().n,0);
   assert.equal(importExport(target,exported).places,exported.places.length);
   assert.equal(target.sqlite.prepare('SELECT COUNT(*) n FROM categories').get().n,10);
   assert.equal(target.sqlite.prepare('SELECT category_id FROM places WHERE id=?').get('simple-kaffa').category_id,'food');
+  assert.deepEqual({...target.sqlite.prepare('SELECT hidden,visibility_version FROM places WHERE id=?').get('simple-kaffa')},{hidden:1,visibility_version:7});
   assert.equal(target.sqlite.prepare('SELECT note FROM user_place_states WHERE place_id=?').get('simple-kaffa').note,'Preserve café note');
   assert.equal(target.sqlite.prepare('PRAGMA foreign_key_check').all().length,0);
  }finally{source.close();target.close()}
@@ -75,5 +76,7 @@ test('help uses current category labels and live editable status colors, symbols
  assert.ok(html.includes('У вас доступ для просмотра'));assert.ok(!html.includes('Кнопка ⚙'));
  data.user.role='editor';data.statuses[0]={...data.statuses[0],label:'Новое <название>',color:'#112233',symbol:'&'};
  html=helpContent(data,esc);assert.ok(html.includes('Новое &lt;название&gt;'));assert.ok(html.includes('#112233'));assert.ok(html.includes('&amp;'));assert.ok(html.includes('Кнопка ⚙'));
+ assert.ok(!html.includes('Интересное место, которое планируем посетить.'));assert.ok(!html.includes('Место, где уже побывали.'));assert.ok(html.includes('Их смысл определяется вашей договорённостью'));
+ data.statuses=[];assert.ok(helpContent(data,esc).includes('На карте пока нет статусов.'));
  assert.ok(!html.includes('Хотим посетить'));assert.ok(!html.includes('<название>'));
 });
