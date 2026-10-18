@@ -34,6 +34,11 @@ label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 8px; }
 .password-row { display: flex; align-items: stretch; border: 1px solid #bdc8b7; border-radius: 8px; background: var(--panel); }
 .password-row input { background: none; border: 0; padding: 14px; width: 100%; font-size: 16px; min-width: 0; border-radius: 8px 0 0 8px; }
 .password-row button { font-size: 24px; color: var(--green); min-width: 52px; }
+.password-input { display: flex; align-items: stretch; min-width: 0; width: 100%; border: 1px solid #d0d9c8; border-radius: 6px; background: #fffefa; overflow: hidden; }
+.password-row .password-input { flex: 1; width: auto; border: 0; background: none; }
+.password-input input, dialog .password-input input:not([type=color]) { flex: 1; min-width: 0; width: 0; border: 0; border-radius: 0; background: none; }
+.password-input .password-toggle { flex: none; min-height: 44px; min-width: 76px; padding: 8px; font-size: 12px; color: var(--green); border-left: 1px solid var(--line); }
+.password-toggle:focus-visible { outline: 2px solid var(--green); outline-offset: -3px; }
 #login-error, #status-error { color: #a03f32; min-height: 18px; font-size: 13px; }
 .login-foot { font-size: 11px; display: flex; flex-wrap: wrap; justify-content: space-between; color: var(--muted); gap: 8px 20px; }
 .telegram-button { width: 100%; margin: 0 0 20px; }

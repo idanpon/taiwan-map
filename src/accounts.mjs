@@ -5,7 +5,8 @@ export async function accountScope(db){return (await stmt(db,'SELECT value FROM 
 const dummyHash='pbkdf2$600000$'+'0'.repeat(32)+'$'+'0'.repeat(64);
 function username(value){const name=typeof value==='string'?value.trim().toLowerCase():'';if(!/^[a-z0-9][a-z0-9._-]{2,39}$/.test(name))fail(400,'Логин: 3–40 латинских букв, цифр, точек, дефисов или подчёркиваний.');return name}
 function displayName(value){if(typeof value!=='string'||!value.trim()||value.trim().length>80)fail(400,'Имя: 1–80 символов.');return value.trim()}
-function password(value){if(typeof value!=='string'||value.length<12||value.length>256)fail(400,'Пароль: от 12 до 256 символов.');return value}
+function password(value){if(typeof value!=='string'||value.length<6||value.length>256)fail(400,'Пароль: от 6 до 256 символов.');return value}
+function newPassword(b){const value=password(b.password);if(b.password_confirmation!==value)fail(400,'Пароли не совпадают.');return value}
 function role(value){if(!roles.includes(value))fail(400,'Неизвестная роль.');return value}
 async function requireUser(request,env){const user=await session(request,env.DB,env);if(!user)fail(401,'Войдите, чтобы открыть карту.');return user}
 async function requireAdmin(request,env){const user=await requireUser(request,env);if(user.role!=='admin')fail(403,'Нужны права admin.');return user}
@@ -19,7 +20,7 @@ export async function handleAccounts(request,env,context={}){
  if(path==='/api/auth/setup'&&method==='POST'){
   if(scope)fail(409,'Учётные записи уже настроены.');
   const actor=await requireUser(request,env);if(actor.id!==SHARED_USER||actor.role!=='owner')fail(403,'Нужен вход с текущим паролем поездки.');
-  const b=await body(request),login=username(b.username),name=displayName(b.name),hash=await passwordHash(password(b.password));
+  const b=await body(request),login=username(b.username),name=displayName(b.name),hash=await passwordHash(newPassword(b));
   if(b.state_scope!=='shared')fail(400,'Для поездки используется общая карта.');
   try{await db.batch([
    stmt(db,'INSERT INTO app_meta(key,value) VALUES(?,?)','accounts_v1',b.state_scope),
@@ -89,7 +90,7 @@ export async function handleAccounts(request,env,context={}){
    if(b.telegram_request){
     const pending=await stmt(db,'SELECT subject FROM telegram_requests WHERE subject=?',String(b.telegram_request)).first();if(!pending)fail(404,'Заявка не найдена.');subject=pending.subject;
    }
-   if(b.username||b.password){login=username(b.username);hash=await passwordHash(password(b.password))}
+   if(b.username||b.password){login=username(b.username);hash=await passwordHash(newPassword(b))}
    if(!subject&&!login)fail(400,'Нужен логин и пароль либо заявка Telegram.');
    const id=crypto.randomUUID(),queries=[stmt(db,'INSERT INTO users(id,display_name,username,password_hash,auth_subject,created_at) VALUES(?,?,?,?,?,?)',id,name,login,hash,subject,Date.now()),stmt(db,'INSERT INTO memberships VALUES(?,?,?)',TRIP,id,newRole)];
    if(subject)queries.push(stmt(db,'DELETE FROM telegram_requests WHERE subject=?',subject));
