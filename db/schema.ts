@@ -1,6 +1,7 @@
-import { sqliteTable, text, integer, real, primaryKey, index } from 'drizzle-orm/sqlite-core';
+import {sql} from 'drizzle-orm';
+import { sqliteTable, text, integer, real, primaryKey, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 export const trips = sqliteTable('trips', { id: text('id').primaryKey(), name: text('name').notNull(), timezone: text('timezone').notNull() });
-export const users = sqliteTable('users', { id: text('id').primaryKey(), displayName: text('display_name').notNull(), authSubject: text('auth_subject').unique(), passwordHash: text('password_hash'), createdAt: integer('created_at').notNull() });
+export const users = sqliteTable('users', { id: text('id').primaryKey(), displayName: text('display_name').notNull(), authSubject: text('auth_subject').unique(), passwordHash: text('password_hash'), username: text('username'), disabled: integer('disabled').notNull().default(0), createdAt: integer('created_at').notNull() }, t=>[uniqueIndex('users_username_unique').on(sql`${t.username} COLLATE NOCASE`)]);
 export const memberships = sqliteTable('memberships', { tripId: text('trip_id').notNull().references(()=>trips.id), userId: text('user_id').notNull().references(()=>users.id), role: text('role').notNull() }, t=>[primaryKey({columns:[t.tripId,t.userId]})]);
 export const categories = sqliteTable('categories', { id: text('id').primaryKey(), label: text('label').notNull(), color: text('color').notNull(), icon: text('icon').notNull(), sortOrder: integer('sort_order').notNull() });
 export const places = sqliteTable('places', { id:text('id').primaryKey(), tripId:text('trip_id').notNull().references(()=>trips.id), name:text('name').notNull(), localName:text('local_name').notNull(), city:text('city').notNull(), categoryId:text('category_id').notNull().references(()=>categories.id), lat:real('lat').notNull(), lon:real('lon').notNull(), address:text('address').notNull(), summary:text('summary').notNull(), tip:text('tip').notNull(), hoursJson:text('hours_json').notNull(), verifiedAt:text('verified_at').notNull(), updatedAt:integer('updated_at').notNull() },t=>[index('places_trip_idx').on(t.tripId)]);
@@ -11,3 +12,6 @@ export const stateEvents = sqliteTable('state_events',{id:text('id').primaryKey(
 export const sessions=sqliteTable('sessions',{tokenHash:text('token_hash').primaryKey(),userId:text('user_id').notNull().references(()=>users.id),expiresAt:integer('expires_at').notNull()},t=>[index('session_expiry_idx').on(t.expiresAt)]);
 export const loginAttempts=sqliteTable('login_attempts',{bucket:text('bucket').primaryKey(),count:integer('count').notNull(),expiresAt:integer('expires_at').notNull()});
 export const appMeta=sqliteTable('app_meta',{key:text('key').primaryKey(),value:text('value').notNull()});
+
+export const authChallenges=sqliteTable('auth_challenges',{nonceHash:text('nonce_hash').primaryKey(),purpose:text('purpose').notNull(),userId:text('user_id').references(()=>users.id),expiresAt:integer('expires_at').notNull()},t=>[index('auth_challenges_expiry_idx').on(t.expiresAt)]);
+export const telegramRequests=sqliteTable('telegram_requests',{subject:text('subject').primaryKey(),displayName:text('display_name').notNull(),createdAt:integer('created_at').notNull()});

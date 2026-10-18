@@ -24,3 +24,13 @@ test('storage failures keep the token in memory; cookie mode remains compatible'
  const cookie=createApiClient({authMode:'cookie',storage:broken,fetchImpl});await cookie('/api/data');assert.equal(calls.at(-1).credentials,'include');assert.equal(calls.at(-1).headers.get('authorization'),null);
  const incompatible=createApiClient({authMode:'bearer',fetchImpl:async()=>response({ok:true})});await assert.rejects(incompatible('/api/login',{method:'POST',body:'{}'}),/режим авторизации/);
 });
+test('admin setup keeps its current authorization and exchanges the session; Telegram login stores only the app token',async()=>{
+ const values=new Map(),calls=[];let issued='a'.repeat(64);
+ const storage={getItem:key=>values.get(key),setItem:(key,value)=>values.set(key,value),removeItem:key=>values.delete(key)};
+ const api=createApiClient({authMode:'bearer',storage,fetchImpl:async(path,options)=>{calls.push({path,...options});return response({ok:true,token:issued})}});
+ await api('/api/login',{method:'POST',body:'{}'});issued='b'.repeat(64);
+ const setup=await api('/api/auth/setup',{method:'POST',body:'{}'});assert.equal(calls.at(-1).headers.get('authorization'),'Bearer '+'a'.repeat(64));assert.equal(setup.token,undefined);
+ await api('/api/data');assert.equal(calls.at(-1).headers.get('authorization'),'Bearer '+'b'.repeat(64));
+ issued='c'.repeat(64);await api('/api/auth/telegram/login',{method:'POST',body:JSON.stringify({id_token:'telegram-id-token',nonce:'nonce'})});assert.equal(calls.at(-1).headers.get('authorization'),null);
+ await api('/api/data');assert.equal(calls.at(-1).headers.get('authorization'),'Bearer '+'c'.repeat(64));assert.ok(!JSON.stringify([...values]).includes('telegram-id-token'));
+});

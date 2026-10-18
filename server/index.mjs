@@ -6,7 +6,7 @@ import {handle} from '../src/core.mjs';
 import {page,securityHeaders} from '../src/ui.mjs';
 import {openDatabase,migrate} from './database.mjs';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-if(!process.env.APP_PASSWORD_HASH)throw new Error('APP_PASSWORD_HASH is required. Run node server/password.mjs.');
+
 const origin=new URL(process.env.APP_ORIGIN||'http://localhost:8080');
 if(!['http:','https:'].includes(origin.protocol))throw new Error('APP_ORIGIN must be http(s).');
 const databasePath=resolve(process.env.DATABASE_PATH||'data/taiwan.sqlite');
@@ -17,7 +17,7 @@ const cookiePath=process.env.SESSION_COOKIE_PATH||'/';
 if(!/^\/[a-zA-Z0-9/_-]*$/.test(cookiePath))throw new Error('Invalid SESSION_COOKIE_PATH');
 const authMode=process.env.AUTH_MODE||'cookie';
 if(!['cookie','bearer'].includes(authMode))throw new Error('AUTH_MODE must be cookie or bearer');
-const env={DB,APP_PASSWORD_HASH:process.env.APP_PASSWORD_HASH,APP_ORIGIN:origin.origin,FRONTEND_ORIGIN:frontend?.origin,SESSION_COOKIE_PATH:cookiePath,AUTH_MODE:authMode};
+const env={DB,APP_PASSWORD_HASH:process.env.APP_PASSWORD_HASH,APP_ORIGIN:origin.origin,FRONTEND_ORIGIN:frontend?.origin,SESSION_COOKIE_PATH:cookiePath,AUTH_MODE:authMode,TELEGRAM_CLIENT_ID:process.env.TELEGRAM_CLIENT_ID};
 const mime={'.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.txt':'text/plain; charset=utf-8'};
 const server=http.createServer(async(req,res)=>{
  try{
@@ -28,7 +28,7 @@ const server=http.createServer(async(req,res)=>{
    const request=new Request(url,{method:req.method,headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})});
    const clientIp=process.env.TRUST_PROXY==='1'?headers.get('x-real-ip')||'unknown':req.socket.remoteAddress||'unknown';
    response=await handle(request,env,{clientIp});
-   if(response.ok&&req.method==='POST'&&url.pathname==='/api/login'){try{backup()}catch(e){console.error('Backup failed',e.name)}}
+   if(response.ok&&req.method==='POST'&&['/api/login','/api/auth/setup','/api/auth/telegram/login'].includes(url.pathname)){try{backup()}catch(e){console.error('Backup failed',e.name)}}
   }else if(req.method!=='GET'&&req.method!=='HEAD'){response=new Response('Method not allowed',{status:405})}
   else if(url.pathname==='/'){response=new Response(page,{headers:securityHeaders})}
   else if(url.pathname==='/config.js'){response=new Response('window.TAIWAN_CONFIG = Object.freeze('+JSON.stringify({apiBase:'',requiresApi:false,authMode})+');',{headers:{'Content-Type':mime['.js'],'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})}
