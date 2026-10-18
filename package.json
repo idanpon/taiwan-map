@@ -3,10 +3,15 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "build:pages": "node scripts/build-pages.mjs",
     "test": "node --test tests/*.test.mjs",
     "start": "node server/index.mjs"
+  },
+  "dependencies": {
+    "jose": "6.2.12"
   }
 }
