@@ -269,7 +269,8 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
 #accounts-dialog button:disabled, #accounts-dialog .checkbox-label:has(input:disabled) { opacity: .5; cursor: not-allowed; }
 
 #status-dialog { width: 720px; }
-.status-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 24px; }
+.status-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+@media (min-width: 701px) { .status-editor-open .status-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); } }
 .status-layout h3 { margin-top: 0; font-size: 16px; }
 #status-list { max-height: 360px; overflow-y: auto; border-block: 1px solid var(--line); }
 .status-option { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 12px; align-items: center; text-align: left; width: 100%; min-height: 52px; padding: 10px 8px; border-radius: 6px; font-size: 14px; }
