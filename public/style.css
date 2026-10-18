@@ -93,7 +93,7 @@ button:disabled { opacity: .55; cursor: default; }
 .place-card-content { min-width: 0; flex: 1; }
 .place-name { display: block; font-weight: 600; font-size: 14px; line-height: 1.4; margin: 0 0 4px; overflow-wrap: anywhere; }
 .place-meta { font-size: 11px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.status-dot { height: 16px; width: 16px; border-radius: 50%; display: inline-grid; place-items: center; vertical-align: middle; background: var(--status, #c5cbbf); color: var(--status-symbol, white); font: 700 10px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI Symbol', sans-serif; }
+.status-dot { opacity: var(--status-opacity, 1); height: 16px; width: 16px; border-radius: 50%; display: inline-grid; place-items: center; vertical-align: middle; background: var(--status, #c5cbbf); color: var(--status-symbol, white); font: 700 10px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI Symbol', sans-serif; }
 .card-status { display: block; font-size: 11px; margin-top: 6px; color: var(--status-text, var(--status, var(--muted))); }
 .side-footer { padding: 14px 20px; flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 8px 12px; justify-content: space-between; font-size: 10px; border-top: 1px solid var(--line); color: var(--muted); }
 .side-footer a { white-space: nowrap; }
@@ -111,7 +111,7 @@ button:disabled { opacity: .55; cursor: default; }
 .map-button { display: flex; align-items: center; justify-content: center; gap: 6px; background: #fcfbf5f2; border: 1px solid #fff; box-shadow: 0 3px 14px #273a3210; border-radius: 7px; min-width: 42px; min-height: 42px; padding: 8px 12px; font-size: 20px; color: var(--green); }
 .map-button span { font-size: 12px; }
 .pin-shell { background: none !important; border: 0 !important; }
-.pin { width: 40px; height: 40px; background: var(--category); color: white; border: 2px solid #fffcf6; border-radius: 50%; box-shadow: 0 3px 9px #273a3238; position: relative; display: grid; place-items: center; }
+.pin { opacity: var(--status-opacity, 1); width: 40px; height: 40px; background: var(--category); color: white; border: 2px solid #fffcf6; border-radius: 50%; box-shadow: 0 3px 9px #273a3238; position: relative; display: grid; place-items: center; }
 .pin svg { width: 19px; height: 19px; }
 .pin .pin-state { position: absolute; top: -3px; right: -3px; height: 18px; width: 18px; display: grid; place-items: center; border-radius: 50%; border: 2px solid white; background: var(--status); color: var(--status-symbol, white); box-shadow: 0 1px 4px #273a3240; font: 700 10px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI Symbol', sans-serif; }
 .city-cluster { height: 45px; width: 45px; border-radius: 50%; background: #456b53; color: white; display: grid; place-items: center; border: 3px solid #f5f4e8; box-shadow: 0 2px 12px #273a3240; font-size: 17px; }
@@ -247,3 +247,5 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
  #status-dialog { padding: 22px; }
  .status-option { grid-template-columns: 28px minmax(0, 1fr) auto; }
 }
+
+#status-dialog .status-dimmed-label input { width: 20px; height: 20px; flex: none; margin: 0; padding: 0; }

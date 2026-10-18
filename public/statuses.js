@@ -5,16 +5,16 @@ export function createStatusUI({api,$,esc,getData,onChange,toast}){
  function preview(){
   const symbol=$('status-symbol').value.normalize('NFC'),valid=validStatusSymbol(symbol);
   $('status-symbol').setCustomValidity(valid?'':'Введите один текстовый знак без emoji или оставьте поле пустым.');
-  const status=statusAppearance({color:$('status-color').value,symbol:valid?symbol:''});
-  $('status-preview-circle').textContent=status.symbol;$('status-preview-circle').style.backgroundColor=status.color;$('status-preview-circle').style.color=status.symbolColor;
+  const status=statusAppearance({color:$('status-color').value,symbol:valid?symbol:'',dimmed:$('status-dimmed').checked});
+  $('status-preview-circle').textContent=status.symbol;$('status-preview-circle').style.backgroundColor=status.color;$('status-preview-circle').style.color=status.symbolColor;$('status-preview-circle').style.opacity=status.opacity;
   $('status-preview-label').textContent=$('status-name').value.trim()||'Ваш статус';
  }
  function renderList(){
-  $('status-list').innerHTML=getData().statuses.map(s=>{const view=statusAppearance(s);return `<button type="button" class="status-option" data-edit-status="${esc(s.id)}" aria-label="Изменить статус «${esc(s.label)}»" aria-pressed="${editing?.id===s.id}"><span class="status-preview-circle" style="background:${view.color};color:${view.symbolColor}" aria-hidden="true">${esc(view.symbol)}</span><span>${esc(s.label)}</span><span class="status-edit-label">Изменить</span></button>`}).join('');
+  $('status-list').innerHTML=getData().statuses.map(s=>{const view=statusAppearance(s);return `<button type="button" class="status-option" data-edit-status="${esc(s.id)}" aria-label="Изменить статус «${esc(s.label)}»" aria-pressed="${editing?.id===s.id}"><span class="status-preview-circle" style="background:${view.color};color:${view.symbolColor};opacity:${view.opacity}" aria-hidden="true">${esc(view.symbol)}</span><span>${esc(s.label)}</span><span class="status-edit-label">Изменить</span></button>`}).join('');
  }
  function choose(status=null){
   editing=status?{...status}:null;
-  $('status-name').value=status?.label||'';$('status-color').value=status?.color||'#597b68';$('status-symbol').value=status?.symbol||'';
+  $('status-name').value=status?.label||'';$('status-color').value=status?.color||'#597b68';$('status-symbol').value=status?.symbol||'';$('status-dimmed').checked=Boolean(status?.dimmed);
   $('status-form-title').textContent=status?'Изменить статус':'Новый статус';$('status-save').textContent=status?'Сохранить изменения':'Добавить статус';
   $('status-error').textContent='';preview();renderList();
  }
@@ -29,7 +29,7 @@ export function createStatusUI({api,$,esc,getData,onChange,toast}){
  form.onsubmit=async event=>{
   event.preventDefault();if(busy)return;preview();if(!form.reportValidity())return;
   busy=true;$('status-error').textContent='';
-  const payload={label:$('status-name').value,color:$('status-color').value,symbol:$('status-symbol').value.normalize('NFC'),...(editing?{version:editing.version}:{})},wasEditing=Boolean(editing);
+  const payload={label:$('status-name').value,color:$('status-color').value,symbol:$('status-symbol').value.normalize('NFC'),dimmed:$('status-dimmed').checked,...(editing?{version:editing.version}:{})},wasEditing=Boolean(editing);
   const controls=$('status-dialog').querySelectorAll('button,input');controls.forEach(control=>control.disabled=true);
   try{
    const saved=await api('/api/statuses'+(editing?'/'+editing.id:''),{method:editing?'PUT':'POST',body:JSON.stringify(payload)});
