@@ -1,5 +1,7 @@
 import {createApiClient} from './api-client.js';
 import {createAccountUI} from './accounts.js';
+import {cityOptions,statusAppearance} from './map-model.js';
+import {createStatusUI} from './statuses.js';
 const $=id=>document.getElementById(id);
 const config=window.TAIWAN_CONFIG||{apiBase:'',requiresApi:false};
 let apiBase='',configurationError='';
@@ -19,7 +21,7 @@ const transport=createApiClient({apiBase,authMode:config.authMode||'cookie',stor
 async function api(path,options={}){if(configurationError)throw new Error(configurationError);return transport(path,options)}
 async function exportData(event){event.preventDefault();try{const content=await api('/api/export');const blob=new Blob([JSON.stringify(content,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='taiwan-map.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(e){toast(e.message)}}
 let accountUI;
-function showLogin(){$('accounts-dialog').close();accountUI?.showLogin();$('application').hidden=true;$('application').classList.remove('detail-open');document.body.classList.remove('app-active');setSidebar(false);$('detail').hidden=true;$('login').hidden=false;data=null;selected=null;dirty=false;if(map){map.remove();map=null}}
+function showLogin(){$('status-dialog').close();$('accounts-dialog').close();accountUI?.showLogin();$('application').hidden=true;$('application').classList.remove('detail-open');document.body.classList.remove('app-active');setSidebar(false);$('detail').hidden=true;$('login').hidden=false;data=null;selected=null;dirty=false;if(map){map.remove();map=null}}
 function setSidebar(open){$('places-panel').classList.toggle('mobile-open',open);$('mobile-toggle').textContent=open?'Назад к карте':'Места и фильтры';$('mobile-toggle').setAttribute('aria-expanded',String(open))}
 function closeDetail(restoreFocus=false){
  if($('detail').hidden)return true;
@@ -30,29 +32,22 @@ function closeDetail(restoreFocus=false){
  return true;
 }
 function getCategory(p){return data.categories.find(c=>c.id===p.category_id)}
-// Display palette also recognizes the custom status by its user-facing name.
-const statusColors={hype:'#dc2626',want:'#1456e0',maybe:'#facc15',visited:'#6b7280'};
-const statusSymbols={want:'!',visited:'✓',maybe:'?'};
-function getStatus(p){
- const value=data.statuses.find(s=>s.id===p.status_id);if(!value)return undefined;
- const label=value.label.normalize('NFKC').toLocaleLowerCase('ru-RU').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
- const key=label==='хайп'||label==='hype'?'hype':value.id;
- const color=statusColors[key]||value.color;
- return {...value,color,symbol:statusSymbols[key]||'',symbolColor:key==='maybe'?'#422006':'#ffffff',textColor:key==='maybe'?'#806000':color};
-}
+function getStatus(p){const value=data.statuses.find(s=>s.id===p.status_id);return value?statusAppearance(value):undefined}
 function visible(){return data.places.filter(p=>(!city||p.city===city)&&(!types.size||types.has(p.category_id))&&(!status||(status==='none'?!p.status_id:p.status_id===status))&&(!query||`${p.name} ${p.local_name} ${p.summary} ${p.address}`.toLowerCase().includes(query)))}
 function populateFilters(){
+ const cities=cityOptions(data.places);if(city&&!cities.some(c=>c.name===city))city='';
+ $('city-filter').innerHTML=`<option value="">Все места · ${data.places.length}</option>`+cities.map(c=>`<option value="${esc(c.name)}">${esc(c.name)} · ${c.count}</option>`).join('');$('city-filter').value=city;
  $('category-filters').innerHTML=data.categories.map(c=>`<button class="chip ${types.has(c.id)?'active':''}" data-category="${esc(c.id)}" aria-pressed="${types.has(c.id)}">${icon(c.icon)}${esc(c.label)}</button>`).join('');
  const previous=$('status-filter').value;$('status-filter').innerHTML='<option value="">Все статусы</option><option value="none">Без статуса</option>'+data.statuses.map(s=>`<option value="${esc(s.id)}">${esc(s.label)}</option>`).join('');$('status-filter').value=previous;
 }
 function render(){if(!data)return;const ps=visible();$('place-count').textContent=`${ps.length} из ${data.places.length} мест`;$('map-label').textContent=`${city||'Тайвань'} · ${ps.length} мест`;
- $('place-list').innerHTML=ps.length?ps.map(p=>{const c=getCategory(p),s=getStatus(p);return `<button class="place-card ${selected===p.id?'selected':''}" data-place="${esc(p.id)}" style="--category:${c.color};--category-bg:${c.color}14;--status:${s?.color||'#697568'};--status-text:${s?.textColor||'#697568'}"><span class="place-icon">${icon(c.icon)}</span><span class="place-card-content"><span class="place-name">${esc(p.name)}</span><span class="place-meta">${esc(p.city)} <span>·</span> ${esc(c.label)}</span><span class="card-status"><i class="status-dot"></i> ${esc(s?.label||'Без статуса')}</span></span></button>`}).join(''):'<p class="empty">Под эти фильтры пока нет мест.<br>Попробуйте другой статус или сбросьте фильтры.</p>';
+ $('place-list').innerHTML=ps.length?ps.map(p=>{const c=getCategory(p),s=getStatus(p);return `<button class="place-card ${selected===p.id?'selected':''}" data-place="${esc(p.id)}" style="--category:${c.color};--category-bg:${c.color}14;--status:${s?.color||'#697568'};--status-symbol:${s?.symbolColor||'#ffffff'};--status-text:${s?.textColor||'#697568'}"><span class="place-icon">${icon(c.icon)}</span><span class="place-card-content"><span class="place-name">${esc(p.name)}</span><span class="place-meta">${esc(p.city)} <span>·</span> ${esc(c.label)}</span><span class="card-status"><i class="status-dot" aria-hidden="true">${esc(s?.symbol||'')}</i> ${esc(s?.label||'Без статуса')}</span></span></button>`}).join(''):'<p class="empty">Под эти фильтры пока нет мест.<br>Попробуйте другой статус или сбросьте фильтры.</p>';
  if(selected&&!ps.some(p=>p.id===selected)){selected=null;$('detail').hidden=true;$('application').classList.remove('detail-open');dirty=false}renderMarkers(ps);
 }
 function renderMarkers(ps=visible()){
  if(!map||!layers)return;layers.clearLayers();lastZoomGroup=map.getZoom()<10;
- if(lastZoomGroup){for(const name of [...new Set(ps.map(p=>p.city))]){const group=ps.filter(p=>p.city===name),lat=group.reduce((s,p)=>s+p.lat,0)/group.length,lon=group.reduce((s,p)=>s+p.lon,0)/group.length;L.marker([lat,lon],{icon:L.divIcon({className:'pin-shell',html:`<div class="city-cluster">${group.length}</div>`,iconSize:[45,45],iconAnchor:[22,22]}),title:name}).addTo(layers).bindTooltip(`${name} · ${group.length} мест`).on('click',()=>map.fitBounds(group.map(p=>[p.lat,p.lon]),{padding:[60,60],maxZoom:14}));}return}
- for(const p of ps){const c=getCategory(p),s=getStatus(p);const pin=L.divIcon({className:'pin-shell',html:`<div class="pin ${p.status_id==='visited'?'visited':''}" style="--category:${c.color};--status:${s?.color||c.color};--status-symbol:${s?.symbolColor||'#ffffff'}">${icon(c.icon)}${s?`<i class="pin-state" aria-hidden="true">${s.symbol}</i>`:''}</div>`,iconSize:[40,40],iconAnchor:[20,20]});const label=p.name+(s?' · '+s.label:'');L.marker([p.lat,p.lon],{icon:pin,title:label,alt:label,keyboard:true,riseOnHover:true,zIndexOffset:selected===p.id?500:0}).addTo(layers).bindTooltip(esc(label),{direction:'top',offset:[0,-22]}).on('click',()=>openPlace(p.id))}
+ if(lastZoomGroup){for(const name of [...new Set(ps.map(p=>p.city))]){const group=ps.filter(p=>p.city===name),lat=group.reduce((s,p)=>s+p.lat,0)/group.length,lon=group.reduce((s,p)=>s+p.lon,0)/group.length;L.marker([lat,lon],{icon:L.divIcon({className:'pin-shell',html:`<div class="city-cluster">${group.length}</div>`,iconSize:[45,45],iconAnchor:[22,22]}),title:name}).addTo(layers).bindTooltip(esc(`${name} · ${group.length} мест`)).on('click',()=>map.fitBounds(group.map(p=>[p.lat,p.lon]),{padding:[60,60],maxZoom:14}));}return}
+ for(const p of ps){const c=getCategory(p),s=getStatus(p);const pin=L.divIcon({className:'pin-shell',html:`<div class="pin" style="--category:${c.color};--status:${s?.color||c.color};--status-symbol:${s?.symbolColor||'#ffffff'}">${icon(c.icon)}${s?`<i class="pin-state" aria-hidden="true">${esc(s.symbol)}</i>`:''}</div>`,iconSize:[40,40],iconAnchor:[20,20]});const label=p.name+(s?' · '+s.label:'');L.marker([p.lat,p.lon],{icon:pin,title:label,alt:label,keyboard:true,riseOnHover:true,zIndexOffset:selected===p.id?500:0}).addTo(layers).bindTooltip(esc(label),{direction:'top',offset:[0,-22]}).on('click',()=>openPlace(p.id))}
 }
 function initMap(){
  if(!window.L){$('map-error').hidden=false;return}
@@ -70,15 +65,18 @@ async function saveState(event,p){event.preventDefault();if(data.user.role==='vi
 async function load(){data=await api('/api/data');accountUI?.update();$('login').hidden=true;$('application').hidden=false;document.body.classList.add('app-active');populateFilters();$('verified').textContent='Часы проверены '+new Date(data.verified_at+'T12:00:00Z').toLocaleDateString('ru-RU');if(!map)initMap();render();if(map)setTimeout(()=>map.invalidateSize(),0)}
 $('login-form').onsubmit=async e=>{e.preventDefault();const button=e.currentTarget.querySelector('button[type=submit]');button.disabled=true;$('login-error').textContent='';try{await api('/api/login',{method:'POST',body:JSON.stringify({username:$('username').value,password:$('password').value})});accountUI.resetLoginPassword();await load()}catch(err){$('login-error').textContent=err.message}finally{button.disabled=false}};
 $('logout').onclick=async()=>{if(dirty){toast('Сначала сохраните изменения.');return}try{await api('/api/logout',{method:'POST'});showLogin()}catch(e){toast(e.message)}};
-document.querySelectorAll('[data-city]').forEach(button=>button.onclick=()=>{if(dirty){toast('Сначала сохраните изменения.');return}city=button.dataset.city;document.querySelectorAll('[data-city]').forEach(b=>b.classList.toggle('active',b===button));render();fit()});
+$('city-filter').onchange=e=>{if(dirty){e.target.value=city;toast('Сначала сохраните изменения.');return}city=e.target.value;render();fit()};
 $('category-filters').onclick=e=>{const b=e.target.closest('[data-category]');if(!b)return;if(dirty){toast('Сначала сохраните изменения.');return}const id=b.dataset.category;types.has(id)?types.delete(id):types.add(id);populateFilters();render()};
 $('status-filter').onchange=e=>{if(dirty){e.target.value=status;toast('Сначала сохраните изменения.');return}status=e.target.value;render()};
 $('search').oninput=e=>{if(dirty){toast('Сначала сохраните изменения.');e.target.value=query;return}query=e.target.value.trim().toLowerCase();render()};
-$('reset').onclick=()=>{if(dirty){toast('Сначала сохраните изменения.');return}city='';types.clear();status='';query='';$('search').value='';$('status-filter').value='';document.querySelectorAll('[data-city]').forEach(b=>b.classList.toggle('active',b.dataset.city===''));populateFilters();render();fit()};
+$('reset').onclick=()=>{if(dirty){toast('Сначала сохраните изменения.');return}city='';types.clear();status='';query='';$('search').value='';$('status-filter').value='';populateFilters();render();fit()};
 $('place-list').onclick=e=>{const b=e.target.closest('[data-place]');if(b)openPlace(b.dataset.place)};$('fit').onclick=fit;
 $('locate').onclick=()=>{if(!map){toast('Карта недоступна.');return}if(!window.isSecureContext||!navigator.geolocation){toast('Геопозиции нужен HTTPS и поддержка браузера.');return}const button=$('locate');button.disabled=true;navigator.geolocation.getCurrentPosition(p=>{button.disabled=false;const ll=[p.coords.latitude,p.coords.longitude];if(positionLayer)map.removeLayer(positionLayer);if(accuracyLayer)map.removeLayer(accuracyLayer);accuracyLayer=L.circle(ll,{radius:p.coords.accuracy,color:'#5f8fc1',fillOpacity:.08,weight:1}).addTo(map);positionLayer=L.circleMarker(ll,{radius:8,color:'#fff',weight:3,fillColor:'#387fc4',fillOpacity:1}).addTo(map).bindTooltip('Вы здесь');map.setView(ll,15);toast('Ваше положение показано на карте.');},e=>{button.disabled=false;toast(e.code===1?'Доступ к геопозиции запрещён. Разрешите его в настройках браузера.':'Не удалось определить положение. Попробуйте у окна или на улице.')},{enableHighAccuracy:true,timeout:15000,maximumAge:60000})};
-$('manage-statuses').onclick=()=>{$('status-error').textContent='';$('status-dialog').showModal();$('status-name').focus()};$('close-status').onclick=()=>$('status-dialog').close();
-$('status-form').onsubmit=async e=>{e.preventDefault();const button=e.currentTarget.querySelector('[type=submit]');button.disabled=true;try{const s=await api('/api/statuses',{method:'POST',body:JSON.stringify({label:$('status-name').value,color:$('status-color').value})});data.statuses.push(s);populateFilters();if(selected){const select=$('place-status');const opt=new Option(s.label,s.id);select.add(opt)}$('status-dialog').close();$('status-name').value='';toast('Новый статус добавлен.')}catch(err){$('status-error').textContent=err.message}finally{button.disabled=false}};
+const statusUI=createStatusUI({api,$,esc,getData:()=>data,toast,onChange:()=>{
+ populateFilters();render();
+ const select=$('place-status');if(select){const value=select.value;select.innerHTML='<option value="">Без статуса</option>'+data.statuses.map(s=>`<option value="${esc(s.id)}">${esc(s.label)}</option>`).join('');select.value=value;}
+}});
+$('manage-statuses').onclick=()=>statusUI.open();
 $('mobile-toggle').onclick=()=>{if(!closeDetail())return;setSidebar(!$('places-panel').classList.contains('mobile-open'));if(map)setTimeout(()=>map.invalidateSize(),0)};
 document.addEventListener('click',event=>{if($('detail').hidden||$('status-dialog').open||$('accounts-dialog').open||event.target.closest('#detail, #status-dialog, #manage-statuses, [data-place], .leaflet-marker-icon'))return;if(!closeDetail()){event.preventDefault();event.stopPropagation()}},true);
 document.addEventListener('keydown',event=>{if(event.key!=='Escape'||$('status-dialog').open||$('accounts-dialog').open)return;if(!$('detail').hidden){event.preventDefault();closeDetail(true)}else if($('places-panel').classList.contains('mobile-open')){setSidebar(false);$('mobile-toggle').focus()}});
