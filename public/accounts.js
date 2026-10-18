@@ -1,5 +1,7 @@
+import {installPasswordFields,enhancePasswordFields,confirmPassword,resetPasswordFields} from './password-fields.js';
 const roleNames={admin:'Admin',editor:'Редактирование',viewer:'Просмотр'};
 export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true}){
+ installPasswordFields(document);
  let authConfig={mode:'shared',telegram_client_id:null},sdkPromise;
  const options=selected=>Object.entries(roleNames).map(([id,name])=>`<option value="${id}" ${id===selected?'selected':''}>${name}</option>`).join('');
  function error(message){$('account-error').textContent=message}
@@ -45,7 +47,8 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true})
  }
  async function refreshUsers(){
   const result=await api('/api/admin/users');
-  $('account-users').innerHTML=result.users.map(u=>`<details class="account-user"><summary>${esc(u.name)} · ${roleNames[u.role]}${u.disabled?' · отключён':''}</summary><form data-user="${esc(u.id)}"><label>Имя<input name="name" value="${esc(u.name)}" maxlength="80" required></label><label>Логин<input name="username" value="${esc(u.username||'')}" minlength="3" maxlength="40" autocomplete="off" placeholder="${u.telegram_linked?'Необязательно для Telegram':'Логин'}"></label><p class="muted">Telegram: ${u.telegram_linked?'привязан':'не привязан'}</p><label>Права<select name="role">${options(u.role)}</select></label><label>Новый пароль<input name="password" type="password" minlength="12" maxlength="256" autocomplete="new-password" placeholder="Оставьте пустым, чтобы сохранить"></label><label class="checkbox-label"><input name="disabled" type="checkbox" ${u.disabled?'checked':''}> Доступ отключён</label><button class="primary" type="submit">Сохранить</button></form></details>`).join('');
+  $('account-users').innerHTML=result.users.map(u=>`<details class="account-user"><summary>${esc(u.name)} · ${roleNames[u.role]}${u.disabled?' · отключён':''}</summary><form data-user="${esc(u.id)}"><label>Имя<input name="name" value="${esc(u.name)}" maxlength="80" required></label><label>Логин<input name="username" value="${esc(u.username||'')}" minlength="3" maxlength="40" autocomplete="off" placeholder="${u.telegram_linked?'Необязательно для Telegram':'Логин'}"></label><p class="muted">Telegram: ${u.telegram_linked?'привязан':'не привязан'}</p><label>Права<select name="role">${options(u.role)}</select></label><label>Новый пароль<input name="password" type="password" minlength="6" maxlength="256" autocomplete="new-password" placeholder="Оставьте пустым, чтобы сохранить"></label><label class="checkbox-label"><input name="disabled" type="checkbox" ${u.disabled?'checked':''}> Доступ отключён</label><button class="primary" type="submit">Сохранить</button></form></details>`).join('');
+  enhancePasswordFields($('account-users'));
   $('telegram-requests').innerHTML=result.requests.length?'<h3>Заявки Telegram</h3>'+result.requests.map(u=>`<div class="telegram-request" data-request="${esc(u.subject)}"><strong>${esc(u.name)}</strong><select aria-label="Права нового участника">${options('viewer')}</select><button type="button" class="primary" data-approve>Одобрить</button><button type="button" class="text-button" data-reject>Отклонить</button></div>`).join(''):'<p class="muted">Новых заявок нет.</p>';
   $('telegram-requests').onclick=async event=>{
    const row=event.target.closest('[data-request]');if(!row||!event.target.closest('button'))return;
@@ -70,17 +73,17 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true})
  $('accounts-close').onclick=()=>$('accounts-dialog').close();
  $('users-refresh').onclick=()=>refreshUsers().catch(e=>error(e.message));
  $('setup-account').onsubmit=async event=>{
-  event.preventDefault();const form=event.currentTarget,button=form.querySelector('button[type=submit]');button.disabled=true;error('');
+  event.preventDefault();const form=event.currentTarget,button=form.querySelector('button[type=submit]');error('');if(!confirmPassword(form)){error('Пароли не совпадают.');return}button.disabled=true;
   try{
-   await api('/api/auth/setup',{method:'POST',body:JSON.stringify({name:form.elements.name.value,username:form.elements.username.value,password:form.elements.password.value,state_scope:'shared'})});
-   form.reset();$('accounts-dialog').close();await init();await load();toast('Учётная запись admin создана. Общий пароль больше не действует.');
+   await api('/api/auth/setup',{method:'POST',body:JSON.stringify({name:form.elements.name.value,username:form.elements.username.value,password:form.elements.password.value,password_confirmation:form.elements.password_confirmation.value,state_scope:'shared'})});
+   form.reset();resetPasswordFields(form);$('accounts-dialog').close();await init();await load();toast('Учётная запись admin создана. Общий пароль больше не действует.');
   }catch(e){error(e.message)}finally{button.disabled=false}
  };
  $('create-account').onsubmit=async event=>{
-  event.preventDefault();const form=event.currentTarget,button=form.querySelector('button[type=submit]');button.disabled=true;error('');
+  event.preventDefault();const form=event.currentTarget,button=form.querySelector('button[type=submit]');error('');if(!confirmPassword(form)){error('Пароли не совпадают.');return}button.disabled=true;
   try{
-   await api('/api/admin/users',{method:'POST',body:JSON.stringify({name:form.elements.name.value,username:form.elements.username.value,password:form.elements.password.value,role:form.elements.role.value})});
-   form.reset();await refreshUsers();toast('Пользователь добавлен.');
+   await api('/api/admin/users',{method:'POST',body:JSON.stringify({name:form.elements.name.value,username:form.elements.username.value,password:form.elements.password.value,password_confirmation:form.elements.password_confirmation.value,role:form.elements.role.value})});
+   form.reset();resetPasswordFields(form);await refreshUsers();toast('Пользователь добавлен.');
   }catch(e){error(e.message)}finally{button.disabled=false}
  };
  $('account-users').onsubmit=async event=>{
@@ -95,5 +98,5 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true})
    else{await refreshUsers();toast('Доступ обновлён. Пользователю нужно войти заново.');}
   }catch(e){error(e.message)}finally{button.disabled=false}
  };
- return {init,update,showLogin:()=>{if(authConfig.telegram_client_id)prepareTelegram($('telegram-login'),'login',$('login-error'))}};
+ return {init,update,resetLoginPassword:()=>resetPasswordFields($('login-form')),showLogin:()=>{resetPasswordFields(document);if(authConfig.telegram_client_id)prepareTelegram($('telegram-login'),'login',$('login-error'))}};
 }

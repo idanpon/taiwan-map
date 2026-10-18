@@ -40,14 +40,46 @@ async function fixture(scope='shared',mode='bearer'){
  const credential=async r=>mode==='bearer'?(await r.json()).token:r.headers.get('set-cookie').match(/tw_session=([^;]+)/)[1];
  const legacy=await credential(await call('/api/login','POST',{password:'old-shared-password'}));
  await call('/api/places/taipei-101/state','PUT',{version:0,status_id:'visited',note:'Existing production note'},legacy);
- const setup=await call('/api/auth/setup','POST',{username:'danil',name:'Danil',password:'new-admin-password',state_scope:scope},legacy);assert.equal(setup.status,200);
+ const setup=await call('/api/auth/setup','POST',{username:'danil',name:'Danil',password:'new-admin-password',password_confirmation:'new-admin-password',state_scope:scope},legacy);assert.equal(setup.status,200);
  const admin=await credential(setup);
  const add=async(username,role='viewer')=>{
-  const r=await call('/api/admin/users','POST',{username,name:username,role,password:'member-password-123'},admin);assert.equal(r.status,201);
+  const r=await call('/api/admin/users','POST',{username,name:username,role,password:'member-password-123',password_confirmation:'member-password-123'},admin);assert.equal(r.status,201);
   const {id}=await r.json(),token=await credential(await call('/api/login','POST',{username:username.toUpperCase(),password:'member-password-123'}));return {id,token};
  };
  return {DB,env,call,admin,legacy,add,credential};
 }
+
+test('first admin accepts six-character passwords and rejects short or mismatched confirmation without changing setup',async()=>{
+ const DB=openDatabase();migrate(DB,'drizzle');try{
+  const env={DB,APP_ORIGIN:'https://api.example.net',AUTH_MODE:'bearer',APP_PASSWORD_HASH:await passwordHash('shared-password')};
+  const call=(path,data,token='')=>handle(new Request(env.APP_ORIGIN+path,{method:'POST',headers:{Origin:env.APP_ORIGIN,'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:JSON.stringify(data)}),env);
+  const {token}=await(await call('/api/login',{password:'shared-password'})).json();
+  const setup={name:'Admin',username:'idanpon',state_scope:'shared',password:'abcdef',password_confirmation:'abcdef'};
+  for(const invalid of [{password:'abcde',password_confirmation:'abcde'},{password_confirmation:'xxxxxx'},{password_confirmation:undefined}]){
+   const r=await call('/api/auth/setup',{...setup,...invalid},token);assert.equal(r.status,400);
+   assert.equal(DB.sqlite.prepare("SELECT COUNT(*) n FROM app_meta WHERE key='accounts_v1'").get().n,0);
+  }
+  assert.equal((await call('/api/auth/setup',setup,token)).status,200);
+  assert.equal((await call('/api/login',{username:'idanpon',password:'abcdef'})).status,200);
+ }finally{DB.close()}
+});
+
+test('admin-created accounts require matching confirmation and allow six-character creation and reset passwords',async()=>{
+ const f=await fixture();try{
+  const user={name:'Short password',username:'short-user',role:'viewer',password:'abcdef',password_confirmation:'abcdef'};
+  for(const invalid of [{password:'abcde',password_confirmation:'abcde'},{password_confirmation:'xxxxxx'},{password_confirmation:undefined}]){
+   assert.equal((await f.call('/api/admin/users','POST',{...user,...invalid},f.admin)).status,400);
+   assert.equal(f.DB.sqlite.prepare('SELECT COUNT(*) n FROM users WHERE username=?').get(user.username).n,0);
+  }
+  const created=await f.call('/api/admin/users','POST',user,f.admin);assert.equal(created.status,201);const {id}=await created.json();
+  const login=await f.call('/api/login','POST',{username:user.username,password:'abcdef'});assert.equal(login.status,200);const token=await f.credential(login);
+  assert.equal((await f.call('/api/admin/users/'+id,'PUT',{password:'abcde'},f.admin)).status,400);
+  assert.equal((await f.call('/api/data','GET',undefined,token)).status,200);
+  assert.equal((await f.call('/api/admin/users/'+id,'PUT',{password:'ghijkl'},f.admin)).status,200);
+  assert.equal((await f.call('/api/data','GET',undefined,token)).status,401);
+  assert.equal((await f.call('/api/login','POST',{username:user.username,password:'ghijkl'})).status,200);
+ }finally{f.DB.close()}
+});
 
 test('account setup preserves data and history, retires shared password and revokes legacy sessions',async()=>{
  const f=await fixture();try{
@@ -103,7 +135,7 @@ test('admin changes revoke sessions, prevent last-admin lockout and enforce case
   assert.equal((await f.call('/api/admin/users/trip-shared','PUT',{role:'viewer'},f.admin)).status,409);
   assert.equal((await f.call('/api/admin/users/trip-shared','PUT',{disabled:true},f.admin)).status,409);
   assert.equal((await f.call('/api/data','GET',undefined,f.admin)).status,200);
-  r=await f.call('/api/admin/users','POST',{name:'Duplicate',username:'DANIL',password:'duplicate-password',role:'viewer'},f.admin);assert.equal(r.status,409);
+  r=await f.call('/api/admin/users','POST',{name:'Duplicate',username:'DANIL',password:'duplicate-password',password_confirmation:'duplicate-password',role:'viewer'},f.admin);assert.equal(r.status,409);
   assert.equal((await f.call('/api/admin/users/'+editor.id,'PUT',{disabled:false,role:'admin',password:'replacement-password'},f.admin)).status,200);
   assert.equal((await f.call('/api/login','POST',{username:'writer',password:'member-password-123'})).status,401);
   const second=await f.credential(await f.call('/api/login','POST',{username:'writer',password:'replacement-password'}));
