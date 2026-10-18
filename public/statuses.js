@@ -1,7 +1,9 @@
+import {installDialogBackdrop} from './dialogs.js';
 import {validStatusSymbol,statusAppearance} from './map-model.js';
 export function createStatusUI({api,$,esc,getData,onChange,toast}){
  let editing=null,busy=false;
  const form=$('status-form');
+ installDialogBackdrop($('status-dialog'),{canClose:()=>!busy});
  function preview(){
   const symbol=$('status-symbol').value.normalize('NFC'),valid=validStatusSymbol(symbol);
   $('status-symbol').setCustomValidity(valid?'':'Введите один текстовый знак без emoji или оставьте поле пустым.');
