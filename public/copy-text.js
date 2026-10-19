@@ -20,11 +20,21 @@ export async function copyText(text,{navigator=globalThis.navigator,document=glo
  finally{input.remove();active?.focus?.({preventScroll:true});if(selection&&ranges.length){selection.removeAllRanges();for(const range of ranges)selection.addRange(range)}}
 }
 export function installPlaceCopy({root,getPlace,toast,write=copyText}){
- let request=0;
+ let request=0,blurTimer,keyboardSequence=0;
+ // Keep keyboard focus visible if the user starts navigating before this expires.
+ root.addEventListener('keydown',()=>{keyboardSequence++;clearTimeout(blurTimer)});
  root.addEventListener('click',async event=>{
   const button=event.target.closest('[data-copy-field]');if(!button||!root.contains(button))return;
   const field=button.dataset.copyField,place=getPlace();if(!fields[field]||!place)return;
-  const current=++request;let copied=false;try{copied=await write(place[field])}catch{}
-  if(current===request)toast(copied?fields[field].done:'Не удалось скопировать. Выделите текст и выберите «Скопировать».');
+  clearTimeout(blurTimer);
+  const current=++request,keyboardAtClick=keyboardSequence;let copied=false;try{copied=await write(place[field])}catch{}
+  if(current===request){
+   toast(copied?fields[field].done:'Не удалось скопировать. Выделите текст и выберите «Скопировать».');
+   // A tap/click may leave Safari's focus ring behind. Never move focus away
+   // from another control or clear the keyboard user's navigation position.
+   if(event.detail>0&&keyboardAtClick===keyboardSequence)blurTimer=setTimeout(()=>{
+    if(button.ownerDocument?.activeElement===button)button.blur();
+   },1400);
+  }
  });
 }
