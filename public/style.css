@@ -182,7 +182,12 @@ button:disabled { opacity: .55; cursor: default; }
 .detail .primary { margin: 12px 0 0; width: 100%; }
 .primary { background: var(--action); color: var(--action-ink); border-radius: 6px; min-height: 44px; padding: 12px 16px; font-size: 14px; }
 .primary:hover { background: var(--action-hover); }
-.detail-links { display: flex; gap: 4px 16px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; }
+.place-links { margin-top: 6px; }
+.place-links summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; color: var(--action); font-size: 12px; cursor: pointer; list-style: none; }
+.place-links summary::-webkit-details-marker { display: none; }
+.place-links summary svg { flex: none; width: 16px; height: 16px; }
+.place-links[open] summary svg { transform: rotate(180deg); }
+.detail-links { display: flex; gap: 4px 16px; flex-wrap: wrap; font-size: 12px; }
 .detail-links a { display: inline-flex; align-items: center; min-height: 36px; overflow-wrap: anywhere; }
 .google-link { display: flex; align-items: center; justify-content: center; border: 1px solid var(--line); text-align: center; border-radius: 6px; min-height: 44px; padding: 10px; font-size: 13px; margin: 0 0 6px; }
 .verification { font-size: 11px; color: var(--muted); line-height: 1.6; margin: 18px 0 0; }
