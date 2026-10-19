@@ -25,3 +25,20 @@ test('delegated copy survives refreshed card content and reports failure without
 test('copy controls escape text, do not submit forms and omit missing fields',()=>{
  const html=copyTextControl('<img src=x>','name',esc);assert.ok(!html.includes('<img'));assert.match(html,/type="button"/);assert.match(html,/data-copy-field="name"/);assert.equal(copyTextControl('', 'local_name',esc),'');assert.equal(copyTextControl('x','unknown',esc),'');
 });
+function focusFixture(write=async()=>true){
+ const handlers={},document={},button={dataset:{copyField:'name'},ownerDocument:document,blur(){if(document.activeElement===this)document.activeElement=null}};
+ document.activeElement=button;
+ installPlaceCopy({root:{addEventListener:(name,fn)=>handlers[name]=fn,contains:()=>true},getPlace:()=>({name:'Taipei'}),toast(){},write});
+ return {handlers,button,document,click:detail=>handlers.click({detail,target:{closest:()=>button}})};
+}
+test('pointer copy clears its lingering focus after feedback, without blurring another field',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ const f=focusFixture();await f.click(1);t.mock.timers.tick(1399);assert.equal(f.document.activeElement,f.button);t.mock.timers.tick(1);assert.equal(f.document.activeElement,null);
+ f.document.activeElement=f.button;await f.click(1);const other={};f.document.activeElement=other;t.mock.timers.tick(1400);assert.equal(f.document.activeElement,other);
+});
+test('keyboard copy and navigation retain their visible focus, including a pending clipboard write',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ const f=focusFixture();await f.click(0);t.mock.timers.tick(1500);assert.equal(f.document.activeElement,f.button);
+ await f.click(1);f.handlers.keydown();t.mock.timers.tick(1500);assert.equal(f.document.activeElement,f.button);
+ let finish;const pending=focusFixture(()=>new Promise(resolve=>finish=resolve));const action=pending.click(1);pending.handlers.keydown();finish(true);await action;t.mock.timers.tick(1500);assert.equal(pending.document.activeElement,pending.button);
+});
