@@ -52,7 +52,7 @@ test('status migration preserves assignments and custom fields while persisting 
    const sql=readFileSync('drizzle/'+name,'utf8');DB.sqlite.exec(sql);
    DB.sqlite.prepare('INSERT INTO _app_migrations VALUES(?,?,?)').run(name,createHash('sha256').update(sql).digest('hex'),1);
   }
-  DB.sqlite.prepare('INSERT INTO trips VALUES(?,?,?)').run('taiwan-2026','Trip','Asia/Taipei');
+  DB.sqlite.prepare('INSERT INTO trips(id,name,timezone) VALUES(?,?,?)').run('taiwan-2026','Trip','Asia/Taipei');
   DB.sqlite.prepare('INSERT INTO users(id,display_name,created_at) VALUES(?,?,?)').run('trip-shared','Admin',1);
   for(const [id,label,color] of [['want','Хочу посетить','#b97639'],['visited','Уже посетил','#517c61'],['maybe','Под вопросом','#8c7ba0'],['hype','Хайп!','#0056d6'],['custom','Другой','#123456']])DB.sqlite.prepare('INSERT INTO statuses(id,trip_id,label,color,sort_order,created_by) VALUES(?,?,?,?,?,?)').run(id,'taiwan-2026',label,color,1,'trip-shared');
   migrate(DB,'drizzle');

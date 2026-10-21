@@ -122,3 +122,7 @@ The initial map view uses the same fit-to-places operation as “Все на к�
 once both the map engine and places are ready. Later data refreshes, theme
 changes and filtering do not reset a manually positioned camera. Explicit
 focus, geolocation or fit requests take priority over initial framing.
+
+## Планировщик
+
+Календарь доступен на `planning.html`: месяц, неделя, день и список, задачи, решения и маршрут. См. [спецификацию и архитектуру](docs/PLANNING.md) и [работу с планом через чат](docs/PLANNING_OPERATIONS.md). Перед миграцией `0007_planning.sql` требуется SQLite backup. Экспорт JSON включает календарь; старый map-only CLI не импортирует непустой календарь — для полного восстановления используйте SQLite backup.

@@ -12,7 +12,7 @@ test('additive migration preserves a populated legacy database and accepts the p
   const sql=readFileSync('drizzle/0000_absurd_penance.sql','utf8');DB.sqlite.exec(sql);
   DB.sqlite.exec('CREATE TABLE _app_migrations(name TEXT PRIMARY KEY,hash TEXT NOT NULL,applied_at INTEGER NOT NULL)');
   DB.sqlite.prepare('INSERT INTO _app_migrations VALUES(?,?,?)').run('0000_absurd_penance.sql',createHash('sha256').update(sql).digest('hex'),1);
-  DB.sqlite.prepare('INSERT INTO trips VALUES(?,?,?)').run('taiwan-2026','Existing trip','Asia/Taipei');
+  DB.sqlite.prepare('INSERT INTO trips(id,name,timezone) VALUES(?,?,?)').run('taiwan-2026','Existing trip','Asia/Taipei');
   DB.sqlite.prepare('INSERT INTO users(id,display_name,created_at) VALUES(?,?,?)').run('trip-shared','Existing user',1);
   DB.sqlite.prepare('INSERT INTO memberships VALUES(?,?,?)').run('taiwan-2026','trip-shared','owner');
   DB.sqlite.prepare('INSERT INTO categories VALUES(?,?,?,?,?)').run('custom','Existing category','#123456','landmark',1);

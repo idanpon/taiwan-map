@@ -3,6 +3,7 @@ import {readFileSync,readdirSync,mkdirSync,unlinkSync,existsSync} from 'node:fs'
 import {resolve,dirname,extname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {handle} from '../src/core.mjs';
+import {planningPage} from '../src/planning-ui.mjs';
 import {page,securityHeaders} from '../src/ui.mjs';
 import {openDatabase,migrate} from './database.mjs';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
@@ -23,7 +24,7 @@ const server=http.createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,origin);let response;
   if(url.pathname.startsWith('/api/')){
-   const maxBytes=/^\/api\/places\/[a-zA-Z0-9-]+\/state$/.test(url.pathname)?32768:8192;
+   const maxBytes=url.pathname.startsWith('/api/planning')||url.pathname==='/api/places/hidden/delete-all'?131072:/^\/api\/places\/[a-zA-Z0-9-]+\/state$/.test(url.pathname)?32768:8192;
    let size=0,chunks=[];for await(const chunk of req){size+=chunk.length;if(size>maxBytes){res.writeHead(413,{'Content-Type':'application/json'});res.end('{"error":"Слишком большой запрос."}');return}chunks.push(chunk)}
    const headers=new Headers();for(const [k,v] of Object.entries(req.headers))if(v!==undefined)headers.set(k,Array.isArray(v)?v.join(','):v);
    const request=new Request(url,{method:req.method,headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})});
@@ -32,6 +33,7 @@ const server=http.createServer(async(req,res)=>{
    if(response.ok&&req.method==='POST'&&['/api/login','/api/auth/setup','/api/auth/telegram/login'].includes(url.pathname)){try{backup()}catch(e){console.error('Backup failed',e.name)}}
   }else if(req.method!=='GET'&&req.method!=='HEAD'){response=new Response('Method not allowed',{status:405})}
   else if(url.pathname==='/'){response=new Response(page,{headers:securityHeaders})}
+  else if(url.pathname==='/planning.html'){response=new Response(planningPage,{headers:securityHeaders})}
   else if(url.pathname==='/config.js'){response=new Response('window.TAIWAN_CONFIG = Object.freeze('+JSON.stringify({apiBase:'',requiresApi:false,authMode})+');',{headers:{'Content-Type':mime['.js'],'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})}
   else{
    let path;try{path=resolve(root,'public','.'+decodeURIComponent(url.pathname))}catch{path=''}

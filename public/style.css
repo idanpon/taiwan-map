@@ -493,3 +493,19 @@ input[type=checkbox] { accent-color: var(--action); }
 @media (min-width: 1001px) {
  .detail { right: calc(var(--map-control-right) + var(--map-control-size) + 16px); }
 }
+
+/* Calendar cross-links share the card theme and never decorate map pins. */
+.map-planning-relations { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 20px 0; padding: 12px 0; }
+.map-planning-relations h3 { font-size: 13px; margin: 0 0 8px; }
+.map-planning-link { display: block; padding: 8px 0; }
+.map-planning-link strong { font-size: 13px; }
+.map-planning-link span { display: block; font-size: 11px; color: var(--muted); }
+.planning-status-conflict { background: var(--warning-bg); color: var(--warning-ink); padding: 10px; border-radius: 7px; }
+.planning-status-conflict a { display: block; margin-top: 6px; }
+.planning-nav { color: var(--muted); white-space: nowrap; }
+@media(max-width: 600px) { .top-actions { gap: 6px; } .planning-nav { font-size: 11px; padding-inline: 2px; } }
+
+.planning-nav { display: inline-flex; align-items: center; gap: 6px; }
+.planning-nav svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+@media(max-width:600px) { .planning-nav { justify-content: center; width: 30px; min-height: 40px; } .planning-nav span { display: none; } }
+@media(max-width:379px) { .top-actions, .planning-page .top-actions { gap: 2px; } }

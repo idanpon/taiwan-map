@@ -1,3 +1,4 @@
+import {planningPlaceSummary,planningConflictContent,hydratePlanningLinks} from './planning-links.js';
 import {copyTextControl,installPlaceCopy} from './copy-text.js';
 import {createPlaceTagControls} from './place-tag-controls.js';
 import {tagDefinitions,tagIcon,tagsHeading,tagsDetails,matchesTags} from './place-tags.js';
@@ -20,6 +21,7 @@ try {
 }catch{configurationError='В настройках сайта указан некорректный HTTPS-адрес API.'}
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let planning=null;
 let data,map,selected=null,city='',types=new Set(),status='',query='',tags=new Set(),dirty=false,busy=false,stateDirty=false,tagDirty=false,tagControls;
 function resetDirty(){dirty=false;stateDirty=false;tagDirty=false}
 const themeUI=createThemeUI({document,window,onChange:value=>{map?.setTheme(value);if(data)render()}});
@@ -30,7 +32,7 @@ const transport=createApiClient({apiBase,authMode:config.authMode||'cookie',stor
 async function api(path,options={}){if(configurationError)throw new Error(configurationError);return transport(path,options)}
 async function exportData(event){event.preventDefault();try{const content=await api('/api/export');const blob=new Blob([JSON.stringify(content,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='taiwan-map.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(e){toast(e.message)}}
 let accountUI,placeUI,startup;
-function showLogin(){$('auth-loading').hidden=true;$('auth-content').hidden=false;placeUI?.close();$('help-dialog').close();$('status-dialog').close();$('accounts-dialog').close();accountUI?.showLogin();$('application').hidden=true;$('application').classList.remove('detail-open');document.body.classList.remove('app-active');setSidebar(false);$('detail').hidden=true;$('login').hidden=false;data=null;selected=null;resetDirty();if(map){map.dispose();map=null}}
+function showLogin(){planning=null;$('auth-loading').hidden=true;$('auth-content').hidden=false;placeUI?.close();$('help-dialog').close();$('status-dialog').close();$('accounts-dialog').close();accountUI?.showLogin();$('application').hidden=true;$('application').classList.remove('detail-open');document.body.classList.remove('app-active');setSidebar(false);$('detail').hidden=true;$('login').hidden=false;data=null;selected=null;resetDirty();if(map){map.dispose();map=null}}
 function setSidebar(open){$('places-panel').classList.toggle('mobile-open',open);$('mobile-toggle').textContent=open?'Назад к карте':'Места и фильтры';$('mobile-toggle').setAttribute('aria-expanded',String(open))}
 function closeDetail(restoreFocus=false){
  if($('detail').hidden)return true;
@@ -62,7 +64,7 @@ function initMap(){
 }
 function fit(){map?.fit()}
 function detail(p){resetDirty();tagControls=undefined;const c=getCategory(p),s=getStatus(p),links=p.links.filter(l=>/^https:\/\//.test(l.url));$('detail').style.setProperty('--category',c.color);
- $('detail').innerHTML=`<div class="detail-header"><p class="eyebrow">${esc(p.city)} / ${esc(c.label)}</p><button type="button" class="detail-close" id="detail-close" aria-label="Закрыть карточку">×</button></div><div class="detail-body"><div class="detail-title" id="detail-title"><h2>${copyTextControl(p.name,'name',esc)}</h2>${tagsHeading(p.tags,esc)}</div>${p.local_name?`<p class="local-name">${copyTextControl(p.local_name,'local_name',esc)}</p>`:''}<p class="detail-summary">${esc(p.summary)}</p><div class="detail-info"><strong>Часы · Тайвань (UTC+8)</strong><p>${esc(p.hours.label)}</p>${p.hours.note?`<p class="hours-note">${esc(p.hours.note)}</p>`:''}<strong>Адрес</strong><p>${copyTextControl(p.address,'address',esc)}</p></div><div id="place-tag-details">${tagsDetails(p.tags,esc)}</div><p class="tip">${esc(p.tip)}</p><a class="google-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name+' '+p.address)}">Открыть в Google Maps ↗</a>${links.length?`<details class="place-links"><summary><span>Ссылки и источники</span>${tagIcon('chevron-down')}</summary><div class="detail-links">${links.map(l=>`<a target="_blank" rel="noopener noreferrer" href="${esc(l.url)}">${esc(l.label)} ↗</a>`).join('')}</div></details>`:''}<form id="state-form"><label for="place-status">Наш статус</label><select id="place-status"><option value="">Без статуса</option>${data.statuses.map(s=>`<option value="${esc(s.id)}" ${s.id===p.status_id?'selected':''}>${esc(s.label)}</option>`).join('')}</select><label for="place-note">Заметка к месту</label><textarea id="place-note" maxlength="2000" placeholder="Что попробовать или не забыть">${esc(p.note)}</textarea>${data.user.role!=='viewer'?'<div id="place-tag-editor"></div>':''}<button type="submit" id="save-state" class="primary">Сохранить</button></form><p class="verification">${esc(hoursVerification(p.verified_at))}</p>${data.user.role!=='viewer'?'<div class="place-actions"><button type="button" class="text-button" data-place-action="hide">Скрыть место</button><button type="button" class="text-button" data-place-action="delete">Удалить</button></div>':''}</div>`;
+ $('detail').innerHTML=`<div class="detail-header"><p class="eyebrow">${esc(p.city)} / ${esc(c.label)}</p><button type="button" class="detail-close" id="detail-close" aria-label="Закрыть карточку">×</button></div><div class="detail-body"><div class="detail-title" id="detail-title"><h2>${copyTextControl(p.name,'name',esc)}</h2>${tagsHeading(p.tags,esc)}</div>${p.local_name?`<p class="local-name">${copyTextControl(p.local_name,'local_name',esc)}</p>`:''}<p class="detail-summary">${esc(p.summary)}</p><div class="detail-info"><strong>Часы · Тайвань (UTC+8)</strong><p>${esc(p.hours.label)}</p>${p.hours.note?`<p class="hours-note">${esc(p.hours.note)}</p>`:''}<strong>Адрес</strong><p>${copyTextControl(p.address,'address',esc)}</p></div><div id="place-tag-details">${tagsDetails(p.tags,esc)}</div><p class="tip">${esc(p.tip)}</p><a class="google-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name+' '+p.address)}">Открыть в Google Maps ↗</a>${links.length?`<details class="place-links"><summary><span>Ссылки и источники</span>${tagIcon('chevron-down')}</summary><div class="detail-links">${links.map(l=>`<a target="_blank" rel="noopener noreferrer" href="${esc(l.url)}">${esc(l.label)} ↗</a>`).join('')}</div></details>`:''}<div id="place-planning-links">${planningPlaceSummary(planning,p.id,esc)}</div><form id="state-form"><label for="place-status">Наш статус</label><select id="place-status"><option value="">Без статуса</option>${data.statuses.map(s=>`<option value="${esc(s.id)}" ${s.id===p.status_id?'selected':''}>${esc(s.label)}</option>`).join('')}</select><label for="place-note">Заметка к месту</label><textarea id="place-note" maxlength="2000" placeholder="Что попробовать или не забыть">${esc(p.note)}</textarea>${data.user.role!=='viewer'?'<div id="place-tag-editor"></div>':''}<button type="submit" id="save-state" class="primary">Сохранить</button></form><p class="verification">${esc(hoursVerification(p.verified_at))}</p>${data.user.role!=='viewer'?'<div class="place-actions"><button type="button" class="text-button" data-place-action="hide">Скрыть место</button><button type="button" class="text-button" data-place-action="delete">Удалить</button></div>':''}</div>`;
  if(data.user.role==='viewer'){const form=$('state-form');form.insertAdjacentHTML('afterbegin','<p class="muted">Доступ только для просмотра</p>');form.querySelectorAll('select,textarea').forEach(el=>el.disabled=true);$('save-state').hidden=true;}
  bindTagHints();
  if(data.user.role!=='viewer')tagControls=createPlaceTagControls({root:$('place-tag-editor'),place:p,esc,onDirty:value=>{tagDirty=value;dirty=tagDirty||stateDirty}});
@@ -83,6 +85,12 @@ async function saveState(event,p){
   $('detail-title').innerHTML=`<h2>${copyTextControl(p.name,'name',esc)}</h2>${tagsHeading(p.tags,esc)}`;$('place-tag-details').innerHTML=tagsDetails(p.tags,esc);bindTagHints();render();toast('Изменения сохранены.');
  }catch(error){
   toast(error.message);
+  if(error.details?.code==='planning_decision_required'){
+   $('place-status').value=p.status_id||'';
+   document.querySelector('.planning-status-conflict')?.remove();
+   $('state-form').insertAdjacentHTML('beforebegin',planningConflictContent(error.details,esc));
+   return;
+  }
   if(error.status===409)try{
    data=await api('/api/data');const current=data.places.find(x=>x.id===p.id);populateFilters();render();
    if(current){detail(current);$('place-note').value=note;if(!statusId||data.statuses.some(s=>s.id===statusId))$('place-status').value=statusId||'';stateDirty=true;dirty=true;if(tagDraft)tagControls?.restore(tagDraft);toast('Данные обновлены. Ваши изменения оставлены в полях: проверьте и сохраните ещё раз.')}
@@ -92,7 +100,7 @@ async function saveState(event,p){
  }
 }
 
-async function load({signal}={}){data=await api('/api/data',{signal});accountUI?.update();$('login').hidden=true;$('application').hidden=false;document.body.classList.add('app-active');populateFilters();$('verified').textContent=hoursOverview(data.places);if(!map){setSidebar(false);initMap()}render();if(map)setTimeout(()=>map.resize(),0)}
+async function load({signal}={}){data=await api('/api/data',{signal});void hydratePlanningLinks({api,current:data,getCurrent:()=>data,signal,onReady:value=>{planning=value;const target=$('place-planning-links');if(target&&selected)target.innerHTML=planningPlaceSummary(planning,selected,esc)},onError:error=>toast('Календарь временно недоступен. '+error.message)});accountUI?.update();$('login').hidden=true;$('application').hidden=false;document.body.classList.add('app-active');populateFilters();$('verified').textContent=hoursOverview(data.places);const tripDates=document.querySelector('.trip-dates');if(tripDates&&data.trip.start_date&&data.trip.end_date)tripDates.textContent=new Date(data.trip.start_date+'T12:00:00Z').toLocaleDateString('ru',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'})+' — '+new Date(data.trip.end_date+'T12:00:00Z').toLocaleDateString('ru',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});if(!map){setSidebar(false);initMap()}render();if(map)setTimeout(()=>map.resize(),0);await openPlanningHash()}
 $('login-form').onsubmit=async e=>{e.preventDefault();const button=e.currentTarget.querySelector('button[type=submit]');button.disabled=true;$('login-error').textContent='';try{await api('/api/login',{method:'POST',body:JSON.stringify({username:$('username').value,password:$('password').value})});accountUI.resetLoginPassword();await load()}catch(err){$('login-error').textContent=err.message}finally{button.disabled=false}};
 $('logout').onclick=async()=>{if(dirty){toast('Сначала сохраните изменения.');return}try{await api('/api/logout',{method:'POST'});showLogin()}catch(e){toast(e.message)}};
 $('city-filter').onchange=e=>{if(dirty){e.target.value=city;toast('Сначала сохраните изменения.');return}city=e.target.value;render();fit()};
@@ -123,3 +131,13 @@ accountUI=createAccountUI({api,$,esc,load,toast,getData:()=>data,canOpen:()=>{if
 startup=createAuthStartup({initialize:signal=>accountUI.init(signal),load:signal=>load({signal}),onLoading:()=>{$('login').hidden=false;$('auth-content').hidden=true;$('auth-loading').hidden=false;$('auth-loading-message').textContent='Загружаем карту…';$('auth-retry').hidden=true},onLogin:showLogin,onError:message=>{$('auth-loading-message').textContent=message;$('auth-retry').hidden=false}});
 $('auth-retry').onclick=()=>startup.run();
 if(configurationError){$('auth-loading-message').textContent=configurationError}else void startup.run();
+
+async function openPlanningHash(){
+ if(!data)return;const params=new URLSearchParams(location.hash.slice(1)),id=params.get('place');
+ if(!id)return;const p=data.places.find(p=>p.id===id);
+ if(p){if(!visible().some(p=>p.id===id)){city='';types.clear();tags.clear();status='';query='';$('search').value='';$('status-filter').value='';populateFilters();toast('Фильтры сброшены, чтобы показать выбранное место.')}openPlace(id)}
+ else if(data.user.role!=='viewer'){$('hidden-places-open').click();toast('Место скрыто или удалено. Скрытые места можно вернуть из этого списка.')}
+ else toast('Место скрыто или удалено. Связанная запись календаря сохранена.');
+ history.replaceState(null,'',location.pathname+location.search);
+}
+window.addEventListener('hashchange',()=>{if(!dirty&&!busy)void openPlanningHash()});
