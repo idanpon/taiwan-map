@@ -29,3 +29,21 @@ test('themes preserve status color, symbol and opacity while keeping labels legi
   const value=statusAppearance({color,symbol:'✓',dimmed:true},theme);assert.equal(value.color,color);assert.equal(value.symbol,'✓');assert.equal(value.opacity,0.7);assert.match(value.textColor,/^#[0-9a-f]{6}$/i);
  }
 });
+test('loader follows the visible viewport before paint and on standalone resize, without following pinch zoom',async()=>{
+ const source=await readFile('public/theme-init.js','utf8'),f=fixture(null,false),properties={},events={};
+ f.root.style.setProperty=(name,value)=>properties[name]=value;
+ f.window.innerHeight=900;f.window.visualViewport={height:780,offsetTop:20,scale:1,addEventListener:(type,fn)=>events[type]=fn};
+ vm.runInNewContext(source,{document:f.document,window:f.window,localStorage:f.window.localStorage});
+ assert.equal(properties['--loading-viewport-height'],'780px');assert.equal(properties['--loading-viewport-top'],'20px');
+ f.window.innerHeight=844;Object.assign(f.window.visualViewport,{height:844,offsetTop:0});events.resize();
+ assert.equal(properties['--loading-viewport-height'],'844px');assert.equal(properties['--loading-viewport-top'],'0px');
+ Object.assign(f.window.visualViewport,{height:300,scale:2});events.resize();assert.equal(properties['--loading-viewport-height'],'844px');
+ Object.assign(f.window.visualViewport,{height:750,scale:1});f.events.pageshow();assert.equal(properties['--loading-viewport-height'],'750px');
+});
+test('loader geometry falls back to the window height when VisualViewport is unavailable',async()=>{
+ const source=await readFile('public/theme-init.js','utf8'),f=fixture(null,false),properties={};
+ f.root.style.setProperty=(name,value)=>properties[name]=value;f.window.innerHeight=700;
+ vm.runInNewContext(source,{document:f.document,window:f.window,localStorage:f.window.localStorage});
+ assert.equal(properties['--loading-viewport-height'],'700px');
+ f.window.innerHeight=820;f.events.resize();assert.equal(properties['--loading-viewport-height'],'820px');
+});
