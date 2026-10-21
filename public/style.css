@@ -546,7 +546,7 @@ input[type=checkbox] { accent-color: var(--action); }
 }
 
 /* Login overlays preserve the map camera, filters and the selected place. */
-.login-screen.login-overlay { position: fixed; inset: 0; z-index: 100; overflow-y: auto; min-height: 100%; background: var(--paper); }
+.login-screen.login-overlay { position: fixed; inset: 0; z-index: 900; overflow-y: auto; min-height: 100%; background: var(--paper); }
 .login-overlay .login-panel { margin-block: auto; }
 #login-back { margin-bottom: 16px; }
 .passkey-button { width: 100%; min-height: 44px; color: var(--green); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin: 12px 0 20px; padding: 10px; }
