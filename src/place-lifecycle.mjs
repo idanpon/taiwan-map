@@ -5,9 +5,27 @@ export async function handlePlaceLifecycle(request,db,user,stateUser){
  const path=new URL(request.url).pathname,method=request.method;
  const visibility=path.match(/^\/api\/places\/([a-zA-Z0-9-]+)\/visibility$/);
  const deletion=path.match(/^\/api\/places\/([a-zA-Z0-9-]+)$/);
+ const bulk=path==='/api/places/hidden/delete-all'&&method==='POST';
  const listing=path==='/api/places/hidden'&&method==='GET';
- if(!listing&&!(visibility&&method==='PUT')&&!(deletion&&method==='DELETE'))return null;
+ if(!bulk&&!listing&&!(visibility&&method==='PUT')&&!(deletion&&method==='DELETE'))return null;
  if(!['owner','admin','editor'].includes(user.role))fail(403,'Нужны права редактирования.');
+ if(bulk){
+  const b=await body(request,131072);
+  if(!Array.isArray(b.places)||!b.places.length||b.places.length>5000||b.places.some(p=>typeof p.id!=='string'||!Number.isSafeInteger(p.version)))fail(400,'Подтвердите состав скрытых мест.');
+  const expected=b.places.map(p=>({id:p.id,version:p.version})).sort((a,b)=>a.id.localeCompare(b.id));
+  db.sqlite.exec('BEGIN IMMEDIATE');
+  try{
+   const current=db.sqlite.prepare('SELECT id,visibility_version version FROM places WHERE trip_id=? AND hidden=1').all(TRIP).sort((a,b)=>a.id.localeCompare(b.id));
+   if(JSON.stringify(current)!==JSON.stringify(expected))fail(409,'Список скрытых мест изменился. Обновите список и подтвердите новое количество.');
+   for(const p of current){
+    for(const table of ['state_events','user_place_states','place_links'])db.sqlite.prepare('DELETE FROM '+table+' WHERE place_id=?').run(p.id);
+    db.sqlite.prepare("DELETE FROM app_meta WHERE key LIKE 'import:%' AND CASE WHEN json_valid(value) THEN json_extract(value,'$.place_id') END=?").run(p.id);
+    db.sqlite.prepare('DELETE FROM places WHERE id=? AND trip_id=? AND hidden=1').run(p.id,TRIP);
+   }
+   db.sqlite.prepare('INSERT INTO planning_events VALUES(?,?,?,?,?,?,?)').run(crypto.randomUUID(),TRIP,null,user.id,'places_deleted',JSON.stringify({count:current.length}),Date.now());
+   db.sqlite.exec('COMMIT');return json({ok:true,count:current.length});
+  }catch(error){db.sqlite.exec('ROLLBACK');throw error}
+ }
  if(listing){
   const [ps,ls]=await db.batch([
    stmt(db,`SELECT p.*,s.status_id,s.note,COALESCE(s.version,0) version FROM places p LEFT JOIN user_place_states s ON s.place_id=p.id AND s.user_id=? WHERE p.trip_id=? AND p.hidden=1 ORDER BY p.city,p.name`,stateUser,TRIP),

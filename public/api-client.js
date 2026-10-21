@@ -18,7 +18,7 @@ export function createApiClient({apiBase='',authMode='cookie',storage,fetchImpl=
   let value;try{value=await response.json()}catch{throw new Error('Сервер вернул неожиданный ответ.')}
   if(!response.ok){
    if(response.status===401&&!loginPaths.has(path)){setToken('');onUnauthorized()}
-   const error=new Error(value.error||'Не удалось выполнить запрос.');error.status=response.status;throw error;
+   const error=new Error(value.error||'Не удалось выполнить запрос.');error.status=response.status;error.details=value.details;throw error;
   }
   if(authMode==='bearer'&&loginPaths.has(path)){
    if(!/^[a-f0-9]{64}$/.test(value.token||''))throw new Error('Сервер не поддерживает выбранный режим авторизации.');

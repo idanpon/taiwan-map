@@ -6,9 +6,10 @@ import {readFileSync} from 'node:fs';import {resolve} from 'node:path';import {f
 export function importExport(db,data){
  if(!data||data.schema_version!==1||data.trip?.id!=='taiwan-2026'||data.user?.id!=='trip-shared'||!Array.isArray(data.places)||!Array.isArray(data.statuses)||!Array.isArray(data.categories))throw new Error('Unsupported export: expected shared-profile schema v1');
  for(const table of ['places','users','trips','statuses','categories','sessions'])if(db.sqlite.prepare(`SELECT 1 FROM ${table} LIMIT 1`).get())throw new Error('Target database is not empty; import aborted');
+ if(data.planning?.items?.length)throw new Error('This export contains calendar data. Restore the full SQLite backup; legacy map-only import would lose planning records.');
  const TRIP=data.trip.id,USER=data.user.id,now=Date.now();db.sqlite.exec('BEGIN IMMEDIATE');
  try{
-  db.sqlite.prepare('INSERT INTO trips VALUES(?,?,?)').run(TRIP,data.trip.name||'Тайвань',data.trip.timezone||'Asia/Taipei');
+  db.sqlite.prepare('INSERT INTO trips(id,name,timezone,departure_date,start_date,end_date) VALUES(?,?,?,?,?,?)').run(TRIP,data.trip.name||'Тайвань',data.trip.timezone||'Asia/Taipei',data.planning?.trip?.departure_date||'2026-12-28',data.planning?.trip?.start_date||'2026-12-29',data.planning?.trip?.end_date||'2027-01-09');
   db.sqlite.prepare('INSERT INTO users(id,display_name,created_at) VALUES(?,?,?)').run(USER,data.user.name||'Наша поездка',now);
   db.sqlite.prepare('INSERT INTO memberships VALUES(?,?,?)').run(TRIP,USER,'owner');
   const importedCategoryIds=new Map(data.categories.map(c=>[c.id,categoryId(c.id,c.label)]));

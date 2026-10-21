@@ -1,3 +1,4 @@
+import {handlePlanning,planningData,guardPlanningStatus} from './planning.mjs';
 import {readTags,mergeTags} from '../public/place-tags.js';
 import {handlePlaceTags} from './place-tags.mjs';
 import { categories, places, verifiedAt } from './places.mjs';
@@ -20,6 +21,7 @@ async function seed(db){
   q.push(stmt(db,'INSERT OR IGNORE INTO place_links(id,place_id,label,url,kind) VALUES(?,?,?,?,?)',p.id+'-source',p.id,'Источник часов',p.source,'source'));
   if(p.extra)q.push(stmt(db,'INSERT OR IGNORE INTO place_links(id,place_id,label,url,kind) VALUES(?,?,?,?,?)',p.id+'-extra',p.id,p.extra[0],p.extra[1],'official'));
  }
+ if(db.sqlite?.prepare('PRAGMA table_info(trips)').all().some(c=>c.name==='departure_date'))q.push(stmt(db,"UPDATE trips SET departure_date=COALESCE(departure_date,'2026-12-28'),start_date=COALESCE(start_date,'2026-12-29'),end_date=COALESCE(end_date,'2027-01-09') WHERE id=?",TRIP));
  q.push(stmt(db,'INSERT OR IGNORE INTO app_meta(key,value) VALUES(?,?)','seed_v1',verifiedAt));await db.batch(q);
 }
 async function handleApi(request,env,context={}){
@@ -44,6 +46,7 @@ async function handleApi(request,env,context={}){
   return json({ok:true},200,env.AUTH_MODE==='bearer'?{}:{'Set-Cookie':cookie('',secure,0,env.SESSION_COOKIE_PATH||'/')});
  }
  const scope=await accountScope(db),stateUser=scope==='shared'?USER:user.id;
+ const planningResponse=await handlePlanning(request,db,user);if(planningResponse)return planningResponse;
  const tagResponse=await handlePlaceTags(request,db,user);if(tagResponse)return tagResponse;
  const lifecycle=await handlePlaceLifecycle(request,db,user,stateUser);if(lifecycle)return lifecycle;
  if((path==='/api/data'||path==='/api/export')&&request.method==='GET'){
@@ -52,6 +55,9 @@ async function handleApi(request,env,context={}){
    db.prepare('SELECT * FROM categories ORDER BY sort_order'),stmt(db,'SELECT id,label,color,symbol,dimmed,version,sort_order FROM statuses WHERE trip_id=? AND archived=0 ORDER BY sort_order,label',TRIP),stmt(db,'SELECT l.* FROM place_links l JOIN places p ON p.id=l.place_id WHERE p.trip_id=?',TRIP)
   ]);
   const data={schema_version:1,trip:{id:TRIP,name:'Тайвань',timezone:'Asia/Taipei'},state_scope:scope||'shared',user:{id:user.id,name:user.display_name,username:user.username,role:user.role==='owner'?'admin':user.role,telegram_linked:Boolean(user.auth_subject),has_password:Boolean(user.has_password),can_setup:!scope&&user.role==='owner'},verified_at:verifiedAt,categories:cs.results.map(c=>({...c,description:categories.find(definition=>definition.id===c.id)?.description||''})),statuses:ss.results.map(s=>({...s,dimmed:Boolean(s.dimmed)})),places:ps.results.map(p=>({...p,hidden:Boolean(p.hidden),tags:readTags(p.tags_json),tags_json:undefined,hours:JSON.parse(p.hours_json),hours_json:undefined,note:p.note||'',links:ls.results.filter(l=>l.place_id===p.id)}))};
+  const tripRecord=await stmt(db,'SELECT * FROM trips WHERE id=?',TRIP).first();
+  data.trip={...data.trip,departure_date:tripRecord?.departure_date,start_date:tripRecord?.start_date,end_date:tripRecord?.end_date};
+  if(path==='/api/export')data.planning=planningData(db);
   return json(data,200,path==='/api/export'?{'Content-Disposition':'attachment; filename="taiwan-map.json"'}:{});
  }
  const statusMatch=path.match(/^\/api\/statuses\/([a-zA-Z0-9-]+)$/);
@@ -86,6 +92,7 @@ async function handleApi(request,env,context={}){
    if(b.tags_version!==place.tags_version)fail(409,'Ярлыки изменены. Обновите данные и повторите.');
    try{tags=mergeTags(readTags(place.tags_json),b.tags)}catch(error){fail(400,error.message)}
   }
+  guardPlanningStatus(db,place.id,b.status_id,stateUser);
   const now=Date.now(),next=b.version+1,eventId=crypto.randomUUID();
   const statements=[
    b.version===0 ? stmt(db,'INSERT OR IGNORE INTO user_place_states(user_id,place_id,status_id,note,version,updated_at) SELECT ?,?,?,?,1,? WHERE EXISTS (SELECT 1 FROM places WHERE id=? AND trip_id=? AND hidden=0)',stateUser,place.id,b.status_id,b.note,now,place.id,TRIP) : stmt(db,'UPDATE user_place_states SET status_id=?,note=?,version=version+1,updated_at=? WHERE user_id=? AND place_id=? AND version=? AND EXISTS (SELECT 1 FROM places WHERE id=? AND trip_id=? AND hidden=0)',b.status_id,b.note,now,stateUser,place.id,b.version,place.id,TRIP),
@@ -98,7 +105,7 @@ async function handleApi(request,env,context={}){
  }
 
  fail(404,'Маршрут не найден.');
- }catch(error){if(error instanceof Problem)return json({error:error.message},error.status,error.status===429?{'Retry-After':'900'}:{});console.error('API failure',error?.name);return json({error:'Не удалось выполнить запрос. Попробуйте ещё раз.'},500)}
+ }catch(error){if(error instanceof Problem)return json({error:error.message,...(error.details?{details:error.details}:{})},error.status,error.status===429?{'Retry-After':'900'}:{});console.error('API failure',error?.name);return json({error:'Не удалось выполнить запрос. Попробуйте ещё раз.'},500)}
 }
 
 // CORS stays at the transport boundary; authentication and membership still apply.

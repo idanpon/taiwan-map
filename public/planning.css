@@ -1,0 +1,129 @@
+.planning-page.app-active { overflow: auto; }
+.planning-page .topbar { position: sticky; top: 0; z-index: 10; }
+.planner { max-width: 1440px; margin: auto; padding: 30px max(20px,env(safe-area-inset-left)) 48px; }
+.planner-heading, .planner-toolbar, .planner-navigation, .planner-heading-actions, .planner-filters { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.planner-heading, .planner-toolbar { justify-content: space-between; margin-bottom: 22px; }
+.planner-heading h1 { font-size: 32px; margin: 0; letter-spacing: -.8px; }
+.planner-heading p { margin: 3px 0; }
+.planner-heading .primary { padding: 10px 16px; }
+.planner-navigation h2 { font-size: 18px; margin: 0 0 0 8px; }
+.planner-filters { margin-bottom: 24px; align-items: end; }
+.planner-filters label { margin: 0; min-width: 130px; flex: 1; }
+.planner-filters input, .planner-filters select, .planning-form input, .planning-form select, .planning-form textarea { display: block; width: 100%; min-width: 0; max-width: 100%; background: var(--input); border: 1px solid var(--line); border-radius: 7px; padding: 10px; margin-top: 6px; font: inherit; }
+.planning-form textarea { min-height: 90px; resize: vertical; }
+.planning-form label { min-width: 0; margin: 16px 0; }
+.planning-form label.inline-check { display: flex; gap: 8px; align-items: center; }
+.planning-form .inline-check input { width: auto; margin: 0; }
+.planning-form fieldset { margin: 18px 0; border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+.planning-form legend { padding: 0 6px; }
+.planning-form .form-columns { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.planning-form .form-columns label { margin: 8px 0; }
+.planning-form .date-wrap { border: 1px solid var(--line); border-radius: 7px; padding: 10px; background: var(--input); margin-top: 6px; min-width: 0; }
+.planning-form .date-wrap input { padding: 0; margin: 0; border: 0; background: transparent; min-height: 24px; appearance: none; -webkit-appearance: none; inline-size: 100%; min-inline-size: 0; overflow: hidden; }
+.planning-form input[type=date]::-webkit-date-and-time-value { text-align: left; min-width: 0; }
+.planning-form .place-link-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.planning-form .place-link-row label { margin: 6px 0; }
+.planning-form .linked-options { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.planning-form .linked-options select { width: auto; max-width: 100%; }
+.planning-form .linked-options label { display: flex; align-items: center; gap: 5px; }
+.planning-form .linked-options input { width: auto; margin: 0; }
+.planning-form-actions, .planning-record-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 20px 0 0; }
+.planning-form-actions .primary { padding: 10px 18px; }
+.planning-month { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); border-left: 1px solid var(--line); border-top: 1px solid var(--line); background: var(--panel); border-radius: 10px; overflow: hidden; }
+.planning-weekday, .planning-day-cell { min-width: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 8px; }
+.planning-weekday { color: var(--muted); font-size: 12px; text-align: center; background: var(--soft); }
+.planning-day-cell { min-height: 132px; }
+.planning-day-cell.other-month { background: var(--paper); }
+.planning-day-cell.is-today { background: var(--selected); box-shadow: inset 0 0 0 1px var(--selected-line); }
+.planning-date { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; min-height: 28px; margin-bottom: 5px; padding: 2px; border-radius: 50%; font-size: 13px; }
+.is-today .planning-date { color: var(--action-ink); background: var(--action); }
+.planning-mini { display: block; width: 100%; text-align: left; font-size: 12px; line-height: 1.4; border-left: 3px solid var(--line); border-radius: 3px; background: var(--soft); padding: 5px; margin: 4px 0; overflow-wrap: anywhere; }
+.planning-mini .planning-kind { font-size: 10px; color: var(--muted); }
+.planning-mini.current, .planning-record.current { border-left-color: var(--action); }
+.planning-mini.soon, .planning-record.soon { border-left-color: #bc8424; }
+.planning-mini.overdue, .planning-record.overdue { border-left-color: var(--danger); background: color-mix(in srgb,var(--danger) 8%,var(--panel)); }
+.planning-more { display: block; padding: 5px 1px; font-size: 12px; color: var(--action); text-align: left; }
+.planning-record { display: flex; gap: 12px; padding: 15px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; margin: 8px 0; align-items: flex-start; min-width: 0; }
+.planning-record-main { min-width: 0; flex: 1; }
+.planning-record-title { font-size: 15px; font-weight: 600; text-align: left; padding: 0; overflow-wrap: anywhere; }
+.planning-record-meta { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+.planning-indicator { display: inline-block; font-size: 11px; border-radius: 20px; background: var(--soft); color: var(--muted); padding: 3px 8px; white-space: nowrap; }
+.planning-indicator.current { background: var(--selected); color: var(--action); }
+.planning-indicator.soon { background: var(--warning-bg); color: var(--warning-ink); }
+.planning-indicator.overdue { color: var(--danger); background: color-mix(in srgb,var(--danger) 10%,var(--panel)); font-weight: 600; }
+.planning-today-line { display: flex; gap: 12px; align-items: center; margin: 24px 0 14px; color: var(--action); font-weight: 600; }
+.planning-today-line:before, .planning-today-line:after { content: ''; height: 2px; background: var(--selected-line); flex: 1; }
+.planning-day-group h3 { font-size: 15px; color: var(--muted); margin: 24px 0 10px; }
+.planning-day-group.is-today { border-radius: 8px; outline: 1px solid var(--selected-line); padding: 0 10px 10px; background: var(--selected); }
+.planning-undated { margin-top: 24px; border-top: 1px solid var(--line); padding-top: 16px; }
+.planning-undated summary { cursor: pointer; font-weight: 600; }
+.planner-footer { font-size: 12px; margin-top: 28px; }
+#planning-dialog, #planning-preview { width: min(700px,calc(100vw - 28px)); max-width: 700px; max-height: calc(100dvh - 36px); overflow-x: hidden; overflow-y: auto; }
+#planning-preview { z-index: 30; }
+.planning-description { white-space: pre-wrap; overflow-wrap: anywhere; }
+.planning-relations { margin: 20px 0; }
+.planning-relations ul { padding-left: 20px; }
+.planning-related-item { display: block; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.planning-related-item span { display: block; color: var(--muted); font-size: 12px; }
+.planning-warning { background: var(--warning-bg); color: var(--warning-ink); padding: 12px; border-radius: 7px; white-space: pre-wrap; }
+.planning-preview-place { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.planning-empty { padding: 28px; text-align: center; color: var(--muted); }
+.planning-note { background: var(--soft); padding: 12px; border-radius: 7px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.planning-options { display: grid; gap: 8px; }
+.planning-options button { text-align: left; border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.planning-options button:hover { background: var(--selected); }
+.planning-history { font-size: 12px; }
+.planning-history p { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.danger { color: var(--danger); }
+@media(max-width: 700px) {
+ .planner { padding: 20px 12px 36px; }
+ .planner-heading { align-items: flex-start; }
+ .planner-heading h1 { font-size: 27px; }
+ .planner-heading-actions { gap: 4px; }
+ .planner-heading-actions button { font-size: 12px; }
+ .planner-navigation { gap: 6px; width: 100%; }
+ .planner-navigation h2 { flex: 1; font-size: 16px; }
+ .planner-filters { gap: 10px; }
+ .planner-filters label { flex-basis: calc(50% - 10px); min-width: 0; }
+ .planner-filters input,.planner-filters select,.planning-form input,.planning-form select,.planning-form textarea { font-size: 16px; }
+ .planning-weekday,.planning-day-cell { padding: 3px; }
+ .planning-day-cell { min-height: 110px; }
+ .planning-mini { font-size: 10px; border-left-width: 2px; padding: 3px; }
+ .planning-mini .planning-kind { display: none; }
+ .planning-more { font-size: 10px; min-height: 28px; }
+ .planning-record { padding: 12px 10px; flex-wrap: wrap; gap: 6px; }
+ .planning-record-main { flex-basis: 75%; }
+ .planning-page .topbar { padding-inline: 12px; }
+ .planning-page .top-actions { gap: 6px; }
+ .planning-page .top-actions>a { font-size: 12px; }
+}
+@media(max-width: 379px) { .planning-form .form-columns { grid-template-columns: minmax(0,1fr); } }
+@media(prefers-reduced-motion: reduce) { .planning-page * { scroll-behavior: auto !important; } }
+
+.planner-filter-block { margin: 12px 0 24px; }
+.planner-filter-block>summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 8px 0; }
+.planner-filter-block .planner-filters { margin-top: 10px; margin-bottom: 0; }
+.planning-mini>span:last-child { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.planning-mini-state { display: block; color: var(--muted); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.planning-mini.overdue .planning-mini-state { color: var(--danger); }
+.planning-mini.current .planning-mini-state { color: var(--action); }
+.planning-mini.soon .planning-mini-state { color: var(--warning-ink); }
+#planning-canvas { scroll-margin-top: 85px; }
+@media(min-width: 1001px) {
+ .planning-week { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 10px; }
+ .planning-week .planning-day-group { min-width: 0; padding: 0 6px 12px; }
+ .planning-week .planning-day-group h3 { min-height: 50px; }
+ .planning-week .planning-record { display: block; padding: 8px; }
+ .planning-week .planning-record-title { font-size: 13px; }
+ .planning-week .planning-indicator { margin-top: 6px; }
+}
+@media(max-width:700px) { .planning-mini-state { font-size: 8px; } }
+/* Date wrappers must be block containers: inline spans distort native date input borders. */
+.planning-form .date-wrap { display: flex; align-items: center; width: 100%; }
+.planning-form .form-columns label { display: flex; flex-direction: column; justify-content: flex-end; }
+.planning-form .date-wrap:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
+.planning-form .date-wrap input:focus, .planning-form .date-wrap input:focus-visible { outline: none; box-shadow: none; }
+.planning-preview-place>p { margin: 8px 0; }
+.planning-preview-place .text-button { min-height: 24px; padding: 2px 4px; }
+.planning-preview-place select { font: inherit; padding: 6px; margin: 6px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: var(--input); }
+@media(max-width:379px) { .planning-page .top-actions { gap: 2px; } .planning-page #logout { padding-left: 4px; } }
