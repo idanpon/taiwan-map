@@ -32,6 +32,12 @@ test('overlapping records never share a lane and every overflow count remains re
  }
  assert.deepEqual(weekSegments(items,'2026-12-01',zone),[]);
 });
+test('wide periods sit above earlier narrow conflicts while free gaps can share the top lane',()=>{
+ const segments=weekSegments([item('early','2026-10-19','2026-10-21'),item('wide','2026-10-20','2026-10-25'),item('gap','2026-10-19')],'2026-10-19',zone);
+ assert.equal(segments.find(s=>s.item.id==='wide').lane,0);
+ assert.equal(segments.find(s=>s.item.id==='early').lane,1);
+ assert.equal(segments.find(s=>s.item.id==='gap').lane,0);
+});
 test('layout uses the chosen timezone for exact instants and preserves visit dates',()=>{
  const instant={...item('instant'),starts_at:'2026-10-19T23:00:00Z',ends_at:'2026-10-20T02:00:00Z'};
  assert.equal(weekSegments([instant],'2026-10-19','America/Los_Angeles')[0].column,0);
@@ -58,6 +64,23 @@ test('navigation respects inputs, modifiers, dialogs, list view and suppresses o
  canvas.handlers.pointerdown(pointer(200,50,900));canvas.handlers.pointercancel();canvas.handlers.pointerup(pointer(100,55,1000));
  canvas.handlers.pointerdown(pointer(200,50,1100));canvas.handlers.pointerdown(pointer(210,50,1200,{isPrimary:false}));canvas.handlers.pointerup(pointer(100,55,1300));
  assert.deepEqual(moves,[-1,1]);
+});
+test('native week-board scrolling does not turn into period navigation',()=>{
+ const canvas=surface(),document=surface(),moves=[],area={scrollWidth:980,clientWidth:350},target={closest:selector=>selector.includes('[data-planning-scroll]')?area:null};
+ installPlanningNavigation({canvas,document,navigate:n=>moves.push(n),enabled:()=>true});
+ canvas.handlers.pointerdown({target,clientX:200,clientY:50,timeStamp:0,pointerId:1,button:0,isPrimary:true});
+ canvas.handlers.pointerup({target,clientX:50,clientY:50,timeStamp:300,pointerId:1});
+ document.handlers.keydown({target,key:'ArrowRight',preventDefault(){throw Error('Native scrolling must remain available')}});
+ assert.deepEqual(moves,[]);
+ area.clientWidth=980;
+ document.handlers.keydown({target,key:'ArrowRight',preventDefault(){}});
+ assert.deepEqual(moves,[1]);
+});
+test('the canvas data-view attribute does not block keyboard period navigation',()=>{
+ const canvas=surface(),document=surface(),moves=[],target={closest:selector=>selector==='[data-view]'?{}:null};
+ installPlanningNavigation({canvas,document,navigate:n=>moves.push(n),enabled:()=>true});
+ document.handlers.keydown({target,key:'ArrowLeft',preventDefault(){}});
+ assert.deepEqual(moves,[-1]);
 });
 test('map and planner share exactly the same header actions except the destination link',()=>{
  assert.ok(page.includes(topbarActions('map')));assert.ok(planningPage.includes(topbarActions('planning')));
