@@ -122,3 +122,11 @@ test('reopening an earlier overlapping decision restores the question even after
  assert.equal(f.place().status_id,'maybe');await f.resolve(await f.preview(a,'a1'));await f.resolve(await f.preview(b,'b1'));assert.equal(f.place().status_id,'want');
  const p=await f.preview(a,null,{mode:'reopen'});assert.equal(p.effects[0].after.status_id,'maybe');assert.equal((await f.resolve(p)).status,200);assert.equal(f.place().status_id,'maybe');
 }finally{f.DB.close()}});
+
+test('optional calendar enrichment ignores old sessions and contains calendar fetch failures',async()=>{
+ const {hydratePlanningLinks}=await import('../public/planning-links.js');let release,current={session:'A'},shown=0,errors=0;const original=current;
+ const pending=hydratePlanningLinks({api:()=>new Promise(resolve=>release=resolve),current:original,getCurrent:()=>current,onReady:()=>shown++,onError:()=>errors++});
+ current={session:'B'};release({items:[]});await pending;assert.equal(shown,0);assert.equal(errors,0);
+ await hydratePlanningLinks({api:async()=>{throw new Error('provider unavailable')},current,getCurrent:()=>current,onReady:()=>shown++,onError:()=>errors++});assert.equal(errors,1);assert.equal(shown,0);
+ await hydratePlanningLinks({api:async()=>({items:[]}),current,getCurrent:()=>current,onReady:()=>shown++,onError:()=>errors++});assert.equal(shown,1);
+});
