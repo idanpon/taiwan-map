@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {createAuthStartup} from '../public/auth-startup.js';
+import {createAuthStartup,createLoadingScreenUI} from '../public/auth-startup.js';
 import {page} from '../src/ui.mjs';
 const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no});return {promise,resolve,reject}};
 const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve()};
@@ -27,4 +27,14 @@ test('initial HTML gates the form, uses a neutral loading state and provides foc
 test('an unauthorized config response cannot reveal an unconfigured login form',async()=>{
  const events=[];const ui=createAuthStartup({initialize:async()=>{throw Object.assign(new Error('Config unavailable'),{status:401})},load:async()=>events.push('session'),onLoading:()=>events.push('loading'),onLogin:()=>events.push('login'),onError:e=>events.push(e)});
  await ui.run();assert.deepEqual(events,['loading','Config unavailable']);
+});
+
+test('shared loading screen stops on failure and retry restores the page-specific message without revealing login',()=>{
+ const elements=Object.fromEntries(['login','auth-content','auth-loading','auth-loading-message','auth-retry'].map(id=>[id,{hidden:false,dataset:{},textContent:''}]));
+ for(const message of ['Загружаем карту…','Загружаем календарь…']){
+  const screen=createLoadingScreenUI({$:id=>elements[id],message});screen.show();
+  assert.equal(elements['auth-content'].hidden,true);assert.equal(elements['auth-retry'].hidden,true);
+  screen.error('Сервер недоступен');assert.equal(elements['auth-loading'].dataset.state,'error');assert.equal(elements['auth-retry'].hidden,false);
+  screen.show();assert.equal(elements['auth-loading'].dataset.state,'loading');assert.equal(elements['auth-loading-message'].textContent,message);assert.equal(elements['auth-retry'].hidden,true);assert.equal(elements['auth-content'].hidden,true);
+ }
 });

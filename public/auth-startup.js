@@ -16,3 +16,16 @@ export function createAuthStartup({initialize,load,onLoading,onLogin,onError,tim
   }
  };
 }
+
+// The initial HTML already shows this screen, before modules or API requests finish.
+export function createLoadingScreenUI({$,message}){
+ return {
+  show(){
+   $('login').hidden=false;$('auth-content').hidden=true;$('auth-loading').hidden=false;
+   $('auth-loading').dataset.state='loading';$('auth-loading-message').textContent=message;$('auth-retry').hidden=true;
+  },
+  error(message){
+   $('auth-loading').dataset.state='error';$('auth-loading-message').textContent=message;$('auth-retry').hidden=false;
+  }
+ };
+}

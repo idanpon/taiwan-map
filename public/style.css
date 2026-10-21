@@ -378,9 +378,18 @@ input[type=checkbox] { accent-color: var(--action); }
 :root[data-theme=dark] .theme-control .theme-sun { display: block; }
 .map-button { display: inline-flex; align-items: center; justify-content: center; }
 .dialog-title:focus { outline: none; }
-.auth-loading { min-height: 220px; display: flex; flex-direction: column; justify-content: center; color: var(--muted); }
-.auth-loading p { margin: 24px 0 8px; }
-.auth-loading .text-button { align-self: flex-start; padding-left: 0; }
+/* Grid centers the square wrapper; only the SVG rotates around its viewBox center. */
+.auth-loading { position: fixed; inset: 0; z-index: 2000; display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: minmax(0,1fr) 88px minmax(0,1fr); justify-items: center; padding: 24px; background: var(--paper); color: var(--muted); }
+.auth-loading-symbol { grid-row: 2; width: 88px; height: 88px; color: var(--green); }
+.auth-loading .brand-mark { display: block; width: 100%; height: 100%; transform-box: view-box; transform-origin: 50% 50%; animation: loading-star-turn 8s linear infinite; }
+.auth-loading-caption { grid-row: 3; align-self: start; width: min(360px,100%); text-align: center; margin-top: 24px; max-height: calc(100% - 24px); overflow: auto; }
+.auth-loading-wordmark { color: var(--green); font-size: 15px; line-height: 1; font-weight: 700; letter-spacing: 3px; }
+.auth-loading-wordmark small { display: block; font-size: 8px; letter-spacing: 2.5px; margin-top: 8px; }
+.auth-loading p { margin: 18px 0 0; font-size: 14px; overflow-wrap: anywhere; }
+.auth-loading .text-button { margin-top: 12px; min-height: 44px; color: var(--green); }
+.auth-loading[data-state=error] .brand-mark { animation-play-state: paused; }
+@keyframes loading-star-turn { to { transform: rotate(360deg); } }
+@media(prefers-reduced-motion: reduce) { .auth-loading .brand-mark { animation: none; } }
 .list-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 0; padding-bottom: 0; min-height: 44px; }
 #hidden-places-open { white-space: nowrap; }
 .place-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 20px; border-top: 1px solid var(--line); padding-top: 12px; }
