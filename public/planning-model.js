@@ -7,7 +7,7 @@ export function validZone(value){try{new Intl.DateTimeFormat('en',{timeZone:valu
 export function dayInZone(value=new Date(),zone='Asia/Taipei'){return new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value))}
 export function addDays(day,number){const d=new Date(day+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+number);return d.toISOString().slice(0,10)}
 export function monday(day){const weekday=new Date(day+'T12:00:00Z').getUTCDay();return addDays(day,-((weekday+6)%7))}
-export function monthDays(day){const start=day.slice(0,7)+'-01',first=monday(start);const next=new Date(start+'T12:00:00Z');next.setUTCMonth(next.getUTCMonth()+1);const days=Math.round((next-new Date(first+'T12:00:00Z'))/86400000);return Array.from({length:Math.ceil(days/7)*7},(_,i)=>addDays(first,i))}
+export function monthDays(day){const first=monday(day.slice(0,7)+'-01');return Array.from({length:42},(_,i)=>addDays(first,i))}
 export function itemDates(item,zone){if(item.kind==='visit'||!item.starts_at&&!item.ends_at)return [item.date_start||item.date_end,item.date_end||item.date_start];return [item.starts_at?dayInZone(item.starts_at,zone):dayInZone(item.ends_at,zone),item.ends_at?dayInZone(item.ends_at,zone):dayInZone(item.starts_at,zone)]}
 export function onDay(item,day,zone){const [start,end]=itemDates(item,zone);return Boolean(start&&start<=day&&end>=day)}
 export function urgency(item,{now=new Date(),zone='Asia/Taipei'}={}){
