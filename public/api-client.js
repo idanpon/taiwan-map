@@ -5,9 +5,9 @@ export function createApiClient({apiBase='',authMode='cookie',storage,legacyStor
  const key='taiwan-map.session.v1:'+apiBase;
  let token='';
  if(authMode==='bearer'){
-  try{const saved=storage?.getItem(key)||legacyStorage?.getItem(key);if(/^[a-f0-9]{64}$/.test(saved||'')){token=saved;storage?.setItem(key,saved);legacyStorage?.removeItem(key)}else storage?.removeItem(key)}catch{}
+  try{const saved=storage?.getItem(key)||legacyStorage?.getItem(key);if(/^[a-f0-9]{64}$/.test(saved||'')){token=saved;storage?.setItem(key,saved);if(legacyStorage!==storage)legacyStorage?.removeItem(key)}else storage?.removeItem(key)}catch{}
  }
- function setToken(value){token=value;try{if(value)storage?.setItem(key,value);else storage?.removeItem(key);legacyStorage?.removeItem(key)}catch{}}
+ function setToken(value){token=value;try{if(value)storage?.setItem(key,value);else storage?.removeItem(key);if(legacyStorage!==storage)legacyStorage?.removeItem(key)}catch{}}
  async function api(path,options={}){
   if(!/^\/api\/[a-zA-Z0-9/_-]+$/.test(path))throw new Error('Некорректный путь API.');
   // Re-read persisted credentials so logout in another tab revokes local access.

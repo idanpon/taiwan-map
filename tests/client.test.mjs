@@ -42,3 +42,9 @@ test('persistent storage migrates a tab session, follows logout across tabs, and
  persistent.clear();assert.equal(api.hasSession(),false);await api('/api/data');assert.equal(calls.at(-1).headers.get('authorization'),null);
  deny=true;await assert.rejects(api('/api/data',{allowAnonymous:true}),e=>e.status===401);assert.equal(notified,0);assert.equal(calls.at(-1).allowAnonymous,undefined);
 });
+test('using sessionStorage as both fallback and legacy storage never deletes the active token',async()=>{
+ const values=new Map(),storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)},calls=[];
+ const options={authMode:'bearer',storage,legacyStorage:storage,fetchImpl:async(path,config)=>{calls.push(config);return response(path==='/api/login'?{ok:true,token}:{ok:true})}};
+ let api=createApiClient(options);await api('/api/login',{method:'POST',body:'{}'});assert.equal(values.size,1);assert.equal(api.hasSession(),true);await api('/api/data');assert.equal(calls.at(-1).headers.get('authorization'),'Bearer '+token);
+ api=createApiClient(options);assert.equal(api.hasSession(),true);await api('/api/logout',{method:'POST'});assert.equal(values.size,0);
+});
