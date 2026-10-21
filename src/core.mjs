@@ -6,6 +6,8 @@ import {TRIP,SHARED_USER as USER,sha,verify,Problem,fail,json,body,stmt,session,
 import {handleAccounts,accountScope} from './accounts.mjs';
 import {validStatusSymbol} from '../public/map-model.js';
 import {handlePlaceLifecycle} from './place-lifecycle.mjs';
+import {handlePasskeys} from './passkeys.mjs';
+import {publicCatalog} from './public-catalog.mjs';
 export {passwordHash,sha} from './auth.mjs';
 async function seed(db){
  if(await stmt(db,'SELECT value FROM app_meta WHERE key=?','seed_v1').first())return;
@@ -29,9 +31,11 @@ async function handleApi(request,env,context={}){
  const url=new URL(request.url),db=env.DB,path=url.pathname;const secure=url.protocol==='https:';
  if(!db)fail(503,'Хранилище временно недоступно.');
  if(path==='/api/health'&&request.method==='GET'){await db.prepare('SELECT 1').first();return json({ok:true})}
+ if(path==='/api/public/data'&&request.method==='GET')return await publicCatalog(db);
  if(!['GET','HEAD'].includes(request.method)){
   if(!allowedOrigins(env,url).has(request.headers.get('origin')))fail(403,'Источник запроса не разрешён.');
  }
+ const passkeyResponse=await handlePasskeys(request,env,context);if(passkeyResponse)return passkeyResponse;
  const accountResponse=await handleAccounts(request,env,context);if(accountResponse)return accountResponse;
  if(path==='/api/login'&&request.method==='POST'){
   if(!env.APP_PASSWORD_HASH)fail(503,'Авторизация не настроена.');

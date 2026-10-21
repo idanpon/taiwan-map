@@ -1,4 +1,4 @@
-export const TRIP='taiwan-2026', SHARED_USER='trip-shared', TTL=14*86400;
+export const TRIP='taiwan-2026', SHARED_USER='trip-shared', TTL=180*86400;
 const encoder=new TextEncoder();
 const hex=b=>Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,'0')).join('');
 const unhex=s=>Uint8Array.from(s.match(/.{2}/g)||[],x=>parseInt(x,16));
@@ -34,11 +34,11 @@ export async function session(request,db,env){
  return stmt(db,'SELECT u.id,u.display_name,u.username,u.auth_subject,u.password_hash IS NOT NULL has_password,m.role FROM sessions s JOIN users u ON u.id=s.user_id JOIN memberships m ON m.user_id=u.id AND m.trip_id=? WHERE s.token_hash=? AND s.expires_at>? AND u.disabled=0',TRIP,await sha(token),Date.now()).first();
 }
 export function cookie(token,secure,max=TTL,path='/'){return `tw_session=${token}; Path=${path}; HttpOnly; SameSite=Strict; Max-Age=${max}${secure?'; Secure':''}`}
-export async function issueSession(request,env,userId,{legacy=false,expectedPassword=null,expectedSubject=null}={}){
+export async function issueSession(request,env,userId,{legacy=false,expectedPassword=null,expectedSubject=null,expectedPasskey=null}={}){
  const now=Date.now(),token=random();
  // Recheck credentials while inserting, so a concurrent password reset or
  // conversion from shared login cannot issue a session after revocation.
- const result=await env.DB.batch([stmt(env.DB,'DELETE FROM sessions WHERE expires_at<?',now),stmt(env.DB,`INSERT INTO sessions(token_hash,user_id,expires_at) SELECT ?,u.id,? FROM users u JOIN memberships m ON m.user_id=u.id AND m.trip_id=? WHERE u.id=? AND u.disabled=0 AND (?=0 OR (m.role='owner' AND NOT EXISTS (SELECT 1 FROM app_meta WHERE key='accounts_v1'))) AND (? IS NULL OR u.password_hash=?) AND (? IS NULL OR u.auth_subject=?)`,await sha(token),now+TTL*1000,TRIP,userId,Number(legacy),expectedPassword,expectedPassword,expectedSubject,expectedSubject)]);
+ const result=await env.DB.batch([stmt(env.DB,'DELETE FROM sessions WHERE expires_at<?',now),stmt(env.DB,`INSERT INTO sessions(token_hash,user_id,expires_at,authenticated_at,passkey_id) SELECT ?,u.id,?,?,? FROM users u JOIN memberships m ON m.user_id=u.id AND m.trip_id=? WHERE u.id=? AND u.disabled=0 AND (?=0 OR (m.role='owner' AND NOT EXISTS (SELECT 1 FROM app_meta WHERE key='accounts_v1'))) AND (? IS NULL OR u.password_hash=?) AND (? IS NULL OR u.auth_subject=?) AND (? IS NULL OR EXISTS (SELECT 1 FROM passkeys p WHERE p.id=? AND p.user_id=u.id))`,await sha(token),now+TTL*1000,now,expectedPasskey,TRIP,userId,Number(legacy),expectedPassword,expectedPassword,expectedSubject,expectedSubject,expectedPasskey,expectedPasskey)]);
  if(!result[1].meta.changes)fail(401,'Данные входа изменились. Войдите снова.');
  return env.AUTH_MODE==='bearer'?json({ok:true,token,expires_at:now+TTL*1000}):json({ok:true},200,{'Set-Cookie':cookie(token,new URL(request.url).protocol==='https:',TTL,env.SESSION_COOKIE_PATH||'/')});
 }

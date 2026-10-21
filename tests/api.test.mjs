@@ -20,7 +20,7 @@ test('authentication, seeded catalog, server persistence, custom status, isolati
  assert.equal((await call('/api/places/no-place/state','PUT',state)).status,404);
  assert.equal(DB.sqlite.prepare('SELECT count(*) n FROM state_events').get().n,2);
  // An account with no trip membership must never receive catalog data.
- DB.sqlite.prepare('INSERT INTO users(id,display_name,created_at) VALUES(?,?,?)').run('outsider','Outsider',Date.now());const {sha}=await import('../src/core.mjs');const other='a'.repeat(64);DB.sqlite.prepare('INSERT INTO sessions VALUES(?,?,?)').run(await sha(other),'outsider',Date.now()+100000);assert.equal((await call('/api/data','GET',undefined,{Cookie:'tw_session='+other})).status,401);
+ DB.sqlite.prepare('INSERT INTO users(id,display_name,created_at) VALUES(?,?,?)').run('outsider','Outsider',Date.now());const {sha}=await import('../src/core.mjs');const other='a'.repeat(64);DB.sqlite.prepare('INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)').run(await sha(other),'outsider',Date.now()+100000);assert.equal((await call('/api/data','GET',undefined,{Cookie:'tw_session='+other})).status,401);
  // Close/reopen file database to prove data survives process restarts.
  DB.close();DB=openDatabase(resolve(temp,'test.sqlite'));migrate(DB,resolve('drizzle'));env.DB=DB;data=await(await call('/api/data')).json();const saved=data.places.find(p=>p.id==='taipei-101');assert.equal(saved.status_id,'visited');assert.equal(saved.version,2);assert.equal(saved.note,state.note);assert.ok(data.statuses.some(s=>s.id===custom.id));
  const exported=await call('/api/export');assert.equal(exported.status,200);assert.match(exported.headers.get('content-disposition'),/attachment/);assert.ok(!(await exported.text()).includes('password_hash'));

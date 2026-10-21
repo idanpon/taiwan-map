@@ -8,7 +8,7 @@ export async function handlePlaceLifecycle(request,db,user,stateUser){
  const bulk=path==='/api/places/hidden/delete-all'&&method==='POST';
  const listing=path==='/api/places/hidden'&&method==='GET';
  if(!bulk&&!listing&&!(visibility&&method==='PUT')&&!(deletion&&method==='DELETE'))return null;
- if(!['owner','admin','editor'].includes(user.role))fail(403,'Нужны права редактирования.');
+ if(!listing&&!['owner','admin','editor'].includes(user.role))fail(403,'Нужны права редактирования.');
  if(bulk){
   const b=await body(request,131072);
   if(!Array.isArray(b.places)||!b.places.length||b.places.length>5000||b.places.some(p=>typeof p.id!=='string'||!Number.isSafeInteger(p.version)))fail(400,'Подтвердите состав скрытых мест.');

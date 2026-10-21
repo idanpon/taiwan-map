@@ -19,7 +19,7 @@ async function fixture(DB=openDatabase()){
  const call=(path,method='GET',data,role='owner')=>handle(new Request(env.APP_ORIGIN+path,{method,headers:{Origin:env.APP_ORIGIN,...(tokens[role]?{Authorization:'Bearer '+tokens[role]}:{}),...(data===undefined?{}:{'Content-Type':'application/json'})},...(data===undefined?{}:{body:JSON.stringify(data)})}),env);
  tokens.owner=(await(await call('/api/login','POST',{password:'fixture-password'})).json()).token;
  for(const [i,role] of ['admin','editor','viewer'].entries()){
-  tokens[role]=String(i+1).repeat(64);DB.sqlite.prepare('INSERT INTO users(id,display_name,created_at) VALUES(?,?,?)').run(role,role,1);DB.sqlite.prepare('INSERT INTO memberships VALUES(?,?,?)').run('taiwan-2026',role,role);DB.sqlite.prepare('INSERT INTO sessions VALUES(?,?,?)').run(await sha(tokens[role]),role,Date.now()+1e6);
+  tokens[role]=String(i+1).repeat(64);DB.sqlite.prepare('INSERT INTO users(id,display_name,created_at) VALUES(?,?,?)').run(role,role,1);DB.sqlite.prepare('INSERT INTO memberships VALUES(?,?,?)').run('taiwan-2026',role,role);DB.sqlite.prepare('INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)').run(await sha(tokens[role]),role,Date.now()+1e6);
  }
  return {DB,call};
 }

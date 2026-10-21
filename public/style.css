@@ -544,3 +544,14 @@ input[type=checkbox] { accent-color: var(--action); }
  .topbar .top-actions { gap: 2px; font-size: 12px; }
  .topbar .top-actions>.planning-nav, .topbar .top-actions>.help-entry, .topbar .top-actions .theme-control button { width: 32px; min-width: 32px; }
 }
+
+/* Login overlays preserve the map camera, filters and the selected place. */
+.login-screen.login-overlay { position: fixed; inset: 0; z-index: 100; overflow-y: auto; min-height: 100%; background: var(--paper); }
+.login-overlay .login-panel { margin-block: auto; }
+#login-back { margin-bottom: 16px; }
+.passkey-button { width: 100%; min-height: 44px; color: var(--green); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin: 12px 0 20px; padding: 10px; }
+.passkey-entry { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding-block: 8px; }
+.passkey-entry span { min-width: 0; overflow-wrap: anywhere; }
+.passkey-entry small { display: block; color: var(--muted); margin-top: 4px; }
+@keyframes login-autofill { from { opacity: .999; } to { opacity: 1; } }
+#login-form input:is(:autofill, :-webkit-autofill) { animation: login-autofill 1ms; }
