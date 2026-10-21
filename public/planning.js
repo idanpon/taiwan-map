@@ -12,6 +12,12 @@ const config=window.TAIWAN_CONFIG||{},deviceZone=Intl.DateTimeFormat().resolvedO
 let zoneChoice='device';try{zoneChoice=localStorage.getItem('taiwan-planning-zone')||'device'}catch{}
 let zone=zoneChoice==='device'?deviceZone:validZone(zoneChoice)?zoneChoice:deviceZone;
 let data,plan,view='month',focusDay=dayInZone(new Date(),zone),kind='',state='active',search='',busy=false,dirty=false,editingId=null,currentPreview=null,previewSequence=0,accountUI,startup;
+const filterDisplays=[...document.querySelectorAll('.planner-filters select,.planner-filters input')].map(control=>{
+ const wrapper=document.createElement('span'),value=document.createElement('span');wrapper.className='planner-filter-control';value.className='planner-filter-value';value.setAttribute('aria-hidden','true');control.before(wrapper);wrapper.append(control,value);
+ const update=()=>{value.textContent=control.tagName==='SELECT'?control.selectedOptions[0]?.textContent||'':control.value||control.placeholder;value.classList.toggle('is-placeholder',control.tagName==='INPUT'&&!control.value)};
+ control.addEventListener('input',update);control.addEventListener('change',update);update();return update;
+});
+function syncFilterDisplays(){for(const update of filterDisplays)update()}
 const dialog=$('planning-dialog'),previewDialog=$('planning-preview');
 let toastTimer;function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6500)}
 let storage,legacyStorage;try{legacyStorage=window.sessionStorage;storage=window.localStorage;storage.setItem('taiwan-storage-check','1');storage.removeItem('taiwan-storage-check')}catch{storage=legacyStorage}
@@ -46,7 +52,7 @@ function weekBoard(days,items,today){
 }
 function dayGroup(day,items){return `<section class="planning-day-group ${day===dayInZone(new Date(),zone)?'is-today':''}"><h3><button class="text-button" data-day="${day}">${esc(new Intl.DateTimeFormat('ru',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}).format(new Date(day+'T12:00:00Z')))}</button></h3>${sortItems(items).map(i=>record(i)).join('')||'<p class="muted">Планов пока нет.</p>'}</section>`}
 function render(){
- if(!plan)return;const items=filtered(),today=dayInZone(new Date(),zone),dated=items.filter(i=>itemDates(i,zone)[0]),undated=items.filter(i=>!itemDates(i,zone)[0]);
+ syncFilterDisplays();if(!plan)return;const items=filtered(),today=dayInZone(new Date(),zone),dated=items.filter(i=>itemDates(i,zone)[0]),undated=items.filter(i=>!itemDates(i,zone)[0]);
  $('planning-trip').textContent='Вылет '+dateLabel(plan.trip.departure_date)+' · '+dateLabel(plan.trip.start_date)+' — '+dateLabel(plan.trip.end_date);
  $('planning-new').hidden=!allowed();$('planning-trip-edit').hidden=!allowed();
  for(const button of $('planning-views').querySelectorAll('[data-view]')){button.classList.toggle('active',button.dataset.view===view);button.setAttribute('aria-pressed',String(button.dataset.view===view))}
@@ -146,7 +152,7 @@ installPlanningNavigation({canvas:$('planning-canvas'),document,navigate,enabled
 $('planning-prev').onclick=()=>navigate(-1);$('planning-next').onclick=()=>navigate(1);$('planning-today').onclick=()=>{focusDay=dayInZone(new Date(),zone);render();if(view==='list')$('planning-today-line')?.scrollIntoView({block:'center'});else if(view==='month')document.querySelector('.planning-day-cell.is-today')?.scrollIntoView({block:'center'})};
 $('planning-kind').onchange=e=>{kind=e.target.value;render()};$('planning-state').onchange=e=>{state=e.target.value;render()};$('planning-search').oninput=e=>{search=e.target.value.toLowerCase().trim();render()};
 $('planning-reset').onclick=()=>{kind='';state='active';search='';$('planning-kind').value='';$('planning-state').value='active';$('planning-search').value='';render()};
-function zoneControl(){const select=$('planning-zone');if(![...select.options].some(o=>o.value===zoneChoice)){const option=new Option(zoneChoice,zoneChoice);select.add(option)}select.value=zoneChoice}
+function zoneControl(){const select=$('planning-zone');if(![...select.options].some(o=>o.value===zoneChoice)){const option=new Option(zoneChoice,zoneChoice);select.add(option)}select.value=zoneChoice;syncFilterDisplays()}
 if(window.matchMedia('(min-width:701px)').matches)$('planning-filter-block').open=true;
 zoneControl();$('planning-zone').onchange=e=>{let choice=e.target.value;if(choice==='custom'){choice=window.prompt('Часовой пояс, например Asia/Tokyo');if(!choice||!validZone(choice)){toast('Часовой пояс не распознан.');zoneControl();return}}zoneChoice=choice;zone=choice==='device'?Intl.DateTimeFormat().resolvedOptions().timeZone:choice;try{localStorage.setItem('taiwan-planning-zone',choice)}catch{}zoneControl();render()};
 $('planning-refresh').onclick=async()=>{if(!canLeave())return;try{await load();toast('План обновлён.')}catch(error){toast(error.message)}};

@@ -1,20 +1,37 @@
 .planning-page.app-active { overflow: auto; overflow-y: scroll; }
 .planning-page #application { height: auto; min-height: 100dvh; }
 .planning-page .topbar { position: sticky; top: 0; z-index: 10; }
-.planner { width: 100%; min-width: 0; max-width: 1440px; flex: 1 0 auto; margin: 0 auto; padding: 24px max(24px,env(safe-area-inset-left)) 32px; }
+.planner { width: 100%; min-width: 0; max-width: 1440px; flex: 1 0 auto; margin: 0 auto; padding: 18px max(24px,env(safe-area-inset-left)) 28px; }
 .planner-heading, .planner-toolbar, .planner-navigation, .planner-heading-actions, .planner-filters { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.planner-heading, .planner-toolbar { justify-content: space-between; margin-bottom: 12px; }
+.planner-heading, .planner-toolbar { justify-content: space-between; margin-bottom: 10px; }
 .planner-heading { display: block; }
 .planner-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .planner-heading h1 { font-size: 24px; font-weight: 600; margin: 0; letter-spacing: -.5px; }
-.planner-heading p { margin: 4px 0 0; font-size: 12px; }
-.planner-heading .primary { padding: 8px 12px; min-height: 40px; font-size: 12px; }
+.planner-heading p { margin: 8px 0 0; font-size: 12px; }
+.planner-heading .primary { padding: 7px 12px; min-height: 36px; font-size: 12px; line-height: 20px; }
 .planner-heading-actions { flex-wrap: nowrap; gap: 6px; flex: none; }
 #planning-trip-edit { display: inline-flex; align-items: center; gap: 6px; }
 .planner-navigation h2 { font-size: 18px; margin: 0 0 0 8px; }
-.planner-filters { margin-bottom: 24px; align-items: end; }
-.planner-filters label { margin: 0; min-width: 130px; flex: 1; }
+.planner-filters { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)) auto; gap: 10px 12px; max-width: 1100px; align-items: end; }
+.planner-filters label { margin: 0; min-width: 0; font-size: 12px; }
 .planner-filters input, .planner-filters select, .planning-form input, .planning-form select, .planning-form textarea { display: block; width: 100%; min-width: 0; max-width: 100%; background: var(--input); border: 1px solid var(--line); border-radius: 7px; padding: 10px; margin-top: 6px; font: inherit; }
+/* Compact display text over native controls keeps iOS inputs at a zoom-safe 16px.
+   Only the aria-hidden display is smaller; selection, typing and focus stay native. */
+.planner-filter-control { position: relative; display: block; margin-top: 4px; min-width: 0; }
+.planner-filter-control input, .planner-filter-control select { margin: 0; padding: 7px 9px; min-height: 36px; font-size: 16px; line-height: 20px; }
+.planner-filter-control select, .planner-filter-control input:not(:focus) { color: transparent; }
+.planner-filter-control select { appearance: none; -webkit-appearance: none; }
+.planner-filter-control:has(select)::after { content: ''; position: absolute; right: 12px; top: calc(50% - 4px); width: 6px; height: 6px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(45deg); pointer-events: none; }
+.planner-filter-control select option { color: var(--ink); background: var(--input); }
+.planner-filter-control input::placeholder { color: transparent; }
+.planner-filter-control input:focus::placeholder { color: var(--muted); }
+.planner-filter-value { position: absolute; top: 50%; left: 10px; right: 28px; transform: translateY(-50%); font-size: 14px; line-height: 20px; font-weight: 400; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
+.planner-filter-value.is-placeholder { color: var(--muted); }
+.planner-filter-control input:focus + .planner-filter-value { visibility: hidden; }
+#planning-reset { min-height: 36px; justify-self: start; padding: 6px 0; }
+#planning-views { gap: 6px; }
+#planning-views .chip { min-height: 34px; padding: 6px 10px; font-size: 12px; line-height: 20px; }
+.planner-heading-actions button, .planner-navigation button, #planning-views button { position: relative; }
 .planning-form textarea { min-height: 90px; resize: vertical; }
 .planning-form label { min-width: 0; margin: 16px 0; }
 .planning-form label.inline-check { display: flex; gap: 8px; align-items: center; }
@@ -60,9 +77,9 @@
 .planning-today-line:before, .planning-today-line:after { content: ''; height: 2px; background: var(--selected-line); flex: 1; }
 .planning-day-group h3 { font-size: 15px; color: var(--muted); margin: 24px 0 10px; }
 .planning-day-group.is-today { border-radius: 8px; outline: 1px solid var(--selected-line); padding: 0 10px 10px; background: var(--selected); }
-.planning-undated { margin-top: 24px; border-top: 1px solid var(--line); padding-top: 16px; }
+.planning-undated { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 12px; }
 .planning-undated summary { cursor: pointer; font-weight: 600; }
-.planner-footer { font-size: 12px; margin-top: 28px; }
+.planner-footer { font-size: 12px; margin-top: 20px; }
 #planning-dialog, #planning-preview { width: min(700px,calc(100vw - 28px)); max-width: 700px; max-height: calc(100dvh - 36px); overflow-x: hidden; overflow-y: auto; }
 #planning-preview { z-index: 30; }
 .planning-description { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -81,17 +98,18 @@
 .planning-history p { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
 .danger { color: var(--danger); }
 @media(max-width: 700px) {
- .planner { padding: 20px max(16px,env(safe-area-inset-left)) 28px; }
+ .planner { padding: 14px max(16px,env(safe-area-inset-left)) 24px; }
  .planner-heading { align-items: flex-start; }
  .planner-heading h1 { font-size: 25px; }
- .planner-heading .primary { min-height: 44px; }
- #planning-trip-edit { width: 44px; padding: 0; justify-content: center; }
+ .planner-heading .primary { min-height: 36px; }
+ .planner-heading p { font-size: 11px; line-height: 16px; }
+ #planning-trip-edit { width: 36px; min-height: 36px; padding: 0; justify-content: center; }
  #planning-trip-edit>span { display: none; }
- .planner-heading-actions { gap: 4px; }
+ .planner-heading-actions { gap: 8px; }
  .planner-heading-actions button { font-size: 12px; }
  .planner-navigation { gap: 6px; width: 100%; }
  .planner-navigation h2 { flex: 1; font-size: 16px; }
- .planner-filters { gap: 10px; }
+ .planner-filters { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px 10px; }
  .planner-filters label { flex-basis: calc(50% - 10px); min-width: 0; }
  .planner-filters input,.planner-filters select,.planning-form input,.planning-form select,.planning-form textarea { font-size: 16px; }
  .planning-weekday,.planning-day-cell { padding: 3px; }
@@ -107,9 +125,9 @@
 @media(max-width: 379px) { .planning-form .form-columns { grid-template-columns: minmax(0,1fr); } }
 @media(prefers-reduced-motion: reduce) { .planning-page * { scroll-behavior: auto !important; } }
 
-.planner-filter-block { margin: 8px 0 12px; }
-.planner-filter-block>summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 5px 0; min-height: 32px; }
-.planner-filter-block .planner-filters { margin-top: 8px; margin-bottom: 0; }
+.planner-filter-block { margin: 4px 0 10px; }
+.planner-filter-block>summary { cursor: pointer; color: var(--muted); font-size: 12px; padding: 7px 0; min-height: 36px; }
+.planner-filter-block .planner-filters { margin-top: 4px; margin-bottom: 0; }
 .planning-mini>span:last-child { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .planning-mini-state { display: block; color: var(--muted); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .planning-mini.overdue .planning-mini-state { color: var(--danger); }
@@ -130,9 +148,10 @@
 /* Stable viewport geometry: content never controls the shell width or centering. */
 .planning-page .topbar { width: 100%; }
 .planner-toolbar { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: start; }
-.planner-navigation { display: grid; grid-template-columns: 40px 76px 40px minmax(0,1fr); gap: 6px; width: 100%; }
-.planner-navigation h2 { margin: 0 0 0 8px; min-width: 0; min-height: 40px; display: flex; align-items: center; }
-.planner-navigation .square { width: 40px; }
+.planner-navigation { display: grid; grid-template-columns: 36px 68px 36px minmax(0,1fr); gap: 8px; width: 100%; }
+.planner-navigation h2 { margin: 0 0 0 4px; min-width: 0; min-height: 36px; display: flex; align-items: center; }
+.planner-navigation .square { width: 36px; height: 36px; }
+.planner-navigation .text-button { min-height: 36px; padding: 6px 4px; }
 #planning-views { flex-wrap: nowrap; }
 #planning-error:empty { display: none; }
 #planning-canvas { width: 100%; min-width: 0; min-height: 320px; touch-action: pan-y pinch-zoom; overscroll-behavior-x: contain; }
@@ -153,10 +172,10 @@
 .planning-day-group { min-width: 0; }
 .planning-day-group h3 { margin-top: 0; }
 @media(max-width:1000px) {
- .planner-toolbar { grid-template-columns: minmax(0,1fr); gap: 8px; }
+ .planner-toolbar { grid-template-columns: minmax(0,1fr); gap: 10px; }
 }
 @media(max-width:700px) {
- .planner-navigation h2 { font-size: 14px; line-height: 18px; height: 44px; min-height: 44px; }
+ .planner-navigation h2 { font-size: 14px; line-height: 18px; min-height: 36px; }
  .planning-month-week { grid-template-rows: 22px repeat(3,18px) 16px; }
  .planning-month-week .planning-day-cell { padding: 0 2px; }
  .planning-date { min-width: 22px; min-height: 22px; font-size: 11px; line-height: 18px; }
@@ -167,8 +186,13 @@
  .planning-week .planning-day-group { margin-bottom: 20px; }
 }
 @media(max-width:379px) {
- .planner-navigation { grid-template-columns: 36px 64px 36px minmax(0,1fr); gap: 4px; }
+ .planner-navigation { grid-template-columns: 36px 60px 36px minmax(0,1fr); gap: 8px; }
  .planner-navigation .square { width: 36px; }
+}
+@media(pointer:coarse) {
+ /* Expand touch areas into the deliberate row gaps, without taller visible buttons. */
+ .planner-heading-actions button::after, .planner-navigation button::after { content: ''; position: absolute; inset: -4px; }
+ #planning-views button::after { content: ''; position: absolute; inset: -4px 0; }
 }
 
 .planning-kind-icon { flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
