@@ -87,9 +87,8 @@ label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 8px; }
 #login-error, #status-error { color: var(--danger); min-height: 18px; font-size: 13px; }
 .login-foot { font-size: 11px; display: flex; flex-wrap: wrap; justify-content: space-between; color: var(--muted); gap: 8px 20px; }
 .telegram-button { width: 100%; margin: 0 0 20px; }
-#telegram-login { margin-bottom: 0; }
 .login-alternative { display: none; align-items: center; gap: 12px; margin: 24px 0; color: var(--muted); font-size: 12px; text-align: center; }
-#telegram-login:not([hidden]) + .login-alternative { display: flex; }
+.login-methods:has(> button:not([hidden])) + .login-alternative { display: flex; }
 .login-alternative::before, .login-alternative::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 #username-field { margin-bottom: 16px; }
 #username { --field-background: var(--panel); width: 100%; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font-size: 16px; }
@@ -549,7 +548,15 @@ input[type=checkbox] { accent-color: var(--action); }
 .login-screen.login-overlay { position: fixed; inset: 0; z-index: 900; overflow-y: auto; min-height: 100%; background: var(--paper); }
 .login-overlay .login-panel { margin-block: auto; }
 #login-back { margin-bottom: 16px; }
-.passkey-button { width: 100%; min-height: 44px; color: var(--green); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin: 12px 0 20px; padding: 10px; }
+.login-methods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.login-methods:not(:has(> button:not([hidden]))) { display: none; }
+.login-methods:has(> button[hidden]) { grid-template-columns: minmax(0, 1fr); }
+.quick-login-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; min-height: 50px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--panel); font-size: 14px; font-weight: 500; line-height: 20px; white-space: nowrap; }
+.quick-login-button:hover:not(:disabled) { border-color: var(--green); background: var(--soft); }
+.quick-login-icon { flex: none; display: block; width: 20px; height: 20px; color: var(--green); }
+.telegram-icon { fill: currentColor; }
+.key-icon { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 359px) { .login-methods { grid-template-columns: minmax(0, 1fr); gap: 10px; } }
 .passkey-entry { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding-block: 8px; }
 .passkey-entry span { min-width: 0; overflow-wrap: anywhere; }
 .passkey-entry small { display: block; color: var(--muted); margin-top: 4px; }
