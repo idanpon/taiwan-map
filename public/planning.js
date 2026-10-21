@@ -1,6 +1,6 @@
 import {createApiClient} from './api-client.js';
 import {createAccountUI} from './accounts.js';
-import {createAuthStartup} from './auth-startup.js';
+import {createAuthStartup,createLoadingScreenUI} from './auth-startup.js';
 import {createThemeUI} from './theme.js';
 import {createHelpUI} from './help.js';
 import {installDialogBackdrop} from './dialogs.js';
@@ -146,5 +146,6 @@ function openHash(){const id=new URLSearchParams(location.hash.slice(1)).get('it
 window.addEventListener('hashchange',openHash);window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
 document.addEventListener('visibilitychange',async()=>{if(document.hidden||!plan||dirty||busy||dialog.open||previewDialog.open)return;try{if(zoneChoice==='device')zone=Intl.DateTimeFormat().resolvedOptions().timeZone;await load()}catch(error){toast(error.message)}});
 setInterval(()=>{if(plan&&!document.hidden)render()},60000);
-startup=createAuthStartup({initialize:signal=>accountUI.init(signal),load:async signal=>{await load({signal});openHash()},onLoading:()=>{$('auth-content').hidden=true;$('auth-loading').hidden=false},onLogin:showLogin,onError:message=>{$('auth-loading-message').textContent=message;$('auth-retry').hidden=false}});
+const loadingScreen=createLoadingScreenUI({$,message:'Загружаем календарь…'});
+startup=createAuthStartup({initialize:signal=>accountUI.init(signal),load:async signal=>{await load({signal});openHash()},onLoading:()=>loadingScreen.show(),onLogin:showLogin,onError:message=>loadingScreen.error(message)});
 $('auth-retry').onclick=()=>startup.run();void startup.run();

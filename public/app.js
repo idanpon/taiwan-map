@@ -10,7 +10,7 @@ import {categoryIcon as icon} from './categories.js';
 import {createHelpUI} from './help.js';
 import {createThemeUI} from './theme.js';
 import {createMapView} from './map-view.js';
-import {createAuthStartup} from './auth-startup.js';
+import {createAuthStartup,createLoadingScreenUI} from './auth-startup.js';
 import {createPlaceLifecycleUI} from './place-lifecycle.js';
 const $=id=>document.getElementById(id);
 const config=window.TAIWAN_CONFIG||{apiBase:'',requiresApi:false};
@@ -128,9 +128,10 @@ installPlaceCopy({root:$('detail'),getPlace:()=>data?.places.find(p=>p.id===sele
 $('export-data').onclick=exportData;
 placeUI=createPlaceLifecycleUI({api,$,esc,getData:()=>data,toast,onBusy:value=>{busy=value},canOpen:()=>{if(dirty||busy){toast('Сначала сохраните изменения.');return false}return true},canChange:(place,question)=>{if(busy)return false;const warning=dirty?'Несохранённые изменения в карточке будут потеряны.':'';return !(question||warning)||window.confirm([question,warning].filter(Boolean).join('\n\n'))},onChange:(place,action)=>{if(place.id===selected){resetDirty();selected=null;$('detail').hidden=true;$('application').classList.remove('detail-open')}data.places=data.places.filter(p=>p.id!==place.id);if(action==='restore')data.places.push(place);populateFilters();$('verified').textContent=hoursOverview(data.places);render()}});
 accountUI=createAccountUI({api,$,esc,load,toast,getData:()=>data,canOpen:()=>{if(dirty||busy){toast('Сначала сохраните изменения.');return false}return true}});
-startup=createAuthStartup({initialize:signal=>accountUI.init(signal),load:signal=>load({signal}),onLoading:()=>{$('login').hidden=false;$('auth-content').hidden=true;$('auth-loading').hidden=false;$('auth-loading-message').textContent='Загружаем карту…';$('auth-retry').hidden=true},onLogin:showLogin,onError:message=>{$('auth-loading-message').textContent=message;$('auth-retry').hidden=false}});
+const loadingScreen=createLoadingScreenUI({$,message:'Загружаем карту…'});
+startup=createAuthStartup({initialize:signal=>accountUI.init(signal),load:signal=>load({signal}),onLoading:()=>loadingScreen.show(),onLogin:showLogin,onError:message=>loadingScreen.error(message)});
 $('auth-retry').onclick=()=>startup.run();
-if(configurationError){$('auth-loading-message').textContent=configurationError}else void startup.run();
+if(configurationError){loadingScreen.error(configurationError)}else void startup.run();
 
 async function openPlanningHash(){
  if(!data)return;const params=new URLSearchParams(location.hash.slice(1)),id=params.get('place');
