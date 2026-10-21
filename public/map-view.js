@@ -76,12 +76,13 @@ export function createMapView({container,statusElement,retryButton,statusText,li
   const bounds=new lib.LngLatBounds();for(const p of values)bounds.extend([p.lon,p.lat]);
   map.fitBounds(bounds,{padding:{top:70,bottom:70,left:60,right:60},maxZoom:14,duration:0});
  }
- function focusPlace(p,offset){
+ function focusPlace(p,offset=[0,0],zoomToPlace=true){
   initialFraming.cancel();
-  if(!map){focusRequest={p,offset};return}
-  map.jumpTo({center:[p.lon,p.lat],zoom:Math.max(14,map.getZoom())});
-  // Pan opposite the panel so the marker stays in the uncovered map area.
-  if(offset)map.panBy(offset,{duration:0});
+  if(!map){focusRequest={p,offset,zoomToPlace};return}
+  focusRequest=null;
+  // One absolute camera target avoids accumulating panel offsets across clicks.
+  // MapLibre also honours the system reduced-motion preference for this ease.
+  map.easeTo({center:[p.lon,p.lat],offset,duration:300,...(zoomToPlace?{zoom:Math.max(14,map.getZoom())}:{})});
  }
  function restorePosition(){
   if(!map||!position||!map.isStyleLoaded())return;
@@ -108,7 +109,7 @@ export function createMapView({container,statusElement,retryButton,statusText,li
    map.on('zoomend',()=>{const grouped=map.getZoom()<10;if(grouped!==lastGrouped){render();onZoomGroupChange?.()}});
    map.getCanvas().addEventListener('webglcontextlost',()=>{basemap?.dispose();unsupported()});
    map.getCanvas().addEventListener('webglcontextrestored',()=>{if(!disposed)unsupported()});
-   if(focusRequest)focusPlace(focusRequest.p,focusRequest.offset);else if(fitRequested)fitPlaces();else initialFraming.update(Boolean(map),places);
+   if(focusRequest)focusPlace(focusRequest.p,focusRequest.offset,focusRequest.zoomToPlace);else if(fitRequested)fitPlaces();else initialFraming.update(Boolean(map),places);
    basemap.start();render();
   }catch{map?.remove();map=null;unsupported()}
  })();
@@ -116,7 +117,7 @@ export function createMapView({container,statusElement,retryButton,statusText,li
   initialized,
   setPlaces(values,id){places=values;selected=id;initialFraming.update(Boolean(map),places);render()},
   setTheme(value){theme=value;basemap?.setTheme(value)},
-  fit:fitPlaces,focusPlace,
+  fit:fitPlaces,focusPlace,centerPlace:p=>focusPlace(p,[0,0],false),
   resize(){map?.resize()},
   get available(){return usable},
   showPosition(coords){

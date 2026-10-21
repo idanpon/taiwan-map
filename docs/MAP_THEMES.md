@@ -87,3 +87,13 @@ physical phones require a real-device check.
 Sources: [OpenFreeMap quick start](https://openfreemap.org/quick_start/),
 [MapLibre installation/CSP](https://maplibre.org/maplibre-gl-js/docs/),
 [OSM tile policy](https://operations.osmfoundation.org/policies/tiles/).
+
+## Place-card camera transitions
+
+Opening a place uses one 300ms MapLibre easeTo with an absolute geographic
+target and an offset measured from the card edge within the map viewport.
+Desktop cards reserve the right-hand strip, mobile cards the bottom strip.
+Closing with the cross, outside click or Escape eases the same place to the
+full map centre without changing zoom or bearing. Repeated or interrupted
+transitions replace the target instead of adding pan deltas. MapLibre honours
+prefers-reduced-motion; data and style loading remain independent of framing.
