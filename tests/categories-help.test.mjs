@@ -30,7 +30,7 @@ test('ten shared category definitions use the requested outline icons and normal
 test('category migration retains every place, note, link, status setting, session and history record',async()=>{
  const DB=openDatabase(),oldDirectory=mkdtempSync(join(tmpdir(),'taiwan-old-categories-'));
  try{
-  for(const file of ['0000_absurd_penance.sql','0001_accounts.sql','0002_status_symbols.sql','0003_status_transparency.sql','0005_hidden_places.sql'])copyFileSync('drizzle/'+file,join(oldDirectory,file));
+  for(const file of ['0000_absurd_penance.sql','0001_accounts.sql','0002_status_symbols.sql','0003_status_transparency.sql','0005_hidden_places.sql','0008_passkeys.sql'])copyFileSync('drizzle/'+file,join(oldDirectory,file));
   migrate(DB,oldDirectory);const call=await fixture(DB);
   for(const [i,c] of legacyCategories.entries())DB.sqlite.prepare('INSERT INTO categories VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET label=excluded.label,color=excluded.color,icon=excluded.icon,sort_order=excluded.sort_order').run(...c,i);
   DB.sqlite.prepare('UPDATE places SET category_id=? WHERE id=?').run('cafe','simple-kaffa');

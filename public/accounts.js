@@ -1,10 +1,14 @@
+import {installLoginAutofill} from './login-autofill.js';
+import {createPasskeyUI} from './passkeys.js';
 import {installDialogBackdrop} from './dialogs.js';
 import {installPasswordFields,enhancePasswordFields,confirmPassword,resetPasswordFields} from './password-fields.js';
 const roleNames={admin:'Admin',editor:'Редактирование',viewer:'Просмотр'};
-export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true}){
+export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true,showLogin=()=>{}}){
  installPasswordFields(document);
  installDialogBackdrop($('accounts-dialog'));
- let authConfig={mode:'shared',telegram_client_id:null},sdkPromise;
+ let authConfig={mode:'shared',telegram_client_id:null},sdkPromise,refreshed=false;
+ const autofill=installLoginAutofill({form:$('login-form')});
+ const passkeys=createPasskeyUI({api,$,esc,load,toast,reauthenticate:showLogin});
  const options=selected=>Object.entries(roleNames).map(([id,name])=>`<option value="${id}" ${id===selected?'selected':''}>${name}</option>`).join('');
  function error(message){$('account-error').textContent=message}
  function sdk(){
@@ -39,14 +43,20 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true})
   authConfig=await api('/api/auth/config',{signal});
   $('username-field').hidden=authConfig.mode!=='accounts';$('username').required=authConfig.mode==='accounts';
   $('password-label').textContent=authConfig.mode==='accounts'?'Пароль':'Пароль к поездке';
-  $('telegram-login').hidden=!authConfig.telegram_client_id;
+  $('telegram-login').hidden=!authConfig.telegram_client_id;passkeys.configure(authConfig.passkeys);
  }
  function update(){
-  const user=getData()?.user;if(!user)return;
+  const user=getData()?.user;
+  $('login-open').hidden=Boolean(user);$('accounts-open').hidden=!user;$('logout').hidden=!user;document.querySelector('.profile-summary').hidden=!user;
+  const calendar=document.querySelector('.planning-nav');if(calendar)calendar.hidden=!user;
+  if($('export-data'))$('export-data').hidden=!user;
+  $('manage-statuses').hidden=!user||user.role==='viewer';$('hidden-places-open').hidden=!user;
+  if(!user)return;
+  if(!refreshed&&authConfig.mode==='accounts'){refreshed=true;void api('/api/auth/session/refresh',{method:'POST',body:'{}',allowAnonymous:true}).catch(()=>{})}
   $('profile-name').textContent=user.name;
   $('accounts-open').textContent=user.can_setup?'Настроить аккаунты':user.role==='admin'?'Пользователи':'Профиль';
   $('manage-statuses').hidden=user.role==='viewer';
-  $('hidden-places-open').hidden=user.role==='viewer';
+  $('hidden-places-open').hidden=false;
  }
  async function refreshUsers(){
   const result=await api('/api/admin/users');
@@ -81,6 +91,7 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true})
   $('profile-description').textContent=user.can_setup?'Задайте личный логин и новый пароль. Нынешний общий пароль после настройки перестанет действовать.':`${user.name} · ${roleNames[user.role]}`;
   $('telegram-link').hidden=user.can_setup||user.telegram_linked||!authConfig.telegram_client_id;
   try{
+   if(!user.can_setup)await passkeys.open();
    if(user.role==='admin'&&!user.can_setup)await refreshUsers();
    if(!$('telegram-link').hidden)await prepareTelegram($('telegram-link'),'link',$('account-error'));
   }catch(e){error(e.message)}
@@ -132,5 +143,5 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true})
    else{await refreshUsers();toast('Доступ обновлён. Пользователю нужно войти заново.');}
   }catch(e){error(e.message)}finally{button.disabled=false}
  };
- return {init,update,resetLoginPassword:()=>resetPasswordFields($('login-form')),showLogin:()=>{resetPasswordFields(document);if(authConfig.telegram_client_id)prepareTelegram($('telegram-login'),'login',$('login-error'))}};
+ return {init,update,resetLoginPassword:()=>resetPasswordFields($('login-form')),hideLogin:()=>autofill.hide(),showLogin:()=>{resetPasswordFields($('login-form'));autofill.show();if(authConfig.telegram_client_id)prepareTelegram($('telegram-login'),'login',$('login-error'))}};
 }

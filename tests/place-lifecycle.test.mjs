@@ -16,21 +16,21 @@ async function fixture(){
   const id='test-'+role,token=String(i+1).repeat(64);tokens[role]=token;
   DB.sqlite.prepare('INSERT INTO users(id,display_name,created_at) VALUES(?,?,?)').run(id,role,1);
   DB.sqlite.prepare('INSERT INTO memberships VALUES(?,?,?)').run('taiwan-2026',id,role);
-  DB.sqlite.prepare('INSERT INTO sessions VALUES(?,?,?)').run(await sha(token),id,Date.now()+1000000);
+  DB.sqlite.prepare('INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)').run(await sha(token),id,Date.now()+1000000);
  }
  DB.sqlite.prepare("INSERT INTO app_meta VALUES('accounts_v1','shared')").run();
  return {DB,call,tokens,data:async role=>(await call('/api/data','GET',undefined,tokens[role])).json()};
 }
-test('editors and admins hide and restore shared places without losing notes, history, status or links; viewers cannot access the folder or mutate',async()=>{
+test('editors and admins hide and restore shared places without losing notes, history, status or links; viewers can read the folder but cannot mutate',async()=>{
  const f=await fixture();try{
   const id='taipei-101',original=(await f.data('editor')).places.find(p=>p.id===id);
   assert.equal(original.hidden,false);assert.equal(original.visibility_version,1);
   assert.equal((await f.call('/api/places/'+id+'/state','PUT',{version:0,status_id:'visited',note:'Keep all shared data'},f.tokens.editor)).status,200);
   const snapshot=Object.fromEntries(['user_place_states','state_events','place_links'].map(table=>[table,f.DB.sqlite.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()]));
-  for(const [path,method,data] of [['/api/places/hidden','GET'],['/api/places/'+id+'/visibility','PUT',{version:1,hidden:true}],['/api/places/'+id,'DELETE',{version:1}]])assert.equal((await f.call(path,method,data,f.tokens.viewer)).status,403);
+  for(const [path,method,data] of [['/api/places/'+id+'/visibility','PUT',{version:1,hidden:true}],['/api/places/'+id,'DELETE',{version:1}]])assert.equal((await f.call(path,method,data,f.tokens.viewer)).status,403);
   assert.equal((await f.call('/api/places/'+id+'/visibility','PUT',{version:1,hidden:true},f.tokens.editor)).status,200);
   for(const role of ['admin','editor','viewer'])assert.ok(!(await f.data(role)).places.some(p=>p.id===id));
-  const hidden=await(await f.call('/api/places/hidden','GET',undefined,f.tokens.admin)).json();
+  const hidden=await(await f.call('/api/places/hidden','GET',undefined,f.tokens.viewer)).json();
   assert.equal(hidden.places[0].note,'Keep all shared data');assert.equal(hidden.places[0].status_id,'visited');assert.equal(hidden.places[0].version,1);assert.equal(hidden.places[0].visibility_version,2);
   assert.equal((await f.call('/api/places/'+id+'/state','PUT',{version:1,status_id:null,note:'stale client'},f.tokens.editor)).status,404);
   assert.equal((await f.call('/api/places/'+id+'/visibility','PUT',{version:1,hidden:false},f.tokens.admin)).status,409);
