@@ -46,7 +46,7 @@ function closeDetail(restoreFocus=false){
  if($('detail').hidden)return true;
  if(busy){toast('Дождитесь завершения сохранения.');return false}
  if(dirty&&!window.confirm('Изменения не сохранены. Закрыть карточку без сохранения?'))return false;
- const id=selected;selected=null;resetDirty();$('detail').hidden=true;$('application').classList.remove('detail-open');render();
+ const id=selected,p=data?.places.find(p=>p.id===id);selected=null;resetDirty();$('detail').hidden=true;$('application').classList.remove('detail-open');render();if(p)map?.centerPlace(p);
  if(restoreFocus){const card=Array.from(document.querySelectorAll('[data-place]')).find(el=>el.dataset.place===id);const target=matchMedia('(max-width:1000px)').matches?$('fit'):card||$('fit');target.focus({preventScroll:true})}
  return true;
 }
@@ -62,7 +62,7 @@ function populateFilters(){
 }
 function render(){if(!data)return;const ps=visible();$('place-count').textContent=`${ps.length} из ${data.places.length} мест`;$('map-label').textContent=`${city||'Тайвань'} · ${ps.length} мест`;
  $('place-list').innerHTML=ps.length?ps.map(p=>{const c=getCategory(p),s=getStatus(p);return `<button class="place-card ${selected===p.id?'selected':''}" data-place="${esc(p.id)}" style="--category:${c.color};--category-bg:${c.color}14;--status:${s?.color||'#697568'};--status-opacity:${s?.opacity??1};--status-symbol:${s?.symbolColor||'#ffffff'};--status-text:${s?.textColor||'var(--muted)'}"><span class="place-icon">${icon(c.icon)}</span><span class="place-card-content"><span class="place-name">${esc(p.name)}</span><span class="place-meta">${esc(p.city)} <span>·</span> ${esc(c.label)}</span><span class="card-status"><i class="status-dot" aria-hidden="true">${esc(s?.symbol||'')}</i> ${esc(s?.label||'Без статуса')}</span></span></button>`}).join(''):'<p class="empty">Под эти фильтры пока нет мест.<br>Попробуйте другой статус или сбросьте фильтры.</p>';
- if(selected&&!ps.some(p=>p.id===selected)&&!dirty){selected=null;$('detail').hidden=true;$('application').classList.remove('detail-open');resetDirty()}renderMarkers(ps);
+ if(selected&&!ps.some(p=>p.id===selected)&&!dirty){const p=data.places.find(p=>p.id===selected);if(p)map?.centerPlace(p);selected=null;$('detail').hidden=true;$('application').classList.remove('detail-open');resetDirty()}renderMarkers(ps);
 }
 function renderMarkers(ps=visible()){
  map?.setPlaces(ps.map(p=>({...p,category:getCategory(p),status:getStatus(p)})),selected);
@@ -79,7 +79,16 @@ function detail(p){resetDirty();tagControls=undefined;const c=getCategory(p),s=g
  for(const button of $('detail').querySelectorAll('[data-place-action]'))button.onclick=()=>button.dataset.placeAction==='hide'?placeUI.hide(p):placeUI.remove(p);
  $('detail').hidden=false;$('application').classList.add('detail-open');$('detail-close').onclick=()=>closeDetail(true);if($('state-form'))$('state-form').oninput=event=>{if(!event.target.closest('#place-tag-editor')){stateDirty=true;dirty=true}};if($('state-form'))$('state-form').onsubmit=event=>saveState(event,p);
 }
-function openPlace(id){if(busy)return;if(dirty){if(id!==selected)toast('Сначала сохраните изменения в открытой карточке.');return}const p=data.places.find(p=>p.id===id);if(!p)return;selected=id;detail(p);render();setSidebar(false);if(map){const rect=$('detail').getBoundingClientRect();const offset=matchMedia('(max-width:1000px)').matches?[0,($('map').getBoundingClientRect().bottom-rect.top)/2]:[(rect.width+20)/2,0];map.focusPlace(p,offset)}$('detail-close').focus({preventScroll:true})}
+function focusPlaceOnMap(p){
+ if(!map)return;
+ const card=$('detail').getBoundingClientRect(),viewport=$('map').getBoundingClientRect();
+ // Include the actual gap beside the card, rather than assuming its width.
+ const compact=matchMedia('(max-width:1000px)').matches;
+ const offset=compact?[0,-Math.max(0,Math.min(viewport.height,viewport.bottom-card.top))/2]:[-Math.max(0,Math.min(viewport.width,viewport.right-card.left))/2,0];
+ map.focusPlace(p,offset);
+}
+function openPlace(id){if(busy)return;if(dirty){if(id!==selected)toast('Сначала сохраните изменения в открытой карточке.');return}const p=data.places.find(p=>p.id===id);if(!p)return;selected=id;detail(p);render();setSidebar(false);focusPlaceOnMap(p);$('detail-close').focus({preventScroll:true})}
+
 function bindTagHints(){for(const button of $('detail').querySelectorAll('[data-tag-info]'))button.onclick=()=>toast(tagDefinitions.find(t=>t.id===button.dataset.tagInfo).tooltip)}
 async function saveState(event,p){
  event.preventDefault();if(!canEdit()||busy)return;
@@ -134,7 +143,7 @@ window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.return
 document.addEventListener('visibilitychange',async()=>{if(document.hidden||!data||dirty||busy||!$('login').hidden||$('accounts-dialog').open)return;try{const id=selected;await load();if(id&&data.places.some(p=>p.id===id))detail(data.places.find(p=>p.id===id))}catch(e){toast(e.message)}});
 installPlaceCopy({root:$('detail'),getPlace:()=>data?.places.find(p=>p.id===selected),toast});
 $('export-data').onclick=exportData;
-placeUI=createPlaceLifecycleUI({api,$,esc,getData:()=>data,toast,onBusy:value=>{busy=value},canOpen:()=>{if(dirty||busy){toast('Сначала сохраните изменения.');return false}return true},canChange:(place,question)=>{if(busy)return false;const warning=dirty?'Несохранённые изменения в карточке будут потеряны.':'';return !(question||warning)||window.confirm([question,warning].filter(Boolean).join('\n\n'))},onChange:(place,action)=>{if(place.id===selected){resetDirty();selected=null;$('detail').hidden=true;$('application').classList.remove('detail-open')}data.places=data.places.filter(p=>p.id!==place.id);if(action==='restore')data.places.push(place);populateFilters();$('verified').textContent=hoursOverview(data.places);render()}});
+placeUI=createPlaceLifecycleUI({api,$,esc,getData:()=>data,toast,onBusy:value=>{busy=value},canOpen:()=>{if(dirty||busy){toast('Сначала сохраните изменения.');return false}return true},canChange:(place,question)=>{if(busy)return false;const warning=dirty?'Несохранённые изменения в карточке будут потеряны.':'';return !(question||warning)||window.confirm([question,warning].filter(Boolean).join('\n\n'))},onChange:(place,action)=>{if(place.id===selected){map?.centerPlace(place);resetDirty();selected=null;$('detail').hidden=true;$('application').classList.remove('detail-open')}data.places=data.places.filter(p=>p.id!==place.id);if(action==='restore')data.places.push(place);populateFilters();$('verified').textContent=hoursOverview(data.places);render()}});
 accountUI=createAccountUI({api,$,esc,load,toast,showLogin,getData:()=>data,canOpen:()=>{if(dirty||busy){toast('Сначала сохраните изменения.');return false}return true}});
 const loadingScreen=createLoadingScreenUI({$,message:'Загружаем карту…'});
 startup=createAuthStartup({initialize:signal=>accountUI.init(signal),load:signal=>load({signal}),onLoading:()=>loadingScreen.show(),onLogin:showLogin,onError:message=>loadingScreen.error(message)});
