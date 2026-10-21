@@ -51,5 +51,5 @@ export function createPlaceLifecycleUI({api,$,esc,getData,onChange,canOpen,canCh
   const row=event.target.closest('[data-hidden-place]'),button=event.target.closest('button');if(!row||!button)return;
   const place=hidden.find(p=>p.id===row.dataset.hiddenPlace);if(place)void change(place,button.hasAttribute('data-restore-place')?'restore':'delete');
  };
- return {hide:place=>change(place,'hide'),remove:place=>change(place,'delete'),close(){sequence++;hidden=[];loading=false;dialog.close()}};
+ return {hide:place=>change(place,'hide'),remove:place=>change(place,'delete'),close(){sequence++;hidden=[];loading=false;dialog.close();$('hidden-places-list').replaceChildren();$('hidden-delete-all').hidden=true}};
 }
