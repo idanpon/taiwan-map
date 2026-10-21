@@ -21,7 +21,7 @@
   --scroll: #b0bfca;
   --shadow: #182c4326;
   --backdrop: #17293b77;
-  --topbar-height: 72px;
+  --topbar-height: 64px;
   color-scheme: light;
 }
 :root[data-theme=dark] {
@@ -114,7 +114,7 @@ button:disabled { opacity: .55; cursor: default; }
 .text-button:hover { color: var(--ink); }
 .workspace { position: relative; display: flex; flex: 1; min-height: 0; }
 .sidebar { width: 340px; flex: 0 0 340px; min-height: 0; display: flex; flex-direction: column; background: var(--paper); border-right: 1px solid var(--line); z-index: 501; }
-.side-head { scrollbar-width: thin; scrollbar-color: var(--scroll) transparent; max-height: 64%; overflow-y: auto; overscroll-behavior: contain; padding: 24px 20px 18px; flex: 0 0 auto; }
+.side-head { scrollbar-width: thin; scrollbar-color: var(--scroll) transparent; max-height: 64%; overflow-y: auto; overscroll-behavior: contain; padding: 18px 20px 18px; flex: 0 0 auto; }
 .side-head h1 { font-size: 24px; font-weight: 600; letter-spacing: -.5px; margin: 0 0 20px; }
 .city-filter { margin-bottom: 16px; }
 .city-filter label { color: var(--muted); font-size: 12px; }
@@ -215,7 +215,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
   .detail { width: 320px; }
 }
 @media (max-width: 1000px) {
-  :root { --topbar-height: 64px; }
+  :root { --topbar-height: 56px; }
   .topbar { padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right)); }
   .brand { gap: 8px; font-size: 28px; }
   .brand span { font-size: 14px; }
@@ -223,7 +223,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
   #logout { min-height: 44px; padding: 8px 0 8px 12px; font-size: 13px; }
   .sidebar { display: none; position: absolute; inset: 0; width: 100%; min-width: 0; border: 0; z-index: 600; overflow-y: auto; overscroll-behavior: contain; padding-bottom: calc(88px + env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch; }
   .sidebar.mobile-open { display: block; }
-  .side-head { max-height: none; overflow: visible; padding: 20px max(16px, env(safe-area-inset-right)) 18px max(16px, env(safe-area-inset-left)); }
+  .side-head { max-height: none; overflow: visible; padding: 14px max(16px, env(safe-area-inset-right)) 18px max(16px, env(safe-area-inset-left)); }
   .side-head h1 { margin-bottom: 16px; font-size: 25px; }
   .city-filter select { font-size: 16px; }
   .search-box { margin-bottom: 12px; }
