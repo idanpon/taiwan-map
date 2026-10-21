@@ -4,6 +4,8 @@ import {createAuthStartup} from './auth-startup.js';
 import {createThemeUI} from './theme.js';
 import {createHelpUI} from './help.js';
 import {installDialogBackdrop} from './dialogs.js';
+import {weekSegments,isPeriod} from './planning-layout.js';
+import {installPlanningNavigation} from './planning-navigation.js';
 import {planningConfig,kindLabels,stateLabels,priorityLabels,dayInZone,addDays,monday,monthDays,itemDates,onDay,urgency,sortItems,zonedInstant,timeInZone,dateLabel,validZone} from './planning-model.js';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const config=window.TAIWAN_CONFIG||{},deviceZone=Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';
@@ -39,8 +41,24 @@ function render(){
  $('planning-zone-label').textContent=(zoneChoice==='device'?'Часовой пояс устройства: ':'Часовой пояс: ')+zone;
  $('planning-period').textContent=view==='month'?new Intl.DateTimeFormat('ru',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(focusDay+'T12:00:00Z')):view==='week'?dateLabel(monday(focusDay))+' — '+dateLabel(addDays(monday(focusDay),6)):view==='list'?'Все сроки':dateLabel(focusDay);
  let html='';
- if(view==='month')html='<div class="planning-month">'+['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d=>`<div class="planning-weekday">${d}</div>`).join('')+monthDays(focusDay).map(day=>{const daily=sortItems(dated.filter(i=>onDay(i,day,zone))),more=daily.length-planningConfig.monthPreview;return `<section class="planning-day-cell ${day===today?'is-today':''} ${day.slice(0,7)!==focusDay.slice(0,7)?'other-month':''}"><button class="planning-date" data-day="${day}" aria-label="Все записи: ${esc(dateLabel(day))}">${Number(day.slice(-2))}</button>${daily.slice(0,planningConfig.monthPreview).map(i=>record(i,true)).join('')}${more>0?`<button class="planning-more" data-day="${day}">Ещё ${more}</button>`:''}</section>`}).join('')+'</div>';
- else if(view==='week')html='<div class="planning-week">'+Array.from({length:7},(_,n)=>addDays(monday(focusDay),n)).map(day=>dayGroup(day,dated.filter(i=>onDay(i,day,zone)))).join('')+'</div>';
+ if(view==='month'){
+  const days=monthDays(focusDay);
+  html='<div class="planning-month">'+['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d=>`<div class="planning-weekday">${d}</div>`).join('');
+  for(let n=0;n<42;n+=7){
+   const week=days.slice(n,n+7),segments=weekSegments(dated,week[0],zone),visible=segments.filter(s=>s.lane<planningConfig.monthPreview);
+   html+='<div class="planning-month-week">'+week.map((day,column)=>{
+    const more=segments.filter(s=>s.lane>=planningConfig.monthPreview&&column>=s.column&&column<s.column+s.span).length;
+    return `<section class="planning-day-cell ${day===today?'is-today':''} ${day.slice(0,7)!==focusDay.slice(0,7)?'other-month':''}" style="grid-column:${column+1};grid-row:1 / 6"><button class="planning-date" data-day="${day}" aria-label="Все записи: ${esc(dateLabel(day))}">${Number(day.slice(-2))}</button></section>${more?`<button class="planning-more" style="grid-column:${column+1};grid-row:5" data-day="${day}">Ещё ${more}</button>`:''}`;
+   }).join('')+visible.map(s=>{
+    const u=urgency(s.item,{zone}),label=s.item.title+' · '+itemWhen(s.item)+(u.label?' · '+u.label:'');
+    return `<button class="planning-span ${u.kind} ${isPeriod(s.item,zone)?'is-period':''} ${s.continuesBefore?'continues-before':''} ${s.continuesAfter?'continues-after':''}" style="grid-column:${s.column+1} / span ${s.span};grid-row:${s.lane+2}" data-item="${esc(s.item.id)}" aria-label="${esc(label)}" title="${esc(label)}">${s.continuesBefore?'<span aria-hidden="true">‹</span>':''}<span class="planning-span-title">${esc(s.item.title)}</span>${s.continuesAfter?'<span aria-hidden="true">›</span>':''}</button>`;
+   }).join('')+'</div>';
+  }
+  html+='</div>';
+ }else if(view==='week'){
+  const days=Array.from({length:7},(_,n)=>addDays(monday(focusDay),n)),periods=sortItems(dated.filter(i=>isPeriod(i,zone)&&days.some(day=>onDay(i,day,zone))));
+  html=(periods.length?'<section class="planning-week-periods"><h3>На несколько дней</h3>'+periods.map(i=>record(i)).join('')+'</section>':'')+'<div class="planning-week">'+days.map(day=>dayGroup(day,dated.filter(i=>!isPeriod(i,zone)&&onDay(i,day,zone)))).join('')+'</div>';
+ }
  else if(view==='day')html=dayGroup(focusDay,dated.filter(i=>onDay(i,focusDay,zone)));
  else {
   const before=dated.filter(i=>itemDates(i,zone)[1]<today).sort((a,b)=>itemDates(a,zone)[1].localeCompare(itemDates(b,zone)[1]));
@@ -48,7 +66,8 @@ function render(){
   const after=dated.filter(i=>itemDates(i,zone)[0]>today).sort((a,b)=>itemDates(a,zone)[0].localeCompare(itemDates(b,zone)[0])||a.sort_order-b.sort_order);
   html=before.map(i=>record(i)).join('')+`<div class="planning-today-line" id="planning-today-line">Сегодня · ${esc(dateLabel(today))}</div>`+sortItems(active).map(i=>record(i)).join('')+after.map(i=>record(i)).join('');
  }
- $('planning-canvas').innerHTML=html;if(!items.length)$('planning-canvas').insertAdjacentHTML('afterbegin','<p class="planning-empty">Записей пока нет. Добавьте задачу, решение или пункт маршрута.</p>');
+ $('planning-canvas').dataset.view=view;$('planning-canvas').innerHTML=html;
+ $('planning-prev').disabled=$('planning-next').disabled=view==='list';
 }
 function placesHtml(item){return item.places.length?'<section class="planning-relations"><h3>Связанные места</h3>'+[...new Map(item.places.map(l=>[(l.place_id||l.place_name),l])).values()].map(l=>l.place_id?`<a class="planning-related-item" href="./#place=${encodeURIComponent(l.place_id)}">${esc(l.place_name)} ↗${l.hidden?'<span>Место скрыто</span>':''}</a>`:`<p>${esc(l.place_name)} <span class="muted">· Место удалено</span></p>`).join('')+'</section>':''}
 function relationsHtml(item){const incoming=plan.items.filter(i=>i.dependencies.includes(item.id)),deps=item.dependencies.map(id=>plan.items.find(i=>i.id===id)).filter(Boolean);return (deps.length?'<section class="planning-relations"><h3>Зависит от</h3>'+deps.map(i=>`<button class="planning-related-item text-button" data-item="${esc(i.id)}">${esc(i.title)} · ${esc(stateLabel(i))}</button>`).join('')+'</section>':'')+(incoming.length?'<section class="planning-relations"><h3>Следующие шаги</h3>'+incoming.map(i=>`<button class="planning-related-item text-button" data-item="${esc(i.id)}">${esc(i.title)}</button>`).join('')+'</section>':'')}
@@ -109,7 +128,8 @@ $('planning-dialog-content').addEventListener('click',e=>{const item=e.target.cl
 $('planning-preview-content').addEventListener('click',e=>{const b=e.target.closest('[data-related-preview]');if(b&&!busy){previewDialog.close();openItem(b.dataset.relatedPreview)}});
 $('planning-new').onclick=()=>editItem();$('planning-trip-edit').onclick=editTrip;
 $('planning-views').onclick=e=>{const b=e.target.closest('[data-view]');if(b){view=b.dataset.view;render();if(view==='list')$('planning-today-line')?.scrollIntoView({block:'center'})}};
-function navigate(direction){if(view==='month'){const date=new Date(focusDay.slice(0,7)+'-01T12:00:00Z');date.setUTCMonth(date.getUTCMonth()+direction);focusDay=date.toISOString().slice(0,10)}else focusDay=addDays(focusDay,direction*(view==='week'?7:1));render()}
+function navigate(direction){if(view==='list')return;if(view==='month'){const date=new Date(focusDay.slice(0,7)+'-01T12:00:00Z');date.setUTCMonth(date.getUTCMonth()+direction);focusDay=date.toISOString().slice(0,10)}else focusDay=addDays(focusDay,direction*(view==='week'?7:1));render()}
+installPlanningNavigation({canvas:$('planning-canvas'),document,navigate,enabled:()=>Boolean(plan)&&view!=='list'&&!busy&&!document.querySelector('dialog[open]')&&!$('application').hidden});
 $('planning-prev').onclick=()=>navigate(-1);$('planning-next').onclick=()=>navigate(1);$('planning-today').onclick=()=>{focusDay=dayInZone(new Date(),zone);render();if(view==='list')$('planning-today-line')?.scrollIntoView({block:'center'});else if(view==='month')document.querySelector('.planning-day-cell.is-today')?.scrollIntoView({block:'center'})};
 $('planning-kind').onchange=e=>{kind=e.target.value;render()};$('planning-state').onchange=e=>{state=e.target.value;render()};$('planning-search').oninput=e=>{search=e.target.value.toLowerCase().trim();render()};
 $('planning-reset').onclick=()=>{kind='';state='active';search='';$('planning-kind').value='';$('planning-state').value='active';$('planning-search').value='';render()};

@@ -505,7 +505,7 @@ input[type=checkbox] { accent-color: var(--action); }
 .planning-nav { color: var(--muted); white-space: nowrap; }
 @media(max-width: 600px) { .top-actions { gap: 6px; } .planning-nav { font-size: 11px; padding-inline: 2px; } }
 
-.planning-nav { display: inline-flex; align-items: center; gap: 6px; }
+.planning-nav { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
 .planning-nav svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 @media(max-width:600px) { .planning-nav { justify-content: center; width: 30px; min-height: 40px; } .planning-nav span { display: none; } }
 @media(max-width:379px) { .top-actions, .planning-page .top-actions { gap: 2px; } }
