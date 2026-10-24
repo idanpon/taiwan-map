@@ -250,6 +250,10 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
   .detail-open .mobile-toggle { display: none; }
   .detail { position: fixed; left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); bottom: calc(28px + env(safe-area-inset-bottom)); width: auto; max-width: none; max-height: min(66dvh, calc(100dvh - var(--topbar-height) - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 200px)); border-radius: 14px; }
   .detail-header { padding: 8px 8px 8px 18px; }
+  .detail { transform: translateY(var(--card-drag,0px)); transition: transform 140ms ease-out; }
+  .detail.is-swiping { transition: none; }
+  .detail-header { position: relative; padding-top: 14px; touch-action: pan-x pinch-zoom; }
+  .detail-header::before { content: ''; position: absolute; top: 5px; left: 50%; transform: translateX(-50%); width: 30px; height: 3px; border-radius: 3px; background: var(--scroll); }
   .detail-body { padding: 18px; }
   .detail h2 { font-size: 25px; }
   .detail select, .detail textarea, dialog input:not([type=color]) { font-size: 16px; }
