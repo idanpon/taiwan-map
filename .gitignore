@@ -10,3 +10,4 @@ dist/
 *.private.json
 *.tar.gz
 *.private.md
+.local/
