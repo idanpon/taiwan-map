@@ -97,3 +97,7 @@ Closing with the cross, outside click or Escape eases the same place to the
 full map centre without changing zoom or bearing. Repeated or interrupted
 transitions replace the target instead of adding pan deltas. MapLibre honours
 prefers-reduced-motion; data and style loading remain independent of framing.
+
+## Mobile place-card dismissal
+
+`public/place-card-swipe.js` uses the shared touch recognizer to pull the card down from its header at any scroll position, or from non-editable body content only when the body starts at the top. The header has a subtle handle; the card follows the finger and returns on a short/cancelled pull. A completed swipe uses the existing closeDetail path, including dirty/busy guards, focus restoration and map recentering. Form fields, links, selected text, upward body scrolling and pinch remain available. Mouse dragging does not dismiss the card. Reduced-motion styling is respected.
