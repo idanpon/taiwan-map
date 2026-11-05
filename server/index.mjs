@@ -21,6 +21,7 @@ const cookiePath=process.env.SESSION_COOKIE_PATH||'/';
 if(!/^\/[a-zA-Z0-9/_-]*$/.test(cookiePath))throw new Error('Invalid SESSION_COOKIE_PATH');
 const authMode=process.env.AUTH_MODE||'cookie';
 if(!['cookie','bearer'].includes(authMode))throw new Error('AUTH_MODE must be cookie or bearer');
+const automaticBackups=process.env.AUTO_BACKUPS!=='0';
 const PUSH=pushTransport(process.env,frontend?.origin,origin.origin);
 const env={DB,PUSH,APP_PASSWORD_HASH:process.env.APP_PASSWORD_HASH,APP_ORIGIN:origin.origin,FRONTEND_ORIGIN:frontend?.origin,SESSION_COOKIE_PATH:cookiePath,AUTH_MODE:authMode,TELEGRAM_CLIENT_ID:process.env.TELEGRAM_CLIENT_ID};
 const scheduler=PUSH&&createPushScheduler(DB,PUSH.send,{onError:error=>console.error('Push queue failed',error.name)});
@@ -36,7 +37,7 @@ const server=http.createServer(async(req,res)=>{
    const request=new Request(url,{method:req.method,headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})});
    const clientIp=process.env.TRUST_PROXY==='1'?headers.get('x-real-ip')||'unknown':req.socket.remoteAddress||'unknown';
    response=await handle(request,env,{clientIp});
-   if(response.ok&&req.method==='POST'&&['/api/login','/api/auth/setup','/api/auth/telegram/login'].includes(url.pathname)){try{backup()}catch(e){console.error('Backup failed',e.name)}}
+   if(automaticBackups&&response.ok&&req.method==='POST'&&['/api/login','/api/auth/setup','/api/auth/telegram/login'].includes(url.pathname))tryBackup();
   }else if(req.method!=='GET'&&req.method!=='HEAD'){response=new Response('Method not allowed',{status:405})}
   else if(url.pathname==='/'){response=new Response(page,{headers:securityHeaders})}
   else if(url.pathname==='/planning.html'){response=new Response(planningPage,{headers:securityHeaders})}
@@ -55,6 +56,8 @@ const server=http.createServer(async(req,res)=>{
 });
 server.requestTimeout=20000;server.headersTimeout=15000;server.maxHeadersCount=50;
 function backup(){if(!DB.sqlite.prepare('SELECT 1 FROM places LIMIT 1').get())return;const directory=resolve(dirname(databasePath),'backups');mkdirSync(directory,{recursive:true,mode:0o700});const day=new Date().toISOString().slice(0,10),target=resolve(directory,`taiwan-${day}.sqlite`);if(!existsSync(target))DB.sqlite.exec(`VACUUM INTO '${target.replaceAll("'","''")}'`);for(const file of readdirSync(directory).filter(x=>/^taiwan-\d{4}-\d{2}-\d{2}\.sqlite$/.test(x)).sort().reverse().slice(14))unlinkSync(resolve(directory,file))}
-backup();const timer=setInterval(()=>{try{backup()}catch(e){console.error('Backup failed',e.name)}},6*3600000);timer.unref();
+function tryBackup(){try{backup()}catch(e){console.error('Backup failed',e.name)}}
+const timer=automaticBackups?setInterval(tryBackup,6*3600000):null;
+if(timer){tryBackup();timer.unref()}
 server.listen(Number(process.env.PORT||8080),process.env.HOST||'127.0.0.1',()=>{console.log('Taiwan Map listening on port '+(process.env.PORT||8080));scheduler?.start()});
 for(const signal of ['SIGTERM','SIGINT'])process.once(signal,()=>{clearInterval(timer);const stopped=scheduler?.stop();server.close(async()=>{await stopped;DB.close();process.exit(0)});setTimeout(()=>process.exit(1),10000).unref()});
