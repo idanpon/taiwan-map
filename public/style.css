@@ -566,3 +566,16 @@ input[type=checkbox] { accent-color: var(--action); }
 .passkey-entry small { display: block; color: var(--muted); margin-top: 4px; }
 @keyframes login-autofill { from { opacity: .999; } to { opacity: 1; } }
 #login-form input:is(:autofill, :-webkit-autofill) { animation: login-autofill 1ms; }
+
+/* Shared profile notification settings. */
+.notification-icon { width: 17px; height: 17px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.notification-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.notification-actions .text-button { padding-inline: 5px; }
+.notification-pause { align-items: flex-start; gap: 8px; }
+.notification-pause input { flex: none; }
+.notification-device { padding: 4px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.notification-device summary { padding: 7px 0; }
+.notification-device small { display: block; color: var(--muted); font-size: 12px; }
+.notification-device form { padding-bottom: 8px; }
+.notification-feedback { color: var(--green); font-size: 13px; }
+.notification-feedback:empty { display: none; }
