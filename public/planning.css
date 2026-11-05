@@ -235,3 +235,85 @@
  .planning-more-compact { display: inline; }
  .planning-span:not(.planning-week-card) .planning-kind-icon { width: 10px; height: 10px; }
 }
+
+/* Shared route time and personal reminder controls. */
+.planner-filters { grid-template-columns: repeat(3,minmax(0,1fr)) auto; }
+.planner-trip-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.timezone-badge { display: inline-flex; align-items: center; vertical-align: baseline; max-width: 100%; padding: 1px 7px; border: 1px solid var(--line); border-radius: 12px; background: var(--soft); color: var(--muted); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+button.timezone-badge:hover { color: var(--green); border-color: var(--selected-line); }
+button.timezone-badge:focus-visible { outline-offset: 1px; }
+.planner-zone-help { padding: 9px 12px; margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.planner-zone-help p, .planner-zone-help li { margin: 0; font-size: 12px; }
+.planner-zone-help ul { padding-inline-start: 18px; margin-block: 5px 0; }
+.planning-time-point { display: inline; }
+.trip-zone-initial { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 9px 10px; background: var(--soft); border-radius: 8px; }
+.trip-zone-editor h3 { margin-bottom: 4px; }
+.trip-zone-editor > p { margin-top: 0; }
+.trip-zone-arrival [data-arrival-offset] { font-size: 12px; color: var(--muted); }
+.planning-form input[type=time], .time-field-grid input[type=time] { -webkit-appearance: none; appearance: none; min-inline-size: 0; min-height: 42px; }
+.planning-form input[type=time]::-webkit-date-and-time-value, .time-field-grid input[type=time]::-webkit-date-and-time-value { min-width: 0; text-align: left; }
+.planning-push-invite { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding: 8px 10px; margin-bottom: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); }
+.planning-push-invite > div:first-child { display: flex; gap: 8px; align-items: flex-start; }
+.planning-push-invite p { margin: 0; font-size: 12px; }
+.planning-push-invite strong { color: var(--ink); }
+.planning-push-invite .text-button { color: var(--green); }
+.planning-reminder { margin-top: 18px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.planning-reminder h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 15px; }
+.planning-reminder p { margin: 6px 0; }
+.planning-reminder .notification-actions .primary { width: auto; padding-inline: 16px; }
+.planning-reminder [data-reminder-error] { color: var(--danger); }
+.planning-reminder [data-reminder-error]:empty { display: none; }
+.planning-reminder [data-reminder-devices] { margin-top: 6px; }
+#planning-dialog .help-heading h2, #planning-preview .help-heading h2 { min-width: 0; overflow-wrap: anywhere; }
+#planning-close, #planning-preview-close { position: static; flex: 0 0 44px; }
+#planning-dialog:has(.time-review) { width: min(540px,calc(100vw - 28px)); padding: 0; }
+#planning-dialog:has(.time-review) .help-heading { top: 0; align-items: center; padding: 9px 12px 9px 20px; margin: 0; border-bottom: 1px solid var(--line); }
+#planning-dialog:has(.time-review) h2 { margin: 0; font-size: 21px; line-height: 1.25; }
+#planning-dialog:has(.time-review) #planning-dialog-error:empty { display: none; }
+.time-review { display: grid; gap: 16px; padding: 16px 20px 0; }
+.time-review-group { display: grid; gap: 15px; min-width: 0; }
+.timezone-icon { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.time-review-warning { display: flex; align-items: flex-start; gap: 9px; border-radius: 9px; padding: 11px 12px; background: var(--warning-bg); color: var(--warning-ink); }
+.time-review-warning p, .time-review > p { margin: 0; }
+.time-review-warning .timezone-icon { margin-top: 1px; }
+.time-review-jump { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); gap: 10px; align-items: center; }
+.time-review-jump > div { display: grid; gap: 2px; }
+.time-review-jump > div:last-child { text-align: right; }
+.time-review-jump strong { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.time-review-jump span, .time-review-jump .timezone-icon { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.time-review-event { border-top: 1px solid var(--line); padding-top: 12px; }
+.time-review-event h3, .time-review-shifts h3 { font-size: 16px; font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+.time-review-event p { font-size: 13px; color: var(--muted); margin: 4px 0 0; overflow-wrap: anywhere; }
+.time-review fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 8px; }
+.time-review legend { color: var(--muted); padding: 0; margin-bottom: 6px; font-size: 13px; }
+.time-review fieldset > p { margin: 0 0 2px; font-size: 12px; }
+.time-review .time-choice { min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; margin: 0; }
+label.time-choice, .time-choice-custom > label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.time-choice-custom > label { margin: 0; }
+.time-choice span { min-width: 0; flex: 1; }
+.time-choice strong { font-weight: 600; }
+.time-choice small { display: block; font-size: 12px; line-height: 1.4; color: var(--muted); margin-top: 3px; overflow-wrap: anywhere; }
+.time-choice input[type=radio] { width: 17px; height: 17px; margin: 3px 0 0; flex: none; accent-color: var(--green); }
+.time-choice:has(input[type=radio]:checked) { background: var(--selected); border-color: var(--selected-line); }
+.time-choice.time-choice-off { border-style: dashed; background: var(--soft); color: var(--muted); }
+.time-choice.time-choice-off:has(input:checked) { background: var(--soft); border-color: var(--muted); }
+.time-choice .timezone-icon { margin-top: 2px; }
+.time-choice [data-time-custom] { margin: 8px 0 0 27px; }
+.time-field-grid { display: grid; grid-template-columns: minmax(0,.8fr) minmax(0,1.3fr); gap: 10px; }
+.time-field-grid label { margin: 0; min-width: 0; font-size: 12px; color: var(--muted); }
+.time-review .time-field-grid input, .time-review .time-field-grid select { display: block; width: 100%; min-width: 0; margin-top: 5px; padding: 8px; min-height: 42px; border: 1px solid var(--line); border-radius: 8px; background: var(--input); color: var(--ink); font-size: 16px; }
+.time-delta { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+.time-review-error { color: var(--danger); }
+.time-review-error:empty { display: none; }
+.time-review-footer { display: flex; justify-content: space-between; gap: 10px; margin-inline: -20px; padding: 12px 20px; border-top: 1px solid var(--line); background: var(--paper); position: sticky; bottom: 0; z-index: 1; }
+.time-review-footer button { font-size: 14px; padding: 8px 13px; min-height: 42px; border-radius: 8px; }
+.time-review-footer .text-button { border: 1px solid var(--line); flex: none; }
+.time-review-footer .primary { flex: 0 1 260px; max-width: min(260px,72%); min-width: 0; }
+@media(max-width:700px) {
+ .planner-filters { grid-template-columns: repeat(2,minmax(0,1fr)); }
+ .planner-trip-summary { gap: 3px 8px; }
+ .planner-trip-summary .timezone-badge { font-size: 10px; }
+}
+@media(max-width:360px) {
+ .time-field-grid, .trip-zone-arrival .form-columns, .planning-item-dates .form-columns { grid-template-columns: 1fr; }
+}

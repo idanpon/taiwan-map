@@ -82,7 +82,8 @@ test('decision transaction rolls back every effect and journal entry on write fa
 test('dates validate real days, exact instants, visit dates and immutable state boundaries',async()=>{const f=await fixture();try{
  for(const value of [{date_start:'2026-02-30'},{date_start:'2026-11-10',date_end:'2026-11-01'},{event_timezone:'No/Zone'},{kind:'visit'},{source_urls:['javascript:alert(1)']}])assert.equal((await f.call('/api/planning/items','POST',{kind:'task',title:'Bad',...value})).status,400);
  const visit=await f.create({kind:'visit',starts_at:'2026-12-28T17:00:00Z',event_timezone:'Asia/Taipei'});assert.equal(visit.date_start,'2026-12-29');assert.equal(itemDates(visit,'America/Los_Angeles')[0],'2026-12-29');
- const source=await f.create({kind:'task',ends_at:'2026-11-05T02:00:00Z',event_timezone:'Asia/Taipei',fixed_external:true});assert.equal(itemDates(source,'America/Los_Angeles')[0],'2026-11-04');
+ for(const dates of [{ends_at:'2026-11-05T02:00:00Z'},{date_end:'2026-11-05',starts_at:'2026-11-04T02:00:00Z'}])assert.equal((await f.call('/api/planning/items','POST',{kind:'task',title:'Incomplete period',...dates})).status,400);
+ const source=await f.create({kind:'task',starts_at:'2026-11-05T02:00:00Z',event_timezone:'Asia/Taipei',fixed_external:true});assert.equal(itemDates(source,'America/Los_Angeles')[0],'2026-11-04');
 }finally{f.DB.close()}});
 test('calendar computation handles Monday boundaries, inclusive periods, urgency and Taiwan/device dates',()=>{
  assert.equal(monday('2026-11-01'),'2026-10-26');assert.equal(monthDays('2026-11-01').length,42);

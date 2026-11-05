@@ -8,6 +8,8 @@ import {validStatusSymbol} from '../public/map-model.js';
 import {handlePlaceLifecycle} from './place-lifecycle.mjs';
 import {handlePasskeys} from './passkeys.mjs';
 import {publicCatalog} from './public-catalog.mjs';
+import {handleReminders} from './reminders.mjs';
+import {handleNotifications} from './notifications.mjs';
 export {passwordHash,sha} from './auth.mjs';
 async function seed(db){
  if(await stmt(db,'SELECT value FROM app_meta WHERE key=?','seed_v1').first())return;
@@ -50,6 +52,8 @@ async function handleApi(request,env,context={}){
   return json({ok:true},200,env.AUTH_MODE==='bearer'?{}:{'Set-Cookie':cookie('',secure,0,env.SESSION_COOKIE_PATH||'/')});
  }
  const scope=await accountScope(db),stateUser=scope==='shared'?USER:user.id;
+ const reminderResponse=await handleReminders(request,db,user);if(reminderResponse)return reminderResponse;
+ const notificationsResponse=await handleNotifications(request,env,user);if(notificationsResponse)return notificationsResponse;
  const planningResponse=await handlePlanning(request,db,user);if(planningResponse)return planningResponse;
  const tagResponse=await handlePlaceTags(request,db,user);if(tagResponse)return tagResponse;
  const lifecycle=await handlePlaceLifecycle(request,db,user,stateUser);if(lifecycle)return lifecycle;

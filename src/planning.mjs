@@ -1,16 +1,14 @@
 import {createHash} from 'node:crypto';
 import {TRIP,SHARED_USER,body,fail,json,Problem} from './auth.mjs';
 import {validDate,validZone,dayInZone,kindLabels,priorityLabels} from '../public/planning-model.js';
+import {all,one,run,transaction} from './sqlite.mjs';
+import {readZonePlan,refreshItemReminders} from './reminders.mjs';
 const editable=u=>['owner','admin','editor'].includes(u.role);
 const conflict=(message,details={})=>{const error=new Problem(409,message);error.details=details;throw error};
-const all=(db,sql,...args)=>db.sqlite.prepare(sql).all(...args);
-const one=(db,sql,...args)=>db.sqlite.prepare(sql).get(...args);
-const run=(db,sql,...args)=>db.sqlite.prepare(sql).run(...args);
-const transaction=(db,fn)=>{db.sqlite.exec('BEGIN IMMEDIATE');try{const value=fn();db.sqlite.exec('COMMIT');return value}catch(error){db.sqlite.exec('ROLLBACK');throw error}};
 const event=(db,user,item,action,payload)=>run(db,'INSERT INTO planning_events VALUES(?,?,?,?,?,?,?)',crypto.randomUUID(),TRIP,item,user.id,action,JSON.stringify(payload),Date.now());
 function itemById(db,id){const item=one(db,'SELECT * FROM planning_items WHERE id=? AND trip_id=?',id,TRIP);if(!item)fail(404,'Запись календаря не найдена.');return item}
 function readItem(db,row){return {...row,fixed_external:Boolean(row.fixed_external),source_urls:JSON.parse(row.source_urls),options:all(db,'SELECT * FROM planning_options WHERE item_id=? ORDER BY sort_order,id',row.id),places:all(db,'SELECT l.*,p.name current_name,p.hidden FROM planning_item_places l LEFT JOIN places p ON p.id=l.place_id WHERE l.item_id=? ORDER BY l.id',row.id).map(l=>({...l,affects_visit:Boolean(l.affects_visit),place_name:l.current_name||l.place_name,deleted:!l.place_id})),dependencies:all(db,'SELECT depends_on_id FROM planning_dependencies WHERE item_id=?',row.id).map(r=>r.depends_on_id)}}
-export function planningData(db){return {trip:one(db,'SELECT id,name,timezone,departure_date,start_date,end_date,planning_version version FROM trips WHERE id=?',TRIP),items:all(db,'SELECT * FROM planning_items WHERE trip_id=? ORDER BY date_start,sort_order,title',TRIP).map(row=>readItem(db,row)),users:all(db,"SELECT u.id,u.display_name name FROM users u JOIN memberships m ON m.user_id=u.id WHERE m.trip_id=? AND u.disabled=0 AND m.role IN ('admin','editor','viewer') ORDER BY u.display_name",TRIP),places:all(db,'SELECT id,name,city,hidden FROM places WHERE trip_id=? ORDER BY city,name',TRIP)}}
+export function planningData(db){return {trip:one(db,'SELECT id,name,timezone,departure_date,start_date,end_date,planning_version version FROM trips WHERE id=?',TRIP),timezone_plan:readZonePlan(db),items:all(db,'SELECT * FROM planning_items WHERE trip_id=? ORDER BY date_start,sort_order,title',TRIP).map(row=>readItem(db,row)),users:all(db,"SELECT u.id,u.display_name name FROM users u JOIN memberships m ON m.user_id=u.id WHERE m.trip_id=? AND u.disabled=0 AND m.role IN ('admin','editor','viewer') ORDER BY u.display_name",TRIP),places:all(db,'SELECT id,name,city,hidden FROM places WHERE trip_id=? ORDER BY city,name',TRIP)}}
 export function unresolvedForPlace(db,placeId){return all(db,`SELECT DISTINCT i.id,i.title FROM planning_items i JOIN planning_item_places l ON l.item_id=i.id WHERE i.trip_id=? AND l.place_id=? AND l.affects_visit=1 AND i.kind='decision' AND i.state IN ('open','in_progress') ORDER BY i.title`,TRIP,placeId)}
 export function guardPlanningStatus(db,placeId,statusId,stateUser){if(!one(db,"SELECT 1 FROM sqlite_master WHERE type='table' AND name='planning_items'"))return;const previous=one(db,'SELECT status_id FROM user_place_states WHERE user_id=? AND place_id=?',stateUser,placeId)?.status_id??null;if(previous===statusId)return;const decisions=unresolvedForPlace(db,placeId);if(decisions.length)conflict('Статус связан с незакрытым решением. Перейдите в календарь, чтобы зафиксировать выбор.',{code:'planning_decision_required',decisions})}
 function text(value,name,max,required=false){if(typeof value!=='string'||value.length>max||required&&!value.trim())fail(400,`Проверьте поле «${name}» (до ${max} символов).`);return required?value.trim():value}
@@ -22,6 +20,8 @@ function normalize(db,b,current={}){
  if(!validZone(out.event_timezone))fail(400,'Некорректный часовой пояс.');
  for(const key of ['date_start','date_end'])if(out[key]&&!validDate(out[key]))fail(400,'Некорректная календарная дата.');
  for(const key of ['starts_at','ends_at'])if(out[key]){if(typeof out[key]!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d(?::\d\d(?:\.\d{3})?)?Z$/.test(out[key])||!validDate(out[key].slice(0,10))||!Number.isFinite(Date.parse(out[key])))fail(400,'Точное время передаётся в UTC.');out[key]=new Date(out[key]).toISOString()}
+ if(out.ends_at&&!out.starts_at)fail(400,'Укажите точное время начала или используйте однодневный дедлайн.');
+ if(out.starts_at&&out.date_end&&!out.ends_at)fail(400,'Для периода с точным временем укажите начало и окончание.');
  if(out.starts_at)out.date_start=dayInZone(out.starts_at,out.event_timezone);
  if(out.ends_at)out.date_end=dayInZone(out.ends_at,out.event_timezone);
  if(out.date_start&&out.date_end&&out.date_start>out.date_end||out.starts_at&&out.ends_at&&out.starts_at>out.ends_at)fail(400,'Окончание должно быть не раньше начала.');
@@ -120,7 +120,10 @@ export async function handlePlanning(request,db,user,{creationId=null}={}){
     }
     if(e.before.hidden!==e.after.hidden)run(db,'UPDATE places SET hidden=?,visibility_version=?,updated_at=? WHERE id=?',e.after.hidden,e.after.visibility_version,Date.now(),e.id);
    }
-   const reopen=preview.mode==='reopen';run(db,'UPDATE planning_items SET state=?,selected_option_id=?,version=version+1,updated_by=?,updated_at=?,completed_at=? WHERE id=?',reopen?'open':'done',reopen?null:preview.option_id,user.id,Date.now(),reopen?null:Date.now(),preview.item_id);event(db,user,preview.item_id,reopen?'reopen':'resolve',preview);return json({item:readItem(db,itemById(db,preview.item_id)),preview});
+   const reopen=preview.mode==='reopen',old=itemById(db,preview.item_id);
+   run(db,'UPDATE planning_items SET state=?,selected_option_id=?,version=version+1,updated_by=?,updated_at=?,completed_at=? WHERE id=?',reopen?'open':'done',reopen?null:preview.option_id,user.id,Date.now(),reopen?null:Date.now(),preview.item_id);
+   const updated=itemById(db,preview.item_id);refreshItemReminders(db,old,updated);
+   event(db,user,preview.item_id,reopen?'reopen':'resolve',preview);return json({item:readItem(db,updated),preview});
   }
   const match=path.match(/^\/api\/planning\/items\/([a-zA-Z0-9-]+)$/),creating=path==='/api/planning/items'&&method==='POST';
   if(!creating&&!(match&&['PUT','DELETE'].includes(method)))fail(404,'Маршрут планировщика не найден.');
@@ -146,6 +149,8 @@ export async function handlePlanning(request,db,user,{creationId=null}={}){
     if(p&&(!p.status_id||p.status_id==='want')){if(!one(db,"SELECT 1 FROM statuses WHERE id='maybe' AND trip_id=? AND archived=0",TRIP))conflict('Статус вопроса недоступен. Восстановите его перед добавлением условия посещения.');setPlaceStatus(db,user,placeId,'maybe')}
    }
   }
-  event(db,user,id,old?'update':'create',{before:old,after:readItem(db,itemById(db,id))});return json({item:readItem(db,itemById(db,id))},creating?201:200);
+  const updated=readItem(db,itemById(db,id));
+  if(old)refreshItemReminders(db,old,updated,now);
+  event(db,user,id,old?'update':'create',{before:old,after:updated});return json({item:updated},creating?201:200);
  });
 }

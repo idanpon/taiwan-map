@@ -5,7 +5,10 @@ import {fileURLToPath} from 'node:url';
 import {handle} from '../src/core.mjs';
 import {planningPage} from '../src/planning-ui.mjs';
 import {page,securityHeaders} from '../src/ui.mjs';
+import {appIcon} from '../scripts/generate-icons.mjs';
 import {openDatabase,migrate} from './database.mjs';
+import {pushTransport} from './push-transport.mjs';
+import {createPushScheduler} from './push-scheduler.mjs';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 
 const origin=new URL(process.env.APP_ORIGIN||'http://localhost:8080');
@@ -18,8 +21,11 @@ const cookiePath=process.env.SESSION_COOKIE_PATH||'/';
 if(!/^\/[a-zA-Z0-9/_-]*$/.test(cookiePath))throw new Error('Invalid SESSION_COOKIE_PATH');
 const authMode=process.env.AUTH_MODE||'cookie';
 if(!['cookie','bearer'].includes(authMode))throw new Error('AUTH_MODE must be cookie or bearer');
-const env={DB,APP_PASSWORD_HASH:process.env.APP_PASSWORD_HASH,APP_ORIGIN:origin.origin,FRONTEND_ORIGIN:frontend?.origin,SESSION_COOKIE_PATH:cookiePath,AUTH_MODE:authMode,TELEGRAM_CLIENT_ID:process.env.TELEGRAM_CLIENT_ID};
-const mime={'.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.txt':'text/plain; charset=utf-8'};
+const PUSH=pushTransport(process.env,frontend?.origin,origin.origin);
+const env={DB,PUSH,APP_PASSWORD_HASH:process.env.APP_PASSWORD_HASH,APP_ORIGIN:origin.origin,FRONTEND_ORIGIN:frontend?.origin,SESSION_COOKIE_PATH:cookiePath,AUTH_MODE:authMode,TELEGRAM_CLIENT_ID:process.env.TELEGRAM_CLIENT_ID};
+const scheduler=PUSH&&createPushScheduler(DB,PUSH.send,{onError:error=>console.error('Push queue failed',error.name)});
+const mime={'.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.txt':'text/plain; charset=utf-8','.webmanifest':'application/manifest+json'};
+const generatedIcons=new Map();
 const server=http.createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,origin);let response;
@@ -34,11 +40,15 @@ const server=http.createServer(async(req,res)=>{
   }else if(req.method!=='GET'&&req.method!=='HEAD'){response=new Response('Method not allowed',{status:405})}
   else if(url.pathname==='/'){response=new Response(page,{headers:securityHeaders})}
   else if(url.pathname==='/planning.html'){response=new Response(planningPage,{headers:securityHeaders})}
+  else if(/^\/icon-(192|512)\.png$/.test(url.pathname)){
+   const size=Number(url.pathname.match(/\d+/)[0]);if(!generatedIcons.has(size))generatedIcons.set(size,appIcon(size));
+   response=new Response(generatedIcons.get(size),{headers:{'Content-Type':mime['.png'],'Cache-Control':'public, max-age=86400'}});
+  }
   else if(url.pathname==='/config.js'){response=new Response('window.TAIWAN_CONFIG = Object.freeze('+JSON.stringify({apiBase:'',requiresApi:false,authMode})+');',{headers:{'Content-Type':mime['.js'],'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})}
   else{
    let path;try{path=resolve(root,'public','.'+decodeURIComponent(url.pathname))}catch{path=''}
    if(!path.startsWith(resolve(root,'public')+'/'))response=new Response('Not found',{status:404});
-   else try{response=new Response(readFileSync(path),{headers:{'Content-Type':mime[extname(path)]||'application/octet-stream','X-Content-Type-Options':'nosniff','Cache-Control':'public, max-age=3600'}})}catch{response=new Response('Not found',{status:404})}
+   else try{response=new Response(readFileSync(path),{headers:{'Content-Type':mime[extname(path)]||'application/octet-stream','X-Content-Type-Options':'nosniff','Cache-Control':url.pathname==='/sw.js'?'no-cache':'public, max-age=3600'}})}catch{response=new Response('Not found',{status:404})}
   }
   res.writeHead(response.status,Object.fromEntries(response.headers));res.end(req.method==='HEAD'?undefined:Buffer.from(await response.arrayBuffer()));
  }catch(error){console.error('Request failed',error.name);res.writeHead(500);res.end('Internal server error')}
@@ -46,5 +56,5 @@ const server=http.createServer(async(req,res)=>{
 server.requestTimeout=20000;server.headersTimeout=15000;server.maxHeadersCount=50;
 function backup(){if(!DB.sqlite.prepare('SELECT 1 FROM places LIMIT 1').get())return;const directory=resolve(dirname(databasePath),'backups');mkdirSync(directory,{recursive:true,mode:0o700});const day=new Date().toISOString().slice(0,10),target=resolve(directory,`taiwan-${day}.sqlite`);if(!existsSync(target))DB.sqlite.exec(`VACUUM INTO '${target.replaceAll("'","''")}'`);for(const file of readdirSync(directory).filter(x=>/^taiwan-\d{4}-\d{2}-\d{2}\.sqlite$/.test(x)).sort().reverse().slice(14))unlinkSync(resolve(directory,file))}
 backup();const timer=setInterval(()=>{try{backup()}catch(e){console.error('Backup failed',e.name)}},6*3600000);timer.unref();
-server.listen(Number(process.env.PORT||8080),process.env.HOST||'127.0.0.1',()=>console.log('Taiwan Map listening on port '+(process.env.PORT||8080)));
-for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>{clearInterval(timer);server.close(()=>{DB.close();process.exit(0)});setTimeout(()=>process.exit(1),10000).unref()});
+server.listen(Number(process.env.PORT||8080),process.env.HOST||'127.0.0.1',()=>{console.log('Taiwan Map listening on port '+(process.env.PORT||8080));scheduler?.start()});
+for(const signal of ['SIGTERM','SIGINT'])process.once(signal,()=>{clearInterval(timer);const stopped=scheduler?.stop();server.close(async()=>{await stopped;DB.close();process.exit(0)});setTimeout(()=>process.exit(1),10000).unref()});

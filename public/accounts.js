@@ -1,13 +1,15 @@
 import {installLoginAutofill} from './login-autofill.js';
 import {createPasskeyUI} from './passkeys.js';
+import {createNotificationUI} from './notifications.js';
 import {installDialogBackdrop} from './dialogs.js';
 import {installPasswordFields,enhancePasswordFields,confirmPassword,resetPasswordFields} from './password-fields.js';
 const roleNames={admin:'Admin',editor:'Редактирование',viewer:'Просмотр'};
-export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true,showLogin=()=>{}}){
+export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true,showLogin=()=>{},onNotificationsChange}){
  installPasswordFields(document);
  installDialogBackdrop($('accounts-dialog'));
  let authConfig={mode:'shared',telegram_client_id:null},sdkPromise,refreshed=false;
  const autofill=installLoginAutofill({form:$('login-form')});
+ const notifications=createNotificationUI({api,esc,getUser:()=>getData()?.user,toast,root:$('notification-settings'),onChange:onNotificationsChange});
  const passkeys=createPasskeyUI({api,$,esc,load,toast,reauthenticate:showLogin});
  const options=selected=>Object.entries(roleNames).map(([id,name])=>`<option value="${id}" ${id===selected?'selected':''}>${name}</option>`).join('');
  function error(message){$('account-error').textContent=message}
@@ -46,6 +48,7 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true,s
   $('telegram-login').hidden=!authConfig.telegram_client_id;passkeys.configure(authConfig.passkeys);
  }
  function update(){
+  notifications.update();
   const user=getData()?.user;
   $('login-open').hidden=Boolean(user);$('accounts-open').hidden=!user;$('logout').hidden=!user;document.querySelector('.profile-summary').hidden=!user;
   const calendar=document.querySelector('.planning-nav');if(calendar)calendar.hidden=!user;
@@ -80,8 +83,8 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true,s
    }catch(e){error(e.message);event.target.disabled=false}
   };
  }
- $('accounts-open').onclick=async()=>{
-  const user=getData()?.user;if(!user||!canOpen())return;error('');$('accounts-dialog').showModal();
+ async function openProfile({focusNotifications=false}={}){
+  const user=getData()?.user;if(!user||!focusNotifications&&!canOpen())return;error('');if(!$('accounts-dialog').open)$('accounts-dialog').showModal();
   $('account-title').textContent=user.can_setup?'Первый admin':user.role==='admin'?'Профиль и пользователи':'Мой профиль';$('account-title').focus({preventScroll:true});
   resetPasswordFields($('change-password'));$('change-password').reset();
   $('own-profile').hidden=user.can_setup;$('own-profile').querySelector('h3').hidden=user.role!=='admin';
@@ -90,12 +93,14 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true,s
   $('setup-account').hidden=!user.can_setup;$('admin-section').hidden=user.can_setup||user.role!=='admin';
   $('profile-description').textContent=user.can_setup?'Задайте личный логин и новый пароль. Нынешний общий пароль после настройки перестанет действовать.':`${user.name} · ${roleNames[user.role]}`;
   $('telegram-link').hidden=user.can_setup||user.telegram_linked||!authConfig.telegram_client_id;
+  if(focusNotifications)notifications.open();
   try{
    if(!user.can_setup)await passkeys.open();
    if(user.role==='admin'&&!user.can_setup)await refreshUsers();
    if(!$('telegram-link').hidden)await prepareTelegram($('telegram-link'),'link',$('account-error'));
   }catch(e){error(e.message)}
- };
+ }
+ $('accounts-open').onclick=()=>openProfile();
  $('accounts-close').onclick=()=>$('accounts-dialog').close();
  $('users-refresh').onclick=()=>refreshUsers().catch(e=>error(e.message));
  $('setup-account').onsubmit=async event=>{
@@ -143,5 +148,5 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true,s
    else{await refreshUsers();toast('Доступ обновлён. Пользователю нужно войти заново.');}
   }catch(e){error(e.message)}finally{button.disabled=false}
  };
- return {init,update,resetLoginPassword:()=>resetPasswordFields($('login-form')),hideLogin:()=>autofill.hide(),showLogin:()=>{resetPasswordFields($('login-form'));autofill.show();if(authConfig.telegram_client_id)prepareTelegram($('telegram-login'),'login',$('login-error'))}};
+ return {init,update,notifications,openNotifications:()=>openProfile({focusNotifications:true}),resetLoginPassword:()=>resetPasswordFields($('login-form')),hideLogin:()=>autofill.hide(),showLogin:()=>{resetPasswordFields($('login-form'));autofill.show();if(authConfig.telegram_client_id)prepareTelegram($('telegram-login'),'login',$('login-error'))}};
 }
