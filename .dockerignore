@@ -1,6 +1,9 @@
 *
 !Dockerfile
+!package.json
+!package-lock.json
 !src/**
 !public/**
 !server/**
 !drizzle/**
+!scripts/**

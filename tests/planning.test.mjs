@@ -18,6 +18,30 @@ async function fixture(){
  return {DB,call,create,preview,resolve,get,place};
 }
 const link=(option_id,extra={})=>({place_id:'taipei-101',option_id,affects_visit:true,unselected_action:'hide',...extra});
+test('failed calendar batch rolls back records, links, place states, history and import ledger',async()=>{
+ const f=await fixture();
+ try{
+  const tables=['planning_items','planning_options','planning_item_places','planning_dependencies','planning_events','user_place_states','state_events','app_meta'];
+  const snapshot=()=>Object.fromEntries(tables.map(table=>[table,f.DB.sqlite.prepare('SELECT * FROM '+table+' ORDER BY rowid').all()]));
+  const before=snapshot();
+  const {importPlanning}=await import('../server/import-planning.mjs');
+  await assert.rejects(importPlanning(f.DB,{namespace:'atomic-batch',items:[
+   {key:'valid',kind:'decision',title:'Valid choice',options:[{id:'atomic-yes',label:'Yes'}],places:[link('atomic-yes')]},
+   {key:'invalid',kind:'task',title:'Invalid',date_start:'2035-02-30',dependencies:['valid']}
+  ]},'editor'));
+  assert.deepEqual(snapshot(),before);
+  assert.deepEqual(f.DB.sqlite.prepare('PRAGMA foreign_key_check').all(),[]);
+ }finally{f.DB.close()}
+});
+test('exact calendar times reject rollover hours instead of silently changing the day',async()=>{
+ const f=await fixture();
+ try{
+  for(const starts_at of ['2035-12-29T24:00:00Z','2035-12-29T25:01:00Z','2035-12-29T10:60:00Z']){
+   assert.equal((await f.call('/api/planning/items','POST',{kind:'task',title:'Bad time',starts_at})).status,400,starts_at);
+  }
+  assert.equal((await f.get()).items.length,0);
+ }finally{f.DB.close()}
+});
 test('calendar shares roles, dates and data; patching a field preserves note, sources and links',async()=>{const f=await fixture();try{
  assert.equal((await f.call('/api/planning','GET',undefined,'')).status,401);
  assert.equal((await f.call('/api/planning/items','POST',{kind:'task',title:'No'},'viewer')).status,403);

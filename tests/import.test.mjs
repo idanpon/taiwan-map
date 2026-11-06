@@ -1,4 +1,15 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {openDatabase,migrate} from '../server/database.mjs';import {handle,passwordHash} from '../src/core.mjs';import {importExport} from '../server/import.mjs';
+test('map-only import refuses to drop timezone changes and preserves exported trip dates',()=>{
+ const db=openDatabase();migrate(db,'drizzle');
+ const data={schema_version:1,trip:{id:'taiwan-2026',departure_date:'2035-01-01',start_date:'2035-01-02',end_date:'2035-01-10'},user:{id:'trip-shared'},categories:[],statuses:[],places:[]};
+ try{
+  assert.throws(()=>importExport(db,{...data,planning:{items:[],timezone_plan:{changes:[{at:1,zone:'Asia/Taipei'}]}}}),/calendar data/);
+  assert.equal(db.sqlite.prepare('SELECT count(*) n FROM trips').get().n,0);
+  importExport(db,data);
+  const trip=db.sqlite.prepare('SELECT departure_date,start_date,end_date FROM trips').get();
+  for(const field of ['departure_date','start_date','end_date'])assert.equal(trip[field],data.trip[field]);
+ }finally{db.close()}
+});
 test('VPS import preserves current states and custom statuses and never overwrites a populated database',async()=>{
  const source=openDatabase(),target=openDatabase();migrate(source,'drizzle');migrate(target,'drizzle');const env={DB:source,APP_PASSWORD_HASH:await passwordHash('import-test-password')};let cookie='';
  const request=(path,method='GET',body)=>handle(new Request('https://api.example.com'+path,{method,headers:{Origin:'https://api.example.com',Cookie:cookie,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})}),env,{clientIp:'import-test'});

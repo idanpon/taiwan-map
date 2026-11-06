@@ -79,6 +79,6 @@ test('help uses current categories and explains statuses independently of their 
  assert.equal(helpContent(data,esc),original);
  data.statuses=[];assert.equal(helpContent(data,esc),original);
  data.user.role='editor';html=helpContent(data,esc);assert.ok(html.includes('Кнопка ⚙'));
- assert.ok(html.includes('Статусы можно создавать, изменять и удалять'));
+ assert.ok(html.includes('Статусы можно создавать и изменять'));
  assert.ok(html.includes('их смысл участники определяют по договорённости'));
 });

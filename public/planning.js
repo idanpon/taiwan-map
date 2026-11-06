@@ -1,3 +1,4 @@
+import {readClientConfiguration,sessionStores,escapeHtml as esc} from './client-runtime.js';
 import {createApiClient} from './api-client.js';
 import {createAccountUI} from './accounts.js';
 import {createAuthStartup,createLoadingScreenUI} from './auth-startup.js';
@@ -10,7 +11,7 @@ import {planningConfig,kindLabels,stateLabels,priorityLabels,dayInZone,addDays,m
 import {initialZone,emptyZonePlan,localPoint,offsetLabel,zoneAt} from './trip-timezones.js';
 import {createTimeReview,editTripTime,itemDateEditor,timezoneExplanation,zoneBadge,pointText} from './planning-time-ui.js';
 import {reminderCard} from './planning-reminders-ui.js';
-const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=id=>document.getElementById(id);
 const config=window.TAIWAN_CONFIG||{};
 let zone=emptyZonePlan;
 let data,plan,view='month',focusDay=dayInZone(new Date(),zone),kind='',state='active',search='',busy=false,dirty=false,editingId=null,currentPreview=null,previewSequence=0,accountUI,startup,reminderUI;
@@ -25,9 +26,9 @@ const dialogContent=$('planning-dialog-content'),dialogError=$('planning-dialog-
 const setBusy=value=>{busy=value},setDirty=value=>{dirty=value};
 const timeReview=createTimeReview({dialog,content:dialogContent,title:dialogTitle,error:dialogError,esc,setBusy,setDirty});
 let toastTimer;function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6500)}
-let storage,legacyStorage;try{legacyStorage=window.sessionStorage;storage=window.localStorage;storage.setItem('taiwan-storage-check','1');storage.removeItem('taiwan-storage-check')}catch{storage=legacyStorage}
-let apiBase='',configurationError='';try{if(config.apiBase){const url=new URL(config.apiBase);const normalized=url.origin+url.pathname.replace(/\/$/,'');if(url.protocol!=='https:'||normalized!==config.apiBase||url.search||url.hash||url.username||url.password||!/^[a-zA-Z0-9/_-]*$/.test(url.pathname))throw new Error();apiBase=normalized}else if(config.requiresApi)configurationError='Сервер данных ещё не подключён.'}catch{configurationError='Некорректный HTTPS-адрес API.'}
-const transport=createApiClient({apiBase,authMode:config.authMode||'cookie',storage,legacyStorage,onUnauthorized:()=>{if(!startup?.running)showLogin()}});
+const {storage,legacyStorage}=sessionStores(window);
+const {apiBase,configurationError,authMode}=readClientConfiguration(config);
+const transport=createApiClient({apiBase,authMode,storage,legacyStorage,onUnauthorized:()=>{if(!startup?.running)showLogin()}});
 async function api(path,options){if(configurationError)throw new Error(configurationError);return transport(path,options)}
 const allowed=()=>data&&['admin','editor'].includes(data.user.role);
 createThemeUI({document,window,onChange:()=>{}});
