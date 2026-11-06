@@ -8,7 +8,8 @@ permissions:
   contents: read
 concurrency:
   group: pages-${{ github.ref }}
-  cancel-in-progress: true
+  # PR checks may be replaced; production publishing must finish before the next run.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -24,13 +25,26 @@ jobs:
           PAGES_API_BASE: ${{ vars.PAGES_API_BASE }}
           PAGES_CUSTOM_DOMAIN: ${{ vars.PAGES_CUSTOM_DOMAIN }}
           PAGES_AUTH_MODE: ${{ vars.PAGES_AUTH_MODE }}
+      - name: Stamp the reviewed Pages artifact
+        if: github.event_name != 'pull_request'
+        run: |
+          node --input-type=module <<'JS'
+          import { readFile, writeFile } from 'node:fs/promises';
+          import { createHash } from 'node:crypto';
+          const files = ['index.html', 'planning.html', 'app.js', 'planning.js', 'config.js', 'style.css', 'planning.css', 'client-runtime.js', 'sw.js'];
+          const sha256 = Object.fromEntries(await Promise.all(files.map(async file =>
+            [file, createHash('sha256').update(await readFile('dist/' + file)).digest('hex')]
+          )));
+          await writeFile('dist/release.json', JSON.stringify({ commit: process.env.GITHUB_SHA, sha256 }) + '\n');
+          JS
       - uses: actions/upload-pages-artifact@v4
         if: github.event_name != 'pull_request'
         with:
           path: dist
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
+    timeout-minutes: 15
     permissions:
       pages: write
       id-token: write
@@ -39,6 +53,37 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/configure-pages@v5
-      - uses: actions/deploy-pages@v4
+      - name: Configure Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0, Node 24
+      - name: Deploy to Pages
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1, Node 24
         id: deployment
+      - name: Verify published revision and assets
+        env:
+          PAGES_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          python3 -u <<'PYTHON'
+          import hashlib, json, os, time, urllib.request
+          base = os.environ['PAGES_URL'].rstrip('/') + '/'
+          commit = os.environ['GITHUB_SHA']
+          files = ['index.html', 'planning.html', 'app.js', 'planning.js', 'config.js', 'style.css', 'planning.css', 'client-runtime.js', 'sw.js']
+          def read(path):
+              request = urllib.request.Request(base + path + '?release=' + commit, headers={'Cache-Control': 'no-cache'})
+              with urllib.request.urlopen(request, timeout=15) as response:
+                  return response.read()
+          for attempt in range(6):
+              try:
+                  release = json.loads(read('release.json'))
+                  if release.get('commit') != commit:
+                      raise ValueError('Published revision does not match this workflow')
+                  for path in files:
+                      if hashlib.sha256(read(path)).hexdigest() != release['sha256'][path]:
+                          raise ValueError('Published asset differs from artifact: ' + path)
+                  print('Verified published commit ' + commit + ' and ' + str(len(files)) + ' assets')
+                  break
+              except Exception as error:
+                  print('Verification attempt ' + str(attempt + 1) + ': ' + str(error))
+                  if attempt == 5:
+                      raise
+                  time.sleep(10)
+          PYTHON
