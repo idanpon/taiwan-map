@@ -249,7 +249,7 @@ button.timezone-badge:focus-visible { outline-offset: 1px; }
 .trip-zone-initial { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 9px 10px; background: var(--soft); border-radius: 8px; }
 .trip-zone-editor h3 { margin-bottom: 4px; }
 .trip-zone-editor > p { margin-top: 0; }
-.trip-zone-arrival [data-arrival-offset] { font-size: 12px; color: var(--muted); }
+.trip-zone-change [data-zone-offset] { font-size: 12px; color: var(--muted); }
 .planning-form input[type=time], .time-field-grid input[type=time] { -webkit-appearance: none; appearance: none; min-inline-size: 0; min-height: 42px; }
 .planning-form input[type=time]::-webkit-date-and-time-value, .time-field-grid input[type=time]::-webkit-date-and-time-value { min-width: 0; text-align: left; }
 .planning-push-invite { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding: 8px 10px; margin-bottom: 10px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); }
@@ -314,6 +314,9 @@ label.time-choice, .time-choice-custom > label { display: flex; align-items: fle
  .planner-trip-summary { gap: 3px 8px; }
  .planner-trip-summary .timezone-badge { font-size: 10px; }
 }
+@media(max-width:540px) {
+ .planning-form .trip-zone-details { grid-template-columns: 1fr; }
+}
 @media(max-width:360px) {
- .time-field-grid, .trip-zone-arrival .form-columns, .planning-item-dates .form-columns { grid-template-columns: 1fr; }
+ .time-field-grid, .trip-zone-change .form-columns, .planning-item-dates .form-columns { grid-template-columns: 1fr; }
 }
