@@ -5,7 +5,7 @@ const icon=(path,classes='')=>`<svg class="timezone-icon ${classes}" viewBox="0 
 const arrow=icon('<path d="M5 12h14m-6-6 6 6-6 6"/>');
 const clockAlert=icon('<path d="M12 8v4l2 2m7-3v4m0 4h.01M18 19a9 9 0 1 1 3-9"/>');
 const bellOff=icon('<path d="m3 3 18 18M10 21a2 2 0 0 0 4 0M6 9c0 6-3 6-3 8h14m1-6V8a6 6 0 0 0-9-5"/>');
-export const timezoneExplanation='Календарь показывает местное время по общему плану поездки. До прибытия действует предыдущий пояс, с момента прибытия — новый. Пояс устройства не меняет время событий. Даты без времени остаются теми же.';
+export const timezoneExplanation='Календарь показывает местное время по общему плану поездки. До указанного момента смены действует предыдущий пояс, затем календарь переключается на новый. Даты без времени остаются теми же.';
 export const pointText=p=>p?dateLabel(p.day)+' · '+p.time+' · '+p.badge:'';
 export const zoneBadge=(p,esc,control='planning-item-zone-help')=>`<button class="timezone-badge" type="button" data-zone-toggle="${control}" aria-expanded="false" aria-controls="${control}" title="${esc(p.zone)} · Как выбирается пояс">${esc(p.badge)}</button>`;
 function delta(point,previous){
@@ -142,45 +142,82 @@ export function itemDateEditor(item,plan,esc){
  return {html,mount,values};
 }
 
-const commonZones=['Europe/Moscow','Asia/Taipei','Asia/Shanghai','Asia/Hong_Kong','Asia/Tokyo','Asia/Seoul','Asia/Bangkok','Asia/Dubai','UTC'];
+const commonZones=new Map([
+ ['Europe/Moscow','Москва'],
+ ['Asia/Taipei','Тайбэй (Тайвань)'],
+ ['Asia/Shanghai','Китай (Пекин, Шанхай)'],
+ ['Asia/Hong_Kong','Гонконг'],
+ ['Asia/Tokyo','Токио'],
+ ['Asia/Seoul','Сеул'],
+ ['Asia/Bangkok','Бангкок'],
+ ['Asia/Dubai','Дубай'],
+ ['UTC','UTC']
+]);
+const zoneRegions={
+ Africa:'Африка',America:'Америка',Antarctica:'Антарктика',Arctic:'Арктика',
+ Asia:'Азия',Atlantic:'Атлантика',Australia:'Австралия',Europe:'Европа',
+ Indian:'Индийский океан',Pacific:'Тихий океан',other:'Другие пояса'
+};
+function zoneOptions(changes,esc){
+ const option=(zone,label)=>`<option value="${esc(zone)}">${esc(label)}</option>`;
+ // Keep saved identifiers selectable even if the browser omits them from its list.
+ const zones=new Set([...(Intl.supportedValuesOf?.('timeZone')||[]),...changes.map(change=>change.zone)]);
+ const groups=new Map(Object.keys(zoneRegions).map(region=>[region,[]]));
+ for(const zone of [...zones].sort()){
+  if(commonZones.has(zone))continue;
+  const [region,...place]=zone.split('/');
+  const label=groups.has(region)?place.join(' / '):zone;
+  (groups.get(region)||groups.get('other')).push(option(zone,label.replaceAll('_',' ')));
+ }
+ const common=[...commonZones].map(([zone,label])=>option(zone,label)).join('');
+ const regional=[...groups].filter(([,options])=>options.length)
+  .map(([region,options])=>`<optgroup label="${zoneRegions[region]}">${options.join('')}</optgroup>`).join('');
+ return `<option value="">Выберите пояс</option><optgroup label="Частые пояса">${common}</optgroup>${regional}`;
+}
 export function editTripTime({trip,plan,esc,showDialog,dialog,setBusy,setDirty,error,api,load,review,toast}){
- const zoneOptions=[...new Set([...commonZones,...(Intl.supportedValuesOf?.('timeZone')||[])])].map(zone=>`<option value="${esc(zone)}"></option>`).join('');
+ const optionsHtml=zoneOptions(plan.changes,esc);
  showDialog('Даты поездки и часовые пояса',`<form id="planning-trip-form" class="planning-form">
  <label>Вылет${dayInput('departure_date',trip.departure_date,esc)}</label><div class="form-columns"><label>Начало пребывания${dayInput('start_date',trip.start_date,esc)}</label><label>Окончание${dayInput('end_date',trip.end_date,esc)}</label></div>
- <section class="trip-zone-editor"><h3>Часовые пояса поездки</h3><p class="muted">До прибытия действует предыдущий пояс. Укажите дату и время в поясе места прибытия. Уже сохранённые события сохранят свои точные моменты.</p>
- <div class="trip-zone-initial"><strong>Москва</strong><span class="timezone-badge">Europe/Moscow · UTC+3</span></div><div data-arrivals></div><datalist id="trip-zone-options">${zoneOptions}</datalist>
- <button type="button" class="text-button" data-arrival-add>＋ Добавить прибытие</button></section>
+ <section class="trip-zone-editor"><h3>Часовые пояса поездки</h3><p class="muted">Выберите новый пояс и укажите дату и время смены по его местным часам. В этот момент календарь переключится на новый пояс. Смену можно запланировать, например, за час до посадки.</p>
+ <div class="trip-zone-initial"><strong>Москва</strong><span class="timezone-badge">Europe/Moscow · UTC+3</span></div><div data-zone-changes></div>
+ <button type="button" class="text-button" data-zone-change-add>＋ Добавить смену пояса</button></section>
  <p class="muted">Даты задач и маршрута не переносятся автоматически. Связанные переносы можно обсудить в чате.</p><button class="primary" type="submit">Продолжить</button></form>`);
- const form=dialog.querySelector('#planning-trip-form'),arrivals=form.querySelector('[data-arrivals]');
+ const form=dialog.querySelector('#planning-trip-form'),zoneChanges=form.querySelector('[data-zone-changes]');
  function append(change){
   const row=document.createElement('fieldset'),p=change?localPoint(change.at,{changes:[change]}):null;
-  row.className='trip-zone-arrival';
-  row.innerHTML=`<legend>Прибытие</legend><div class="form-columns"><label>Дата прибытия${dayInput('day',p?.day||trip.start_date,esc)}</label><label>Местное время<input type="time" name="time" value="${esc(p?.time||'')}" required></label></div>
-   <div class="form-columns"><label>Часовой пояс<input name="zone" list="trip-zone-options" placeholder="Asia/Taipei" value="${esc(p?.zone||'')}" required maxlength="80" autocomplete="off" autocapitalize="none" spellcheck="false"></label><label>Регион (необязательно)<input name="region" value="${esc(p?.region||'')}" maxlength="60" placeholder="Тайвань"></label></div><div data-arrival-offset></div><button type="button" class="text-button" data-arrival-remove>Убрать прибытие</button>`;
-  row.querySelector('[name=day]').required=true;
-  arrivals.append(row);
+  row.className='trip-zone-change';
+  row.innerHTML=`<legend>Смена часового пояса</legend>
+   <div class="form-columns trip-zone-details"><label>Новый часовой пояс<select name="zone" required>${optionsHtml}</select></label><label>Регион (необязательно)<input name="region" value="${esc(p?.region||'')}" maxlength="60" placeholder="Тайвань"></label></div>
+   <div class="form-columns"><label>Дата смены${dayInput('day',p?.day||trip.start_date,esc)}</label><label>Время смены<input type="time" name="time" value="${esc(p?.time||'')}" required></label></div>
+   <div data-zone-offset></div><button type="button" class="text-button" data-zone-change-remove>Убрать смену пояса</button>`;
+  const {day,time,zone}=row.elements;
+  day.required=true;
+  zone.value=p?.zone||'';
+  zoneChanges.append(row);
   const update=()=>{
-   const {day,time,zone}=row.elements,offset=row.querySelector('[data-arrival-offset]'),old=offset.querySelector('select')?.value||(p?.at??'');
+   const offset=row.querySelector('[data-zone-offset]'),old=offset.querySelector('select')?.value||(p?.at??'');
    offset.replaceChildren();
-   if(!validDate(day.value)||!validClock(time.value)||!namedZone(zone.value.trim()))return;
-   const options=localInstants(day.value,time.value,zone.value.trim());
+   if(!validDate(day.value)||!validClock(time.value)||!zone.value)return;
+   const options=localInstants(day.value,time.value,zone.value);
    if(!options.length){offset.innerHTML='<p class="planning-warning">Такого местного времени нет. Укажите другое время.</p>';return}
-   if(options.length===1){offset.textContent=offsetLabel(localPoint(options[0],{changes:[{at:options[0],zone:zone.value.trim(),region:''}]}).offset);return}
+   if(options.length===1){offset.textContent=offsetLabel(localPoint(options[0],{changes:[{at:options[0],zone:zone.value,region:''}]}).offset);return}
    const label=document.createElement('label'),select=document.createElement('select');
    label.textContent='Время встречается дважды. Уточните смещение UTC';
    select.name='at';select.required=true;select.add(new Option('Выберите смещение',''));
-   for(const at of options)select.add(new Option(offsetLabel(localPoint(at,{changes:[{at,zone:zone.value.trim(),region:''}]}).offset),String(at)));
+   for(const at of options)select.add(new Option(offsetLabel(localPoint(at,{changes:[{at,zone:zone.value,region:''}]}).offset),String(at)));
    if(options.map(String).includes(String(old)))select.value=String(old);
    label.append(select);offset.append(label);
   };
-  for(const input of row.querySelectorAll('[name=day],[name=time],[name=zone]'))input.addEventListener('input',update);
-  row.querySelector('[data-arrival-remove]').onclick=()=>{row.remove();setDirty(true)};
+  day.addEventListener('input',update);
+  time.addEventListener('input',update);
+  zone.addEventListener('change',update);
+  row.querySelector('[data-zone-change-remove]').onclick=()=>{row.remove();setDirty(true)};
   update();return row;
  }
  for(const change of plan.changes)append(change);
  form.oninput=()=>setDirty(true);
- form.querySelector('[data-arrival-add]').onclick=()=>{
-  if(arrivals.children.length>=30){error.textContent='Можно задать до 30 прибытий.';return}
+ form.querySelector('[data-zone-change-add]').onclick=()=>{
+  if(zoneChanges.children.length>=30){error.textContent='Можно задать до 30 смен пояса.';return}
   setDirty(true);append().querySelector('[name=zone]').focus();
  };
  const request=(path,method,value)=>api(path,{method,body:JSON.stringify(value)});
@@ -202,13 +239,16 @@ export function editTripTime({trip,plan,esc,showDialog,dialog,setBusy,setDirty,e
   e.preventDefault();error.textContent='';
   const fields=form.elements,dates=Object.fromEntries(['departure_date','start_date','end_date'].map(k=>[k,fields[k].value]));
   let changes;
-  try{changes=[...arrivals.children].map(row=>{
-   const day=row.elements.day.value,time=row.elements.time.value,zone=row.elements.zone.value.trim(),region=row.elements.region.value.trim();
-   if(!namedZone(zone))throw new Error('Укажите часовой пояс, например Asia/Taipei.');
-   const list=localInstants(day,time,zone),at=list.length===1?list[0]:Number(row.elements.at?.value);
-   if(!list.includes(at))throw new Error('Уточните местное время прибытия и его смещение.');
-   return {day,time,zone,region,at};
-  })}catch(e){error.textContent=e.message;return}
+  try{
+   changes=[...zoneChanges.children].map(row=>{
+    const day=row.elements.day.value,time=row.elements.time.value,zone=row.elements.zone.value,region=row.elements.region.value.trim();
+    if(!namedZone(zone))throw new Error('Выберите часовой пояс из списка.');
+    const list=localInstants(day,time,zone),at=list.length===1?list[0]:Number(row.elements.at?.value);
+    if(!list.includes(at))throw new Error('Уточните местное время смены пояса и его смещение.');
+    return {day,time,zone,region,at};
+   });
+   if(new Set(changes.map(change=>change.at)).size!==changes.length)throw new Error('Укажите отдельный момент для каждой смены пояса.');
+  }catch(e){error.textContent=e.message;return}
   const draft={...dates,version:trip.version,timezone_revision:plan.revision,changes},button=form.querySelector('[type=submit]');
   setBusy(true);button.disabled=true;
   try{
