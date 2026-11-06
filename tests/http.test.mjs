@@ -8,6 +8,14 @@ for(const authMode of ['cookie','bearer'])test(`Node HTTP adapter accepts ${auth
   assert.equal((await fetch(origin+'/api/health')).status,200);
   assert.match(await(await fetch(origin+'/')).text(),/type="module" src="\/app.js"/);assert.equal((await fetch(origin+'/api-client.js')).status,200);
   assert.ok((await(await fetch(origin+'/config.js')).text()).includes('"authMode":"'+authMode+'"'));
+  for(const requestOrigin of [frontend,'https://untrusted.example']){
+   const oversized=await fetch(origin+'/api/login',{method:'POST',headers:{Origin:requestOrigin,'Content-Type':'application/json'},body:JSON.stringify({password:'x'.repeat(9000)})});
+   assert.equal(oversized.status,413);
+   assert.equal(oversized.headers.get('access-control-allow-origin'),requestOrigin===frontend?frontend:null);
+   assert.equal(oversized.headers.get('access-control-allow-credentials'),requestOrigin===frontend&&authMode==='cookie'?'true':null);
+   assert.equal(oversized.headers.get('cache-control'),'no-store');
+   assert.match((await oversized.json()).error,/Слишком большой запрос/);
+  }
   let r=await fetch(origin+'/api/login',{method:'POST',headers:{Origin:frontend,'Content-Type':'application/json'},body:JSON.stringify({password:'http-test-password'})});assert.equal(r.status,200);assert.equal(r.headers.get('access-control-allow-origin'),frontend);
   let auth;
   if(authMode==='cookie'){const cookie=r.headers.get('set-cookie');assert.match(cookie,/Path=\/taiwan\/api/);auth={Cookie:cookie.split(';')[0]}}else{assert.equal(r.headers.get('set-cookie'),null);const {token}=await r.json();assert.match(token,/^[a-f0-9]{64}$/);auth={Authorization:'Bearer '+token}}

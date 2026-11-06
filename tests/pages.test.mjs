@@ -11,6 +11,13 @@ test('Pages build supports repository subpaths and publishes no server code or c
   const planner=await readFile(join(output,'planning.html'),'utf8');assert.ok(planner.includes('src="./planning.js?v='+version+'"'));assert.ok(planner.includes('href="./planning.css?v='+version+'"'));assert.ok(planner.includes('href="./"'));assert.ok(planner.includes("connect-src 'self' https://taiwan-api.example.com"));for(const name of ['planning.js','planning-model.js','planning-links.js','planning.css'])await readFile(join(output,name));
   assert.ok(config.includes('"requiresApi":true'));assert.ok(config.includes('"authMode":"bearer"'));assert.ok(html.includes('type="module" src="./app.js?v='));assert.ok((await readFile(join(output,'app.js'),'utf8')).includes("from './api-client.js?v="+version+"'"));await readFile(join(output,'api-client.js'));assert.ok(!html.includes('passwordHash'));assert.ok(!html.includes('APP_PASSWORD_HASH'));
   const names=await readdir(output);for(const forbidden of ['src','server','drizzle','places.mjs','.env'])assert.ok(!names.includes(forbidden));assert.equal(await readFile(join(output,'CNAME'),'utf8'),'taiwan.example.com\n');
+  for(const name of names.filter(n=>n.endsWith('.js'))){
+   const source=await readFile(join(output,name),'utf8');
+   for(const match of source.matchAll(/(?:from\s*|import\s*\(\s*)['"](\.\/(?!vendor\/)[^'"]+)['"]/g)){
+    assert.ok(match[1].endsWith('?v='+version),name+' imports unversioned '+match[1]);
+    await readFile(join(output,match[1].split('?')[0]));
+   }
+  }
   assert.ok((await readFile(join(output,'accounts.js'),'utf8')).includes("from './password-fields.js?v="+version+"'"));await readFile(join(output,'password-fields.js'));
   for(const module of ['map-model.js','statuses.js','categories.js','help.js','copy-text.js','place-tags.js','place-tag-controls.js']){await readFile(join(output,module));assert.ok((await readFile(join(output,'app.js'),'utf8')).includes("from './"+module+"?v="+version+"'"));}
   assert.ok((await readFile(join(output,'statuses.js'),'utf8')).includes("from './map-model.js?v="+version+"'"));

@@ -42,3 +42,13 @@ Use a private directory and the database's service account in production.
 Retain the manifest, backup and import report together. Code checkout should
 use `umask 022`; backups and manifests remain private. No service restart is
 required just to add records to the existing database.
+
+## Ограничение исторического CSV-импорта
+
+Первичный импорт переносит исходные `note`, `route_role` и `day_hint` в описательные
+поля и создаёт заглушку непроверенных часов. Это историческое поведение исходного
+каталога, а не механизм обновления уже вычитанных карточек. Перед новым импортом
+подготавливают короткое описание самого места, полезные факты без деталей маршрута,
+проверенные часы и отдельную пользовательскую заметку о плане поездки. Сначала
+проверяют пакет и совпадения; не перезаписывают актуальные карточки исходным CSV.
+Существующие сопоставленные места сохраняются согласно правилам выше.

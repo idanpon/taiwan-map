@@ -3,6 +3,27 @@ import assert from 'node:assert/strict';
 import {createApiClient} from '../public/api-client.js';
 const token='a'.repeat(64);
 const response=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json'}});
+test('a late unauthorized response cannot revoke a newer login',async()=>{
+ const values=new Map(),storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
+ let pending,issued=token,notified=0;
+ const calls=[];
+ const api=createApiClient({authMode:'bearer',storage,onUnauthorized:()=>notified++,fetchImpl:async(path,options)=>{
+  calls.push({path,options});
+  if(path==='/api/login')return response({ok:true,token:issued});
+  if(path==='/api/data')return new Promise(resolve=>{pending=resolve});
+  return response({ok:true});
+ }});
+ await api('/api/login',{method:'POST',body:'{}'});
+ const stale=api('/api/data');
+ issued='b'.repeat(64);
+ await api('/api/login',{method:'POST',body:'{}'});
+ pending(response({error:'Old session expired'},401));
+ await assert.rejects(stale,e=>e.status===401);
+ assert.equal(api.hasSession(),true);
+ assert.equal(notified,0);
+ await api('/api/planning');
+ assert.equal(calls.at(-1).options.headers.get('authorization'),'Bearer '+issued);
+});
 test('Pages client uses supplied storage and Authorization, restores after reload, and clears on logout or expiry',async()=>{
  const values=new Map(),calls=[];let denied=false;
  const storage={getItem:key=>values.get(key),setItem:(key,value)=>values.set(key,value),removeItem:key=>values.delete(key)};

@@ -5,6 +5,7 @@ RUN npm ci --omit=dev --ignore-scripts
 COPY --chown=node:node src ./src
 COPY --chown=node:node public ./public
 COPY --chown=node:node server ./server
+COPY --chown=node:node scripts ./scripts
 COPY --chown=node:node drizzle ./drizzle
 RUN mkdir -p /app/data && chown node:node /app/data
 USER node

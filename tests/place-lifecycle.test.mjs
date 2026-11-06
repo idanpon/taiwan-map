@@ -21,6 +21,17 @@ async function fixture(){
  DB.sqlite.prepare("INSERT INTO app_meta VALUES('accounts_v1','shared')").run();
  return {DB,call,tokens,data:async role=>(await call('/api/data','GET',undefined,tokens[role])).json()};
 }
+test('malformed bulk deletion entries return validation errors without deleting anything',async()=>{
+ const f=await fixture();
+ try{
+  const before=await f.data('editor');
+  for(const places of [[null],[1],[[]],[{id:'taipei-101',version:-1}]]){
+   const response=await f.call('/api/places/hidden/delete-all','POST',{places},f.tokens.editor);
+   assert.equal(response.status,400,JSON.stringify(places));
+  }
+  assert.deepEqual((await f.data('editor')).places,before.places);
+ }finally{f.DB.close()}
+});
 test('editors and admins hide and restore shared places without losing notes, history, status or links; viewers can read the folder but cannot mutate',async()=>{
  const f=await fixture();try{
   const id='taipei-101',original=(await f.data('editor')).places.find(p=>p.id===id);

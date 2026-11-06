@@ -1,3 +1,4 @@
+import {readClientConfiguration,sessionStores,escapeHtml as esc} from './client-runtime.js';
 import {planningPlaceSummary,planningConflictContent,hydratePlanningLinks} from './planning-links.js';
 import {copyTextControl,installPlaceCopy} from './copy-text.js';
 import {createPlaceTagControls} from './place-tag-controls.js';
@@ -15,21 +16,16 @@ import {createPlaceLifecycleUI} from './place-lifecycle.js';
 import {installPlaceCardSwipe} from './place-card-swipe.js';
 const $=id=>document.getElementById(id);
 const config=window.TAIWAN_CONFIG||{apiBase:'',requiresApi:false};
-let apiBase='',configurationError='';
-try {
- if(config.apiBase){const url=new URL(config.apiBase);const normalized=url.origin+url.pathname.replace(/\/$/,'');if(url.protocol!=='https:'||normalized!==config.apiBase||url.search||url.hash||url.username||url.password||!/^[a-zA-Z0-9/_-]*$/.test(url.pathname))throw new Error();apiBase=normalized}
- else if(config.requiresApi)configurationError='Сервер данных ещё не подключён. Адрес API будет добавлен после настройки VPS.';
-}catch{configurationError='В настройках сайта указан некорректный HTTPS-адрес API.'}
+const {apiBase,configurationError,authMode}=readClientConfiguration(config,{missing:'Сервер данных ещё не подключён. Адрес API будет добавлен после настройки VPS.',invalid:'В настройках сайта указан некорректный HTTPS-адрес API.'});
 
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let planning=null,loadSequence=0;
 let data,map,selected=null,city='',types=new Set(),status='',query='',tags=new Set(),dirty=false,busy=false,stateDirty=false,tagDirty=false,tagControls;
 function resetDirty(){dirty=false;stateDirty=false;tagDirty=false}
 const themeUI=createThemeUI({document,window,onChange:value=>{map?.setTheme(value);if(data)render()}});
 let toastTimer;
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5500)}
-let sessionStorageForApp,storage;try{sessionStorageForApp=window.sessionStorage;storage=window.localStorage;storage.setItem('taiwan-storage-check','1');storage.removeItem('taiwan-storage-check')}catch{storage=sessionStorageForApp}
-const transport=createApiClient({apiBase,authMode:config.authMode||'cookie',storage,legacyStorage:sessionStorageForApp,onUnauthorized:()=>{if(!startup?.running)void load().then(()=>toast('Вход завершился. Карта доступна для просмотра.')).catch(e=>toast(e.message))}});
+const {storage,legacyStorage}=sessionStores(window);
+const transport=createApiClient({apiBase,authMode,storage,legacyStorage,onUnauthorized:()=>{if(!startup?.running)void load().then(()=>toast('Вход завершился. Карта доступна для просмотра.')).catch(e=>toast(e.message))}});
 async function api(path,options={}){if(configurationError)throw new Error(configurationError);return transport(path,options)}
 async function exportData(event){event.preventDefault();try{const content=await api('/api/export');const blob=new Blob([JSON.stringify(content,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='taiwan-map.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(e){toast(e.message)}}
 let accountUI,placeUI,startup;

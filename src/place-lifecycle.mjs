@@ -11,7 +11,7 @@ export async function handlePlaceLifecycle(request,db,user,stateUser){
  if(!listing&&!['owner','admin','editor'].includes(user.role))fail(403,'Нужны права редактирования.');
  if(bulk){
   const b=await body(request,131072);
-  if(!Array.isArray(b.places)||!b.places.length||b.places.length>5000||b.places.some(p=>typeof p.id!=='string'||!Number.isSafeInteger(p.version)))fail(400,'Подтвердите состав скрытых мест.');
+  if(!Array.isArray(b.places)||!b.places.length||b.places.length>5000||b.places.some(p=>!p||typeof p!=='object'||Array.isArray(p)||typeof p.id!=='string'||!Number.isSafeInteger(p.version)||p.version<1))fail(400,'Подтвердите состав скрытых мест.');
   const expected=b.places.map(p=>({id:p.id,version:p.version})).sort((a,b)=>a.id.localeCompare(b.id));
   db.sqlite.exec('BEGIN IMMEDIATE');
   try{
