@@ -1,136 +1,61 @@
 # Taiwan Field Notes
 
-Карта и календарь поездки в Тайвань: GitHub Pages для интерфейса, собственный VPS для авторизации, каталога и пользовательских данных.
+Общая карта и календарь поездки: места, статусы, заметки, решения по маршруту
+и личные напоминания. Публичная карта доступна без входа; частные данные и
+изменения защищаются сервером.
 
-Для нового чата: сначала [AGENTS.md](AGENTS.md) и [общий handoff](docs/HANDOFF.md), затем документация нужного модуля. Локальные частные материалы находятся в исключённой из Git папке `.local/`.
+[Открыть карту](https://idanpon.github.io/taiwan-map/) ·
+[Календарь](https://idanpon.github.io/taiwan-map/planning.html)
 
-## Размещение
+## Начать работу
 
-Исходники: https://github.com/idanpon/taiwan-map. Интерфейс собирается и публикуется workflow из main. Публичный адрес API и режим входа хранятся в pages.config.json; Repository Variables могут их переопределить. Frontend и backend обновляются отдельно; перенос локальной папки не требует изменений VPS или DNS.
+Для нового чата или разработчика: [AGENTS.md](AGENTS.md) →
+[HANDOFF](docs/HANDOFF.md) → нужный модуль и его код.
+[ARCHITECTURE](docs/ARCHITECTURE.md) описывает компоненты, данные и решения;
+HANDOFF содержит указатель всей документации и текущее состояние.
 
-[Порядок размещения](docs/DEPLOYMENT.md). Частная диагностика VPS и персональные экспорты не входят в публичный репозиторий.
+Разработка использует [Lightweight SDD](specs/README.md). Для новой логики
+обычно достаточно одной короткой spec с планом и критериями приёмки.
+Мелкая правка интерфейса или багфикс обходится без отдельного документа.
+Согласованный запрос не требует повторного одобрения каждого технического шага.
 
-## Схема размещения
+## Устройство и запуск
 
-| Компонент | Адрес |
-|---|---|
-| Интерфейс | `https://idanpon.github.io/taiwan-map/` |
-| API | `https://taiwan-77-105-138-163.sslip.io` |
-| API-процесс | `127.0.0.1:18080`, Node.js 24 + SQLite, systemd |
-
-Для API можно использовать технический hostname с IP на sslip.io. DNS, маршрутизация nginx/Caddy и HTTPS health проверены на VPS 18.10.2026. Это зависимость от внешнего DNS-сервиса; при смене IP потребуется изменить адрес API. Домен знакомого не используется. Ранее добавленный маршрут `/taiwan/*` удалён из Caddy на VPS 18.10.2026; nginx оставлен без изменений.
-
-В режиме `AUTH_MODE=bearer` API после подтверждения учётной записи выдаёт случайный токен на 180 дней с продлением действующей сессии при открытии сайта, сервер хранит только SHA-256 токена. Клиент отправляет его в Authorization и использует `credentials: omit`. Cookie не выдаются и не принимаются в этом режиме. Поэтому сторонние cookie для работы входа не нужны. Точный CORS allowlist и проверка членства остаются обязательными.
-
-Токен сохраняется в localStorage с привязкой к API; прежняя сессия из sessionStorage переносится при первом открытии. Если постоянное хранилище недоступно, используется sessionStorage или память страницы. Пароль и биометрия не сохраняются. Выход отзывает сессию на сервере; отключение пользователя и сброс пароля также отзывают сессии. Токены не передаются в URL. Доступный JavaScript токен требует доверия к коду проектов на одном origin. Подробности входа, публичного доступа и passkeys — [PUBLIC_ACCESS_PASSKEYS.md](docs/PUBLIC_ACCESS_PASSKEYS.md).
-
-Прежний `AUTH_MODE=cookie` сохранён как отдельный режим для будущего размещения на одном HTTPS site: HttpOnly, Secure, SameSite=Strict. Режимы не смешиваются. Схему БД при переключении менять не требуется.
-
-## GitHub Pages
-
-1. Pages → Source → GitHub Actions. В текущем варианте Custom domain оставить пустым.
-2. Адрес проверенного API и режим bearer заданы в `pages.config.json`, customDomain пустой. Изменения адреса проходят через обычный commit. При необходимости Repository Variables `PAGES_API_BASE`, `PAGES_AUTH_MODE`, `PAGES_CUSTOM_DOMAIN` переопределяют эти значения; это публичные настройки, не секреты.
-3. Запустить workflow вручную или отправить commit в main. Сборка тестирует код и публикует только `dist/`.
-
-Если адрес API не задан ни в файле конфигурации, ни в переменных, сборка показывает «Сервер данных ещё не подключён» и блокирует форму. Относительные файлы и ES-модули работают в `/taiwan-map/` и в корне будущего custom domain. Статусы и заметки сохраняются через API в SQLite; браузерное хранилище содержит токен авторизации, а не общую базу поездки. Экспорт JSON тоже требует авторизации.
-
-Карта доступна без входа через отдельный публичный API: нескрытые места, их категории, текущие статусы и публичные сведения. Заметки, скрытые места, календарь, экспорт и управление требуют авторизации. Публичная проекция явно перечисляет допустимые поля и не раскрывает новые частные поля автоматически. В `dist/` нет backend-кода, seed-каталога, БД, пароля или хеша. В исходниках репозитория находятся только стартовые 10 публичных туристических мест; персональные экспорты туда не добавлять.
-
-## VPS
-
-Основной вариант для имеющихся ресурсов — systemd, без Docker и отдельного БД-сервера. `server/taiwan-map.service`: отдельный пользователь, код `/opt/taiwan-map`, данные `/var/lib/taiwan-map`, память до 192 MiB, loopback:18080. Перед установкой подтвердить Node 24+ и его путь в ExecStart. Env хранить в `/etc/taiwan-map.env`, root:root, 0600; ключи — `.env.example`.
-
-`APP_PASSWORD_HASH` создаётся `node server/password.mjs`, пароль подаётся через stdin. После создания `/etc/taiwan-map.env` скрипт `python3 server/configure-pages-env.py https://API-HOST` переключает настройки на GitHub Pages, сохраняя существующий хеш пароля и создавая частную резервную копию env. Он не меняет базу и не перезапускает службу. Затем нужно проверить proxy и перезапустить taiwan-map.
-
-Параметры: `APP_ORIGIN=https://API-HOST`, `FRONTEND_ORIGIN=https://idanpon.github.io`, `AUTH_MODE=bearer`. Пока `TRUST_PROXY=0`: реальный IP в цепочке nginx TCP/SNI → Caddy не подтверждён. Тогда лимит входов общий для источника-прокси. Нельзя доверять произвольному X-Forwarded-For либо включать PROXY protocol сразу для всех upstream.
-
-Нельзя заменять существующие nginx/Caddy-конфиги: nginx занимает 443, Caddy — 80 и внутренний 8444, работают xray и другие сервисы. Docker Compose и примеры отдельного API-поддомена оставлены как альтернативы, не как основной способ для этого VPS.
-
-## Первоначальный перенос старой карты
-
-Этот путь относится к старому map-only экспорту. Текущий календарь, смены поясов, учётные данные и личные напоминания восстанавливаются из SQLite backup; JSON с календарём или сменами поясов старый importer отклоняет. Для первоначального переноса старой карты экспорт сохраняют вне репозитория, например `export.private.json`. При остановленном API и пустой целевой базе:
+Frontend — обычные HTML/CSS/ES modules, прямой MapLibre GL JS, GitHub Pages.
+Backend — Node.js 24+ с `node:sqlite`, SQLite и существующая служба systemd на VPS.
+Новые серверы, ORM или frontend-фреймворк для текущего масштаба не требуются.
 
 ```sh
-DATABASE_PATH=/var/lib/taiwan-map/taiwan.sqlite node server/import.mjs /private/export.private.json
+npm ci --ignore-scripts
+npm start
 ```
 
-Импорт транзакционный, не меняет непустую БД, сохраняет каталог, ссылки, кастомные статусы, заметки и версии. Пароли/сессии и полная старая история не входят в JSON-экспорт. Финальный экспорт делать перед переключением; изменения после него в импорт не попадут. Исходный сайт отключать только после проверки нового.
+Локальный API запускает `server/index.mjs`; переменные описаны в `.env.example`.
+Используй отдельную локальную базу и тестовые данные. Учётные записи и первая
+настройка — [ACCOUNTS.md](docs/ACCOUNTS.md), способы входа —
+[PUBLIC_ACCESS_PASSKEYS.md](docs/PUBLIC_ACCESS_PASSKEYS.md).
+Не копируй production-env или базу в публичный репозиторий.
 
-## Архитектура
-
-SQLite хранит каталог, пользователей и членство, состояния/историю мест, календарь и связи решений, сессии и способы входа. Актуальная схема задаётся миграциями `drizzle/`; не считать раннее описание количества таблиц текущей схемой. Отдельные аккаунты с ролями admin / editor / viewer используют общую карту; историю изменений подписывает реальный участник. [Настройка аккаунтов, Telegram и порядок перехода](docs/ACCOUNTS.md). Справочник статусов расширяемый, текущий основной статус один. Изменение состояния атомарно пишет историю и проверяет версию; устаревший клиент получает 409. CORS не заменяет авторизацию: сессия и членство проверяются сервером.
-
-Часы: timezone/weekday intervals/exceptions/note/label и дата проверки конкретной записи. Источники и праздничные ограничения проверяются по каждому месту; стартовый каталог не является актуальным экспортом сервера. Геопозиция по кнопке остаётся в браузере и требует HTTPS.
-
-SQLite: foreign keys, WAL, busy timeout, SQL-миграции с проверкой неизменности. Встроенные снимки включаются настройкой AUTO_BACKUPS и сохраняют до 14 дневных файлов. На действующем VPS AUTO_BACKUPS=0; резервная копия перед миграцией или массовой записью делается отдельно. Наличие внешних копий этим кодом не обеспечивается, копии на том же VPS не защищают от его потери.
-
-## Файлы и проверки
-
-- `public/`, `src/ui.mjs`: HTML/CSS/ES modules, прямой MapLibre GL JS 6.15.0, OpenFreeMap Bright / Fiord и резервный OSM raster style с атрибуцией. Без Leaflet, bulk/offline загрузок и внешних runtime latest-зависимостей.
-- `scripts/build-pages.mjs`: сборка статического интерфейса; backend использует закреплённый `jose` для проверки Telegram JWT. Перед запуском выполнить `npm ci --ignore-scripts`.
-- `src/core.mjs`, `server/`: API, SQLite, systemd, импорт, read-only диагностика.
-- `drizzle/*.sql`: единственный источник рабочей схемы. Новая миграция — следующий SQL-файл; применённые файлы неизменяемы. Drizzle/Cloudflare runtime и генератор не используются.
-- `.github/workflows/pages.yml`: тесты на push/PR, публикация из main.
-
-`npm test` проверяет вход/выход, persistence, членство, конфликты, limiter, CORS/OPTIONS/ошибки/запрещённые origins, импорт/откат и Pages-сборку без backend-файлов. `npm run build:pages` собирает интерфейс. Независимый HTTPS hostname и запуск systemd проверены на VPS. Исторические результаты приёмки и пределы браузерных проверок описаны в профильных документах; после новых изменений повторяются соответствующие проверки.
-
-### Additional place tags
-
-Three independent optional tags are stored in `places.tags_json` (migration
-`0006_place_tags.sql`), alongside the existing category, status and note data.
-`public/place-tags.js` is the shared definition, validation, date and rendering
-module; Lucide paths are bundled locally under the existing ISC license.
-Missing tags in old imports mean no tags. Export/restore includes disabled
-metadata and `tags_version`; ordinary repeated CSV imports leave it untouched.
-
-Place information continues to be managed through ChatGPT. Admins and editors
-can additionally edit the three tags and their optional fields in the place card;
-viewers see the tags without editing controls. The card uses one Save button for tags, notes and statuses in one SQLite
-transaction with version checks and rollback on any conflict. The schedule
-editor starts collapsed. Dates share a row from 380 CSS px and stack on smaller screens; padding lives
-on the input wrapper to avoid Safari intrinsic-width overflow. To review a private
-batch, use `server/update-place-tags.mjs` with this format:
-
-```json
-{"schema_version":1,"places":[{"id":"existing-place-id","version":1,"tags":{"photoSpot":true,"limitedDates":{"enabled":true,"startDate":"2026-12-29","endDate":"2027-01-05","scheduleText":"29–31 декабря: 10:00–20:00\n1 января: закрыто"},"reservation":{"enabled":true,"url":"https://example.com/booking"}}}]}
-```
-
-Use the real IDs and current `tags_version` from authenticated `/api/export`.
-Do not assign tags without a reviewed request. Run on the current migrated DB:
+Доступные проверки:
 
 ```sh
-DATABASE_PATH=/private/taiwan.sqlite node server/update-place-tags.mjs /private/tags.json --check
-DATABASE_PATH=/private/taiwan.sqlite node server/update-place-tags.mjs /private/tags.json --apply /private/new-tags-backup.sqlite
+npm test
+npm run build:pages
 ```
 
-Apply refuses an existing backup path, creates a private SQLite backup before
-writes, and validates the entire batch again inside a transaction. Stale tag
-versions abort the batch. Nested patches preserve other fields and disabled
-values. The authenticated `PUT /api/places/:id/tags` route accepts
-`{"version":1,"tags":{"photoSpot":true}}` for admin/editor management using the
-same validation and conflict checks; viewer writes are rejected. This does not
-introduce a general place editor; the card editor is restricted to these tags. Notes/statuses and visibility use independent
-versions. Schedule text is limited to 2000 characters and booking URLs to 1024;
-only HTTP/HTTPS without credentials is accepted. End dates are inclusive and
-checked against calendar days in Asia/Taipei, never parsed from free text.
+Выбирай проверку соразмерно изменению: документация, ручной сценарий, smoke/API
+или целевой тест. Полный локальный прогон нужен по риску, а не для каждой правки.
+Штатный CI сохраняет автоматические тесты и сборку. `build:pages` создаёт `dist/`;
+его не редактируют вручную. Публичная конфигурация — `pages.config.json`.
 
-The existing `PUT /api/places/:id/state` also accepts optional `tags` (nested
-patch) and `tags_version`. A stale note or tag version aborts the whole batch
-before COMMIT. Legacy requests without tags remain supported. Only this route
-allows up to 32 KiB for the combined note and schedule; other request limits
-remain at 8 KiB. Field length limits are unchanged.
+## Публикация и данные
 
-The initial map view uses the same fit-to-places operation as “Все на карте”,
-once both the map engine and places are ready. Later data refreshes, theme
-changes and filtering do not reset a manually positioned camera. Explicit
-focus, geolocation or fit requests take priority over initial framing.
+Frontend публикуется из main текущим workflow; backend обновляется отдельно.
+Процесс, проверка доставки, резервные копии и ограничения восстановления —
+[DEPLOYMENT.md](docs/DEPLOYMENT.md). Автоматический выпуск Pages не обновляет VPS.
 
-## Планировщик
-
-Календарь доступен на `planning.html`: месяц, неделя, день и список, задачи, решения и маршрут. См. [спецификацию и архитектуру](docs/PLANNING.md) и [работу с планом через чат](docs/PLANNING_OPERATIONS.md). Перед миграцией `0007_planning.sql` требуется SQLite backup. Экспорт JSON включает календарь; старый map-only CLI не импортирует непустой календарь — для полного восстановления используйте SQLite backup.
-
-## Архитектура и текущее обслуживание
-
-Границы модулей, таблицы, транзакции, роли и сборка описаны в [ARCHITECTURE.md](docs/ARCHITECTURE.md). [Аудит 6 ноября](docs/AUDIT_REFACTOR.md) содержит найденные проблемы, исправления и реальные проверки. Рефакторинг подготовлен отдельно и не означает публикацию на VPS или Pages.
-
-Личные Web Push и общий план часовых поясов реализованы; правила и ограничения — в [WEB_PUSH_TIMEZONES.md](docs/WEB_PUSH_TIMEZONES.md). JSON-экспорт не включает личные напоминания, устройства и учётные данные. Полное восстановление выполняется из SQLite backup.
+Рабочие данные читать через актуальный API. Стартовые десять мест и `.local/`
+не являются рабочим каталогом. JSON-экспорт — выборка данных, не полный backup;
+для полного восстановления нужен согласованный SQLite snapshot.
+Качество карточек и безопасный импорт — [PLACE_IMPORT.md](docs/PLACE_IMPORT.md),
+работа с реальным планом и реестром — [PLANNING_OPERATIONS.md](docs/PLANNING_OPERATIONS.md).

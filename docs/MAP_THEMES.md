@@ -101,3 +101,15 @@ prefers-reduced-motion; data and style loading remain independent of framing.
 ## Mobile place-card dismissal
 
 `public/place-card-swipe.js` uses the shared touch recognizer to pull the card down from its header at any scroll position, or from non-editable body content only when the body starts at the top. The header has a subtle handle; the card follows the finger and returns on a short/cancelled pull. A completed swipe uses the existing closeDetail path, including dirty/busy guards, focus restoration and map recentering. Form fields, links, selected text, upward body scrolling and pinch remain available. Mouse dragging does not dismiss the card. Reduced-motion styling is respected.
+
+## Initial framing and compact card details
+
+The initial map view uses the same fit-to-places operation as “Все на карте”,
+once both the map engine and places are ready. Later data refreshes, theme
+changes and filtering do not reset a manually positioned camera. Explicit
+focus, geolocation or fit requests take priority over initial framing.
+Mobile opens the map; the places/filter panel is opened explicitly.
+
+English and local names and the address are individually copyable. Temporary
+copy feedback clears automatically; keyboard focus remains accessible. Additional
+source links start collapsed, with the Google Maps action kept visible.
