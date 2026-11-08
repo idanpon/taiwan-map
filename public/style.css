@@ -106,7 +106,7 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 #map-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .live-dot { height: 5px; width: 5px; flex: none; border-radius: 50%; background: #6b8a65; }
 .map-tools { position: absolute; right: 20px; top: 20px; z-index: 450; display: flex; gap: 8px; }
-.map-button { display: flex; align-items: center; justify-content: center; gap: 6px; background: var(--ui-surface-overlay); border: 1px solid var(--ui-border); box-shadow: var(--ui-shadow-panel); border-radius: var(--ui-radius-control); min-width: 42px; min-height: 42px; padding: 8px 12px; font-size: 20px; color: var(--ui-accent); }
+.map-button { --ui-action-fill: var(--ui-button-fill); --ui-action-shadow: var(--ui-shadow-control-floating); display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--ui-button-border); border-radius: var(--ui-radius-control); min-width: 42px; min-height: 42px; padding: 8px 12px; font-size: 20px; color: var(--ui-button-ink); }
 .map-button span { font-size: 12px; }
 .map-compass { width: 44px; padding: 10px; }
 .map-compass svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.5; transform: rotate(var(--north-bearing, 0deg)); }
@@ -326,14 +326,11 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
 
 /* One icon shows the action available from the current theme, before JS too. */
 .theme-control svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.top-actions .theme-control button { color: var(--ui-text-muted); }
-@media (hover: hover) and (pointer: fine) { .top-actions .theme-control button:hover { color: var(--ui-text); } }
 .top-actions .theme-control svg { width: 16px; height: 16px; }
 /* Match the question glyph's visible height, including the sun's outer rays. */
 .top-actions .theme-control .theme-sun { width: 14px; height: 14px; }
 .theme-control .theme-sun, :root[data-theme=dark] .theme-control .theme-moon { display: none; }
 :root[data-theme=dark] .theme-control .theme-sun { display: block; }
-.map-button { display: inline-flex; align-items: center; justify-content: center; }
 /* Center the complete composition in the visible, safe viewport on Safari and standalone. */
 .auth-loading { position: fixed; inset: var(--loading-viewport-top,0px) 0 auto; height: var(--loading-viewport-height,100dvh); z-index: 2000; display: grid; place-items: center; padding: max(24px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left)); background: var(--ui-surface-page); color: var(--ui-text-muted); }
 .auth-loading-content { display: flex; flex-direction: column; align-items: center; gap: 20px; width: min(360px,100%); max-height: 100%; min-height: 0; overflow: auto; }
@@ -361,7 +358,6 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
 /* Help belongs to the application header; map tools stay focused on location. */
 .brand-mark { flex: none; width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 3.5; stroke-linecap: round; }
 .help-entry { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 8px; color: var(--ui-text-muted); font-size: var(--ui-text-caption); }
-@media (hover: hover) and (pointer: fine) { .help-entry:hover { color: var(--ui-text); background: var(--ui-surface-hover); } }
 .help-entry .help-symbol { display: block; width: 20px; height: 22px; font: 500 18px/22px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 @media (max-width: 1000px) {
  .help-entry { width: 44px; padding: 0; }
@@ -381,7 +377,6 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
 .detail-tags:empty { display: none; }
 .place-tags { display: inline-flex; flex: none; flex-wrap: nowrap; gap: 6px; padding-top: 2px; color: var(--ui-text-muted); }
 .place-tag { display: inline-flex; align-items: center; justify-content: center; width: 24px; min-height: 32px; padding: 0; color: inherit; border: 0; border-radius: 5px; }
-@media (hover: hover) and (pointer: fine) { .place-tag:hover { color: var(--ui-text); background: var(--ui-surface-hover); } }
 .place-tag svg { width: 16px; height: 16px; }
 .tag-details { border-top: 1px solid var(--ui-border); margin-top: 16px; padding-top: 14px; font-size: 13px; line-height: 1.6; }
 .tag-details h3 { margin: 0 0 6px; font-size: 13px; }
@@ -429,18 +424,14 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
 
 /* Plain-text copy actions preserve the card typography and support keyboard use. */
 .copy-text { font: inherit; line-height: inherit; letter-spacing: inherit; color: inherit; text-align: left; padding: 0; max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; cursor: copy; user-select: text; -webkit-user-select: text; border-radius: 3px; }
-.copy-text:active { background: var(--ui-surface-soft); }
-@media (hover: hover) and (pointer: fine) {
- @media (hover: hover) and (pointer: fine) { .copy-text:hover { background: var(--ui-surface-hover); } }
-}
 .local-name .copy-text { min-height: 28px; }
 /* The location and zoom buttons share one size and one right edge. */
 .map-area { --map-control-size: 44px; --map-control-right: 20px; --map-control-top: 20px; }
 .map-tools { right: var(--map-control-right); top: var(--map-control-top); align-items: center; }
 #locate { flex: none; width: var(--map-control-size); min-width: var(--map-control-size); height: var(--map-control-size); min-height: var(--map-control-size); padding: 0; }
 #locate span { display: none; }
-.map-zoom { display: flex; flex-direction: column; position: absolute; right: var(--map-control-right); top: calc(var(--map-control-top) + var(--map-control-size) + 16px); width: var(--map-control-size); z-index: 450; overflow: hidden; border: 1px solid var(--ui-border); border-radius: var(--ui-radius-control); background: var(--ui-surface-panel); box-shadow: var(--ui-shadow-panel); }
-.map-zoom button { display: grid; place-items: center; width: 100%; height: var(--map-control-size); border: 0; padding: 0; font-size: 24px; line-height: 1; color: var(--ui-accent); }
+.map-zoom { display: flex; flex-direction: column; position: absolute; right: var(--map-control-right); top: calc(var(--map-control-top) + var(--map-control-size) + 16px); width: var(--map-control-size); z-index: 450; overflow: hidden; border: 1px solid var(--ui-button-border); border-radius: var(--ui-radius-control); background: var(--ui-button-fill); color: var(--ui-button-ink); box-shadow: var(--ui-shadow-control-floating); }
+.map-zoom button { display: grid; place-items: center; width: 100%; height: var(--map-control-size); border: 0; padding: 0; font-size: 24px; line-height: 1; }
 .map-zoom button + button { border-top: 1px solid var(--ui-border); }
 .map-zoom button:focus-visible { outline-offset: -4px; }
 @media (max-width: 1000px) {
@@ -481,8 +472,6 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
 .topbar .top-actions>.ui-button--quiet, .topbar .top-actions .theme-control button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; min-width: 44px; padding: 0 8px; font: inherit; color: inherit; white-space: nowrap; }
 .topbar .top-actions>#logout { padding: 0 8px; font: inherit; }
 .topbar .top-actions .theme-control button { width: 44px; height: 44px; }
-@media (hover: hover) and (pointer: fine) { .topbar .top-actions>.planning-nav:hover { text-decoration: none; } }
-@media (hover: hover) and (pointer: fine) { .topbar .top-actions>.ui-button--quiet:hover, .topbar .top-actions .theme-control button:hover { color: var(--ui-text); } }
 .profile-summary { display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; white-space: nowrap; }
 .profile-summary .profile-name { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
 .profile-summary .profile-dot { flex: none; }
@@ -508,8 +497,7 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
 .login-methods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .login-methods:not(:has(> button:not([hidden]))) { display: none; }
 .login-methods:has(> button[hidden]) { grid-template-columns: minmax(0, 1fr); }
-.quick-login-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; min-height: 50px; padding: 12px; border: 1px solid var(--ui-border); color: var(--ui-text); font-weight: 500; }
-@media (hover: hover) and (pointer: fine) { .quick-login-button:hover:not(:disabled) { border-color: var(--ui-accent); background: var(--ui-surface-hover); } }
+.quick-login-button { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; min-height: 50px; padding: 12px; font-weight: 500; }
 .quick-login-icon { flex: none; display: block; width: 20px; height: 20px; color: var(--ui-accent); }
 .telegram-icon { fill: currentColor; }
 .key-icon { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }

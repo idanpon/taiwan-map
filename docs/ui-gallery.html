@@ -42,15 +42,21 @@
 <button class="ui-button">Открыть в Google Maps ↗</button>
 <button class="ui-button ui-button--quiet">Отмена</button>
 <button class="ui-button ui-button--quiet ui-button--danger">Удалить</button>
+<button class="ui-button ui-button--danger">Удалить участника</button>
 <button class="ui-button" disabled>Недоступно</button>
 <button class="ui-button ui-button--primary" disabled aria-busy="true">Сохраняем…</button>
 <button class="ui-button ui-button--compact">Компактное действие</button>
 <button class="ui-button ui-button--success">Готово</button>
-</div><p>Связанные текстовые и иконные действия имеют общую высоту во всех состояниях.</p><div class="ui-button-group" role="group" aria-label="Навигация месяца">
+<button class="ui-button ui-button--soft">Вернуть</button>
+</div><p>Подложка выбора движется внутри общего контура. Связанные действия навигации имеют общую высоту.</p><div class="gallery-row">
+<div class="ui-segmented" id="gallery-views" role="group" aria-label="Вид плана">
+<button type="button" class="ui-button ui-button--quiet" aria-pressed="true">Календарь</button>
+<button type="button" class="ui-button ui-button--quiet" aria-pressed="false">Список</button>
+</div><div class="ui-button-group" role="group" aria-label="Навигация месяца">
 <button class="ui-button ui-button--quiet ui-button--icon" aria-label="Предыдущий месяц">‹</button>
 <button class="ui-button ui-button--quiet ui-button--compact">Сегодня</button>
 <button class="ui-button ui-button--quiet ui-button--icon" aria-label="Следующий месяц">›</button>
-</div><p id="gallery-feedback" class="ui-feedback" role="status" aria-live="polite"></p></section>
+</div></div><p id="gallery-feedback" class="ui-feedback" role="status" aria-live="polite"></p></section>
 <section aria-label="Смысловые состояния"><div class="gallery-row"><span class="ui-status" data-state="in_progress">В работе</span><span class="ui-status" data-state="done">Выполнено</span><span class="ui-status ui-status--warning">Срок сегодня</span><span class="ui-status ui-status--danger">Просрочено</span></div></section>
 <section aria-labelledby="surface-title"><h2 id="surface-title">Различимость на фоне страницы и при наведении</h2>
 <p>Проверьте обе темы: обычный фильтр виден до наведения, выбранный сохраняет акцент при наведении. Наведите на текст карточки, затем на «Готово»: кнопка и значок не должны сливаться с подсветкой карточки. Tab проверяет те же границы с клавиатуры.</p>
@@ -91,10 +97,12 @@ document.getElementById('gallery-chips').onclick=event=>{
   const button=event.target.closest('button');
   if(button&&!button.disabled)button.setAttribute('aria-pressed',String(button.getAttribute('aria-pressed')!=='true'));
 };
-document.getElementById('gallery-list').onclick=event=>{
-  const selected=event.target.closest('button');
-  if(selected)for(const button of event.currentTarget.querySelectorAll('button'))button.setAttribute('aria-pressed',String(button===selected));
-};
+for(const id of ['gallery-list','gallery-views']){
+  document.getElementById(id).onclick=event=>{
+    const selected=event.target.closest('button');
+    if(selected)for(const button of event.currentTarget.querySelectorAll('button'))button.setAttribute('aria-pressed',String(button===selected));
+  };
+}
 document.getElementById('gallery-save').onclick=()=>{document.getElementById('gallery-feedback').textContent='Демонстрация сохранения завершена.'};
 </script>
 </body>
