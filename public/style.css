@@ -193,7 +193,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
   .map-button span { display: none; }
   .mobile-toggle { display: block; position: fixed; z-index: 700; bottom: var(--ui-bottom-control-inset); left: 50%; transform: translateX(-50%); min-height: 48px; max-width: calc(100% - 32px); border: 1px solid var(--ui-border); border-radius: var(--ui-radius-pill); padding: 12px 22px; color: var(--ui-accent); background: var(--ui-surface-panel); box-shadow: var(--ui-shadow-panel); font-size: 14px; white-space: nowrap; }
   .detail-open .mobile-toggle { display: none; }
-  .map-area .detail { position: fixed; inset: auto 0 0; width: 100%; max-height: min(72dvh, calc(100dvh - var(--topbar-height) - env(safe-area-inset-top) - 72px)); }
+  .map-area .detail { position: fixed; inset: auto var(--ui-sheet-mobile-right) 0 var(--ui-sheet-mobile-left); width: auto; max-height: min(72dvh, calc(100dvh - var(--topbar-height) - env(safe-area-inset-top) - 72px)); }
   .detail-links a { min-height: 44px; }
   .map-status { bottom: calc(90px + env(safe-area-inset-bottom)); left: 12px; right: 12px; max-width: none; }
 }
@@ -270,11 +270,10 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
 .map-pin-button { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; background: none; }
 .map-pin-button.city-cluster { width: 45px; height: 45px; background: #456b53; color: white; display: grid; place-items: center; border: var(--map-pin-border-width) solid #f5f4e8; box-shadow: 0 2px 12px #273a3240; font-size: 17px; }
 .map-pin-button::after { content: attr(data-label); pointer-events: none; position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); width: max-content; max-width: 240px; padding: 6px 10px; border: 1px solid var(--ui-border); border-radius: 6px; background: var(--ui-surface-panel); color: var(--ui-text); box-shadow: var(--ui-shadow-panel); font: 12px/1.4 Inter, -apple-system, sans-serif; opacity: 0; visibility: hidden; white-space: normal; }
-.map-pin-button:focus-visible::after { opacity: 1; visibility: visible; }
+:where(:root:not([data-ui-touch])) .map-pin-button:focus-visible::after { opacity: 1; visibility: visible; }
 @media (hover: hover) and (pointer: fine) { .map-pin-button:hover::after { opacity: 1; visibility: visible; } }
-.map-pin-button:focus-visible { z-index: 501 !important; }
+:where(:root:not([data-ui-touch])) .map-pin-button:focus-visible { z-index: 501 !important; }
 @media (hover: hover) and (pointer: fine) { .map-pin-button:hover { z-index: 501 !important; } }
-@media (hover: hover) and (pointer: fine) { .map-zoom button:hover { background: var(--ui-surface-hover); } }
 .map-status { bottom: auto; top: 78px; left: 20px; max-width: min(360px, calc(100% - 100px)); z-index: 451; border: 1px solid var(--ui-border); box-shadow: var(--ui-shadow-panel); background: var(--ui-surface-panel); color: var(--ui-text); }
 .map-status-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .map-status button { color: var(--ui-accent); text-decoration: underline; padding: 8px 0; min-height: 40px; text-align: left; }
@@ -290,13 +289,15 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
 @media (max-width: 1000px) {
  .topbar { gap: 8px; }
 
- .map-status { top: calc(var(--map-control-top) + var(--map-control-size) + 40px); left: max(12px, env(safe-area-inset-left)); right: auto; bottom: auto; max-width: calc(100% - 84px); }
- .maplibregl-ctrl-bottom-left:has(.maplibregl-ctrl-attrib) { top: calc(var(--map-control-top) + var(--map-control-size) + 4px); right: calc(var(--map-control-right) + var(--map-control-size) + 8px); bottom: auto; left: max(12px, env(safe-area-inset-left)); }
+ .map-status { top: calc(var(--map-control-top) + var(--map-control-size) + 16px); left: max(12px, env(safe-area-inset-left)); right: auto; bottom: auto; max-width: calc(100% - 84px); }
+ .maplibregl-ctrl-bottom-left:has(.maplibregl-ctrl-attrib) {
+  right: max(var(--ui-space-3),env(safe-area-inset-right));
+  bottom: calc(max(env(safe-area-inset-bottom),var(--map-sheet-height,0px)) + var(--ui-space-1));
+  left: max(var(--ui-space-3),env(safe-area-inset-left));
+ }
  .maplibregl-ctrl.maplibregl-ctrl-attrib { margin: 0; border-radius: var(--ui-radius-pill); }
  /* The provider name is optional. The two data credits remain visible. */
  .maplibregl-ctrl-attrib a:is([href="https://openfreemap.org"],[href="https://openfreemap.org/"]) { display: none; }
- .maplibregl-ctrl-bottom-left { padding-bottom: env(safe-area-inset-bottom); }
- .detail { bottom: calc(28px + env(safe-area-inset-bottom)); }
 }
 
 /* One icon shows the action available from the current theme, before JS too. */
@@ -417,7 +418,6 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
 .map-zoom { display: flex; flex-direction: column; position: absolute; right: var(--map-control-right); top: calc(var(--map-control-top) + var(--map-control-size) + 16px); width: var(--map-control-size); z-index: 450; overflow: hidden; border: 1px solid var(--ui-border); border-radius: var(--ui-radius-control); background: var(--ui-surface-panel); box-shadow: var(--ui-shadow-panel); }
 .map-zoom button { display: grid; place-items: center; width: 100%; height: var(--map-control-size); border: 0; padding: 0; font-size: 24px; line-height: 1; color: var(--ui-accent); }
 .map-zoom button + button { border-top: 1px solid var(--ui-border); }
-.map-zoom button:active { background: var(--ui-surface-hover); }
 .map-zoom button:focus-visible { outline-offset: -4px; }
 @media (max-width: 1000px) {
  .map-area { --map-control-right: max(12px, env(safe-area-inset-right)); --map-control-top: 12px; }

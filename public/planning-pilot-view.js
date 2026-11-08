@@ -48,6 +48,23 @@ export function renderPlanningPilot({view,items,plan,zone,focusDay,today,allowed
   return `<div class="planning-month-layout" style="--planning-week-count:${days.length/7}"><section class="planning-month-panel" aria-label="Календарь месяца"><div class="planning-month-grid">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(day=>`<span class="planning-weekday">${day}</span>`).join('')}${Array.from({length:42},(_,index)=>days[index]||{date:'',items:[]}).map(({date,items:records})=>`<button type="button" class="planning-calendar-day ${date.slice(0,7)!==focusDay.slice(0,7)?'other-month':''} ${date>=plan.trip.start_date&&date<=plan.trip.end_date?'is-trip':''}" ${date?'':'hidden'} data-day="${date}" data-drop-day="${date}" aria-pressed="${date===focusDay}" ${date===today?'aria-current="date"':''} aria-label="${date?esc(dayLabel(date)):''}, ${recordCount(records.length)}${date===today?', сегодня':''}"><span class="planning-day-number">${Number(date.slice(-2))}</span><span class="planning-day-count" data-empty="${!records.length}" data-count="${records.length}" aria-hidden="true">${recordCount(records.length)}</span><span class="planning-day-dots" aria-hidden="true">${[0,1,2].map(n=>`<span ${n<records.length?'':'hidden'}></span>`).join('')}</span></button>`).join('')}</div><p class="planning-month-legend">Дни поездки · ${esc(dayLabel(plan.trip.start_date))} — ${esc(dayLabel(plan.trip.end_date))}</p></section>
   <div class="planning-agenda"><div class="planning-agenda-heading"><h2>${esc(dayLabel(focusDay))}</h2></div><div class="planning-day-panel" data-planning-scroller="month" tabindex="0" aria-label="Записи выбранного дня и без даты"><section class="planning-selected-day" data-drop-day="${focusDay}">${selected.length?cards(selected,focusDay):empty()}</section>${undatedHtml(false)}</div></div></div>`;
  }
- const {groups,hasMore}=listDayGroups(items,zone,focusDay,listLimit);
- return `<div class="planning-itinerary" data-planning-scroller="list" tabindex="0" aria-label="Список по дням">${!items.some(item=>itemDates(item,zone)[0])?empty(true):''}${groups.map(({date,items:records})=>`<section class="planning-day-group ${records.length?'':'planning-empty-day'}" data-drop-day="${date}"><div class="planning-day-stamp"><span>${date===today?'Сегодня':date===addDays(today,1)?'Завтра':esc(dayLabel(date,{weekday:'short'}))}</span><strong>${Number(date.slice(-2))}</strong><span>${esc(dayLabel(date,{month:'short'}))}${date.slice(0,4)!==today.slice(0,4)?' '+date.slice(0,4):''}</span><button class="ui-button ui-button--quiet ui-button--compact" data-calendar-day="${date}" aria-label="${esc(dayLabel(date))} в календаре">К дате</button></div><div class="planning-drop-items">${records.length?cards(records,date,true):`<p class="planning-drop-empty">Перенести на ${esc(dayLabel(date))}</p>`}</div></section>`).join('')}${hasMore?'<button class="ui-button ui-button--quiet" data-more-days>Показать следующие дни</button>':''}${undatedHtml(true)}</div>`;
+ const {groups,hasMore}=listDayGroups(items,zone,focusDay,listLimit,today);
+ const hasDatedItems=items.some(item=>itemDates(item,zone)[0]);
+ const dayGroups=groups.map(({date,items:records})=>{
+  const isToday=date===today,weekday=date===addDays(today,1)?'Завтра':esc(dayLabel(date,{weekday:'short'}));
+  const emptyDay=isToday&&!hasDatedItems?empty(true):
+   `<p class="planning-drop-empty">${isToday?'На сегодня записей нет':`Перенести на ${esc(dayLabel(date))}`}</p>`;
+  return `<section class="planning-day-group${records.length||isToday?'':' planning-empty-day'}" data-drop-day="${date}" ${isToday?'data-list-today':''}>
+   <div class="planning-day-stamp">
+    <h2 class="planning-day-date"${isToday?` tabindex="-1" aria-current="date" aria-label="Сегодня, ${esc(dayLabel(date))}"`:''}>
+     <span>${isToday?'Сегодня':weekday}</span><strong>${Number(date.slice(-2))}</strong><span>${esc(dayLabel(date,{month:'short'}))}${date.slice(0,4)!==today.slice(0,4)?' '+date.slice(0,4):''}</span>
+    </h2>
+    <button type="button" class="ui-button ui-button--quiet ui-button--compact" data-calendar-day="${date}" aria-label="${esc(dayLabel(date))} в календаре">К дате</button>
+   </div>
+   <div class="planning-drop-items">${records.length?cards(records,date,true):emptyDay}</div>
+  </section>`;
+ }).join('');
+ return `<div class="planning-itinerary" data-planning-scroller="list" tabindex="0" aria-label="Список по дням"><div class="planning-itinerary-content">
+  ${dayGroups}${hasMore?'<button class="ui-button ui-button--quiet" data-more-days>Показать следующие дни</button>':''}${undatedHtml(true)}
+ </div></div>`;
 }

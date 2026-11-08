@@ -35,10 +35,20 @@
 .planner-filter-control select option { color: var(--ui-text); background: var(--ui-surface-panel); }
 .planner-filter-value { position: absolute; top: 50%; left: 12px; right: 28px; transform: translateY(-50%); font-size: var(--ui-text-body); color: var(--ui-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
 #planning-error:empty, #planning-dialog-error:empty { display: none; }
-#planning-canvas { width: 100%; min-width: 0; scroll-margin-top: 88px; touch-action: pan-y pinch-zoom; }
+#planning-canvas {
+ --planning-month-gap: var(--ui-space-6);
+ --planning-agenda-width: max(280px, calc((100% - var(--planning-month-gap)) / 2.7));
+ --planning-date-width: 76px;
+ --planning-list-gap: var(--ui-space-4);
+ --planning-card-gutter: var(--ui-space-1);
+ width: 100%;
+ min-width: 0;
+ scroll-margin-top: 88px;
+ touch-action: pan-y pinch-zoom;
+}
 #planning-canvas[data-view=list] { touch-action: auto; }
 [data-planning-scroller]:focus-visible { outline: 2px solid var(--ui-focus); outline-offset: -2px; border-radius: var(--ui-radius-control); }
-.planning-month-layout { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(280px,1fr); align-items: start; gap: var(--ui-space-6); }
+.planning-month-layout { display: grid; grid-template-columns: minmax(0,1fr) var(--planning-agenda-width); align-items: start; gap: var(--planning-month-gap); }
 .planning-month-panel { min-width: 0; border: 1px solid var(--ui-border); border-radius: var(--ui-radius-panel); background: var(--ui-surface-panel); overflow: hidden; }
 .planning-month-grid { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); }
 .planning-weekday { text-align: center; font-size: var(--ui-text-caption); color: var(--ui-text-muted); padding: var(--ui-space-3) 0; }
@@ -69,9 +79,10 @@
 .planning-card { display: grid; grid-template-columns: minmax(0,1fr); gap: var(--ui-space-3); padding: var(--ui-space-2); border: 1px solid var(--ui-border); border-radius: var(--ui-radius-panel); background: var(--ui-depth-panel); min-width: 0; overflow: hidden; }
 .planning-card.has-action { grid-template-columns: minmax(0,1fr) 64px; }
 .planning-card-open { display: flex; align-items: flex-start; gap: var(--ui-space-2); min-width: 0; min-height: var(--ui-control); width: 100%; padding: var(--ui-space-1); background: transparent; border: 0; color: var(--ui-text); text-align: left; border-radius: var(--ui-radius-control); }
-.planning-card:has(.planning-card-open:is(:active,:focus-visible)) { background: var(--ui-depth-panel-hover); }
+.planning-card:has(.planning-card-open:active),
+:where(:root:not([data-ui-touch])) .planning-card:has(.planning-card-open:focus-visible) { background: var(--ui-depth-panel-hover); }
 @media (hover: hover) and (pointer: fine) { .planning-card:has(.planning-card-open:hover) { background: var(--ui-depth-panel-hover); } }
-.planning-card:has(.planning-card-open:focus-visible) { outline: 3px solid var(--ui-focus); outline-offset: -3px; }
+:where(:root:not([data-ui-touch])) .planning-card:has(.planning-card-open:focus-visible) { outline: 3px solid var(--ui-focus); outline-offset: -3px; }
 .planning-card-open:focus-visible { outline: none; }
 .planning-card-body { min-width: 0; flex: 1; overflow-wrap: anywhere; }
 .planning-card-title { display: block; font-size: var(--ui-text-body); font-weight: 600; }
@@ -91,13 +102,18 @@
 .planning-undated-heading { display: flex; justify-content: space-between; align-items: baseline; gap: var(--ui-space-2); margin-bottom: var(--ui-space-2); flex-wrap: wrap; }
 .planning-undated-heading h3 { margin: 0; font-size: var(--ui-text-body); }
 .planning-undated-heading>span { font-size: var(--ui-text-caption); }
-.planning-itinerary { max-width: 720px; margin-inline: auto; }
-.planning-day-group { display: grid; grid-template-columns: 76px minmax(0,1fr); gap: var(--ui-space-4); margin-bottom: var(--ui-space-4); min-width: 0; }
+.planning-itinerary { margin-inline: auto; padding-block-end: var(--planning-list-tail,0px); }
+.planning-itinerary-content { display: flow-root; }
+.planning-top { position: fixed; z-index: 12; bottom: var(--ui-bottom-control-inset); right: max(var(--ui-space-4),env(safe-area-inset-right)); box-shadow: var(--ui-shadow-panel); }
+.planning-page:has(.ui-notice:not([hidden])) .planning-top { bottom: calc(var(--ui-bottom-control-inset) + 72px); }
+.planning-dragging .planning-top { visibility: hidden; }
+.planning-day-group { display: grid; grid-template-columns: var(--planning-date-width) minmax(0,1fr); gap: var(--planning-list-gap); margin-bottom: var(--ui-space-4); min-width: 0; }
 .planning-day-stamp { padding-top: var(--ui-space-3); position: sticky; top: 88px; align-self: start; font-size: var(--ui-text-caption); color: var(--ui-text-muted); }
-.planning-day-stamp>span,.planning-day-stamp>strong { display: block; }
-.planning-day-stamp>strong { font-size: 24px; color: var(--ui-accent); font-weight: 500; line-height: 1.3; }
+.planning-day-date { margin: 0; font: inherit; }
+.planning-day-date>* { display: block; }
+.planning-day-date>strong { font-size: 24px; color: var(--ui-accent); font-weight: 500; line-height: 1.3; }
 .planning-day-stamp .ui-button { padding-inline: 0; }
-.planning-drop-items { padding: var(--ui-space-2); border-radius: calc(var(--ui-radius-panel) + var(--ui-space-2)); min-width: 0; }
+.planning-drop-items { padding: var(--ui-space-2) var(--planning-card-gutter); border-radius: calc(var(--ui-radius-panel) + var(--planning-card-gutter)); min-width: 0; }
 .planning-drop-items>.planning-items { padding-block: 0; }
 .planning-undated.planning-day-group { row-gap: 0; }
 .planning-undated.planning-day-group>.planning-undated-heading { grid-column: 1 / -1; }
@@ -118,7 +134,7 @@
 .planning-dragging .planning-empty-day { display: grid; }
 .planning-drop-empty { min-height: 64px; display: grid; place-items: center; margin: 0; padding: var(--ui-space-3); border: 1px dashed var(--ui-border); border-radius: var(--ui-radius-panel); color: var(--ui-text-muted); font-size: var(--ui-text-caption); }
 .planning-day-group.is-drop-target>.planning-drop-items { background: var(--ui-surface-selected); box-shadow: inset 0 0 0 2px var(--ui-accent); }
-.planning-day-panel > :is(.planning-selected-day,.planning-undated) { padding-inline: var(--ui-space-1); }
+.planning-day-panel > :is(.planning-selected-day,.planning-undated) { padding-inline: var(--planning-card-gutter); }
 .planning-selected-day { border-radius: var(--ui-radius-panel); }
 .planning-selected-day.is-drop-target { background: var(--ui-surface-selected); box-shadow: inset 0 0 0 2px var(--ui-accent); }
 .planning-calendar-day.is-drop-target { box-shadow: inset 0 0 0 2px var(--ui-accent); }
@@ -126,7 +142,7 @@
 @media(any-pointer:fine) { .planning-card[data-drag-item]:not([data-drag-blocked]),.planning-card[data-drag-item]:not([data-drag-blocked]) .planning-card-open { cursor: grab; } }
 .planning-dragging,.planning-dragging * { cursor: grabbing; }
 .planning-card.is-drag-source { opacity: .4; }
-.planning-card.planning-drag-preview { position: fixed; left: 0; top: 0; z-index: 1001; margin: 0; pointer-events: none; opacity: 1; border-color: var(--ui-accent); box-shadow: var(--ui-shadow-panel); will-change: translate; }
+.planning-card.planning-drag-preview { position: fixed; left: 0; top: 0; z-index: 1001; margin: 0; pointer-events: none; scale: 1; opacity: 1; border-color: var(--ui-accent); box-shadow: var(--ui-shadow-panel); will-change: translate,scale,opacity; transition: scale var(--ui-duration-feedback) var(--ui-ease), opacity var(--ui-duration-feedback) var(--ui-ease); }
 .planning-card.planning-drag-preview.over-calendar { scale: .62; opacity: .38; }
 .planning-drag-preview * { pointer-events: none; }
 .planner-footer { font-size: var(--ui-text-caption); margin-top: var(--ui-space-5); }
@@ -202,10 +218,10 @@ button.planning-date-action>span { text-decoration: underline; text-decoration-s
  .planning-month-legend { flex: none; padding-block: var(--ui-space-2); }
  [data-planning-scroller] { height: 100%; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-gutter: stable; }
  [data-planning-scroller] { scroll-padding-block: 16px; mask-image: linear-gradient(to bottom,transparent,#000 var(--planning-fade-top,0px),#000 calc(100% - var(--planning-fade-bottom,0px)),transparent),linear-gradient(#000,#000); mask-size: calc(100% - var(--planning-scrollbar-size,0px)) 100%,var(--planning-scrollbar-size,0px) 100%; mask-position: left top,right top; mask-repeat: no-repeat; }
- .planning-day-panel { padding-right: var(--ui-space-2); }
+ .planning-day-panel,.planning-itinerary { padding-inline-end: var(--ui-space-2); }
  .planning-agenda { height: 100%; min-height: 0; display: flex; flex-direction: column; }
  .planning-agenda>.planning-day-panel { flex: 1; min-height: 0; height: 0; }
- .planning-itinerary { width: 100%; }
+ .planning-itinerary { width: calc(var(--planning-agenda-width) + var(--planning-date-width) + var(--planning-list-gap)); }
  .planning-day-stamp { top: 0; }
  .planner-zone-help { position: absolute; left: 0; top: 100%; z-index: 20; max-width: min(680px,100%); max-height: 120px; overflow-y: auto; }
 }
@@ -247,17 +263,14 @@ button.planning-date-action>span { text-decoration: underline; text-decoration-s
  .planning-calendar-day { align-items: center; min-height: 52px; padding: 8px 4px; }
  .planning-day-count { display: none; }
  .planning-day-dots { display: flex; }
- .planning-day-group { grid-template-columns: 54px minmax(0,1fr); gap: var(--ui-space-1) var(--ui-space-2); margin-bottom: var(--ui-space-2); }
+ .planning-day-group { grid-template-columns: minmax(0,1fr); gap: 0; margin-bottom: var(--ui-space-2); }
+ .planning-undated.planning-day-group>.planning-drop-items { grid-column: 1; }
  .planning-drop-items { padding-block: var(--ui-space-1); }
+ .planning-day-stamp { display: flex; align-items: center; justify-content: space-between; padding: 0 var(--planning-card-gutter); position: static; }
+ .planning-day-date { display: flex; align-items: baseline; gap: 6px; }
+ .planning-day-date>strong { font-size: 20px; }
 }
-@media(max-width:420px) {
- .planning-day-group,.planning-dragging .planning-day-group.planning-empty-day { display: block; }
- .planning-day-group.planning-empty-day { display: none; }
- .planning-day-stamp { display: flex; align-items: center; gap: 6px; padding: 0; position: static; }
- .planning-day-stamp>strong { font-size: 20px; }
- .planning-day-stamp .ui-button { margin-left: auto; }
- .planning-card { gap: var(--ui-space-2); }
-}
+@media(max-width:420px) { .planning-card { gap: var(--ui-space-2); } }
 @media(max-width:379px) { .planning-form .form-columns { grid-template-columns: minmax(0,1fr); } }
 @media(prefers-reduced-motion:reduce) { .planning-page * { scroll-behavior: auto !important; } }
 .planning-relation-list { padding-inline: 0; margin: 0; list-style: none; border-block: 1px solid var(--ui-border); }

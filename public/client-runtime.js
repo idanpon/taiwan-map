@@ -57,3 +57,16 @@ export function sessionStores(window) {
 const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 export const escapeHtml = (value) =>
   String(value ?? '').replace(/[&<>"']/g, (char) => entities[char]);
+
+export function trackTouchInput(document){
+ const root=document.documentElement;
+ const options={capture:true,passive:true};
+ document.addEventListener('pointerdown',event=>root.toggleAttribute('data-ui-touch',event.pointerType==='touch'),options);
+ document.addEventListener('touchstart',()=>root.setAttribute('data-ui-touch',''),options);
+ document.addEventListener('pointermove',event=>{
+  if(event.pointerType==='mouse'&&root.hasAttribute('data-ui-touch'))root.removeAttribute('data-ui-touch');
+ },options);
+ document.addEventListener('keydown',event=>{
+  if(!event.isComposing&&!event.metaKey&&!event.ctrlKey&&!event.altKey)root.removeAttribute('data-ui-touch');
+ },true);
+}

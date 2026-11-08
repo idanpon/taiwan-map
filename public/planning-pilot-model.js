@@ -15,13 +15,14 @@ export function calendarDays(day,items,zone){
 
 // Enumerate occupied intervals, without walking across empty years between records.
 // Long periods remain available through an explicit next-page action.
-export function listDayGroups(items,zone,anchor,limit=180){
+export function listDayGroups(items,zone,anchor,limit=180,today=anchor){
  const rows=items.map(item=>({item,range:itemDates(item,zone)})).filter(row=>row.range[0]);
  const intervals=rows.map(row=>[...row.range]).sort((a,b)=>a[0].localeCompare(b[0])),merged=[];
  for(const range of intervals){const last=merged.at(-1);if(last&&(range[0]<=last[1]||dayDifference(last[1],range[0])===1)){if(range[1]>last[1])last[1]=range[1]}else merged.push(range)}
  const dates=new Set();let hasMore=false;
  outer:for(const [start,end] of merged){for(let day=start;day<=end;day=addDays(day,1)){if(dates.size>=limit){hasMore=true;break outer}dates.add(day);if(day===end)break}}
- // Empty neighbours are drop destinations only; they do not add empty rows at rest.
+ if(validDate(today))dates.add(today);
+ // Empty neighbours appear as drop destinations during a drag.
  for(let offset=-1;offset<7;offset++){const day=addDays(anchor,offset);if(validDate(day))dates.add(day)}
  return {hasMore,groups:[...dates].sort().map(date=>({date,items:rows.filter(({range:[start,end]})=>start<=date&&end>=date).map(row=>row.item)}))};
 }

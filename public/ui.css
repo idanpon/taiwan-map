@@ -15,16 +15,17 @@
   text-align: center;
   overflow-wrap: anywhere;
   text-decoration: none;
-  transition: background-color var(--ui-duration-feedback) var(--ui-ease);
 }
-.ui-button:active:not(:disabled) { background: var(--ui-surface-hover); }
-@media (hover: hover) and (pointer: fine) { .ui-button:hover:not(:disabled) { background: var(--ui-surface-hover); text-decoration: none; } }
-.ui-button--primary { background: var(--ui-depth-action), var(--ui-accent); border-color: transparent; color: var(--ui-on-accent); font-weight: 500; }
-.ui-button--primary:active:not(:disabled) { background: var(--ui-depth-action), var(--ui-accent-hover); }
-@media (hover: hover) and (pointer: fine) { .ui-button--primary:hover:not(:disabled) { background: var(--ui-depth-action), var(--ui-accent-hover); } }
-.ui-button--success { background: var(--ui-depth-soft-action), var(--ui-success-action); color: var(--ui-success); border-color: transparent; }
-.ui-button--success:active:not(:disabled) { background: var(--ui-depth-soft-action), var(--ui-success-action-hover); }
-@media (hover: hover) and (pointer: fine) { .ui-button--success:hover:not(:disabled) { background: var(--ui-depth-soft-action), var(--ui-success-action-hover); } }
+:is(.ui-button,.ui-button-feedback) { transition: background-color var(--ui-duration-feedback) var(--ui-ease); }
+:is(.ui-button,.ui-button-feedback):active:not(:disabled) { background: var(--ui-button-hover-fill,var(--ui-surface-hover)); }
+@media (hover: hover) and (pointer: fine) {
+  :where(:root:not([data-ui-touch])) :is(.ui-button,.ui-button-feedback):hover:not(:disabled) {
+    background: var(--ui-button-hover-fill,var(--ui-surface-hover));
+    text-decoration: none;
+  }
+}
+.ui-button--primary { --ui-button-hover-fill: var(--ui-depth-action), var(--ui-accent-hover); background: var(--ui-depth-action), var(--ui-accent); border-color: transparent; color: var(--ui-on-accent); font-weight: 500; }
+.ui-button--success { --ui-button-hover-fill: var(--ui-depth-soft-action), var(--ui-success-action-hover); background: var(--ui-depth-soft-action), var(--ui-success-action); color: var(--ui-success); border-color: transparent; }
 .ui-button--quiet { border-color: transparent; background: transparent; color: var(--ui-text-muted); }
 .ui-button--danger { color: var(--ui-danger); }
 .ui-button--compact { min-height: var(--ui-control-compact); font-size: var(--ui-text-caption); }
@@ -74,6 +75,7 @@ textarea.ui-field { min-height: 88px; resize: vertical; line-height: 1.6; }
 :is(button,a,input,select,textarea,summary):focus-visible,
 .ui-field-group:focus-within { outline: 3px solid var(--ui-focus); outline-offset: 2px; }
 .ui-field-group > input:focus-visible { outline: none; }
+:root[data-ui-touch] :is(button,a,summary):focus { outline: none; }
 .ui-chip {
   display: inline-flex;
   align-items: center;
@@ -205,6 +207,8 @@ dialog.ui-overlay::backdrop { background: var(--ui-backdrop); }
 }
 .ui-sheet {
   --ui-sheet-right: max(var(--ui-space-6), env(safe-area-inset-right));
+  --ui-sheet-mobile-left: max(var(--ui-space-2), env(safe-area-inset-left));
+  --ui-sheet-mobile-right: max(var(--ui-space-2), env(safe-area-inset-right));
   inset: auto var(--ui-sheet-right) 0 auto;
   margin: 0;
   width: min(var(--ui-sheet-width, 580px), calc(100% - 2 * var(--ui-sheet-right)));
@@ -249,13 +253,7 @@ dialog.ui-overlay::backdrop { background: var(--ui-backdrop); }
 
 @media (max-width: 720px) {
   .ui-overlay { --ui-overlay-padding: var(--ui-space-4); }
-  .ui-sheet { inset-inline: 0; width: 100%; }
-}
-@media (max-width: 1000px) {
-  .ui-sheet :is(.ui-overlay-heading, .ui-overlay-body) {
-    padding-left: max(var(--ui-overlay-padding), env(safe-area-inset-left) + var(--ui-space-2));
-    padding-right: max(var(--ui-overlay-padding), env(safe-area-inset-right) + var(--ui-space-2));
-  }
+  .ui-sheet { left: var(--ui-sheet-mobile-left); right: var(--ui-sheet-mobile-right); width: auto; }
 }
 @media (any-pointer: coarse) {
   .ui-sheet .ui-overlay-heading { position: relative; padding-top: var(--ui-space-5); }
