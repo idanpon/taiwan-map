@@ -51,8 +51,6 @@ function closeDetail(restoreFocus=false){
  return true;
 }
 const detailCard=$('detail');
-const mapArea=detailCard.parentElement;
-new ResizeObserver(()=>mapArea.style.setProperty('--map-sheet-height',detailCard.offsetHeight+'px')).observe(detailCard);
 const detailSwipe=installSheetSwipe({card:detailCard,document,enabled:()=>!detailCard.hidden&&!busy&&!$('application').inert&&!document.querySelector('dialog[open]'),close:()=>closeDetail()});
 function getCategory(p){return data.categories.find(c=>c.id===p.category_id)}
 function getStatus(p){const value=data.statuses.find(s=>s.id===p.status_id);return value?statusAppearance(value,themeUI.value):undefined}
@@ -85,13 +83,24 @@ function detail(p){detailSwipe.cancel();resetDirty();tagControls=undefined;const
 }
 function focusPlaceOnMap(p){
  if(!map)return;
- const card=$('detail').getBoundingClientRect(),viewport=$('map').getBoundingClientRect();
- // Include the actual gap beside the card, rather than assuming its width.
+ const card=detailCard.getBoundingClientRect(),viewport=$('map').getBoundingClientRect();
  const compact=matchMedia('(max-width:1000px)').matches;
- const offset=compact?[0,-Math.max(0,Math.min(viewport.height,$('detail').offsetHeight))/2]:[-Math.max(0,Math.min(viewport.width,viewport.right-card.left))/2,0];
+ const bottomGap=compact?Number.parseFloat(getComputedStyle(detailCard).bottom)||0:0;
+ const coveredHeight=Math.min(viewport.height,detailCard.offsetHeight+bottomGap);
+ const coveredWidth=Math.max(0,Math.min(viewport.width,viewport.right-card.left));
+ const offset=compact?[0,-coveredHeight/2]:[-coveredWidth/2,0];
  map.focusPlace(p,offset);
 }
-function openPlace(id){if(busy)return;if(dirty){if(id!==selected)toast('Сначала сохраните изменения в открытой карточке.');return}const p=data.places.find(p=>p.id===id);if(!p)return;selected=id;detail(p);render();setSidebar(false);focusPlaceOnMap(p);$('detail-heading').focus({preventScroll:true})}
+function openPlace(id,{keepMapCredits=false}={}){
+ if(busy)return;
+ if(dirty){if(id!==selected)toast('Сначала сохраните изменения в открытой карточке.');return}
+ const p=data.places.find(p=>p.id===id);
+ if(!p)return;
+ detailCard.toggleAttribute('data-keep-map-credits',keepMapCredits);
+ selected=id;
+ detail(p);render();setSidebar(false);focusPlaceOnMap(p);
+ $('detail-heading').focus({preventScroll:true});
+}
 
 function bindTagHints(){for(const button of $('detail').querySelectorAll('[data-tag-info]'))button.onclick=()=>toast(tagDefinitions.find(t=>t.id===button.dataset.tagInfo).tooltip)}
 async function saveState(event,p){
@@ -182,7 +191,7 @@ if(configurationError){loadingScreen.error(configurationError)}else void startup
 async function openPlanningHash(){
  if(!data)return;const params=new URLSearchParams(location.hash.slice(1)),id=params.get('place');
  if(!id)return;const p=data.places.find(p=>p.id===id);
- if(p){if(!visible().some(p=>p.id===id)){city='';types.clear();tags.clear();status='';query='';$('search').value='';$('status-filter').value='';populateFilters();toast('Фильтры сброшены, чтобы показать выбранное место.')}openPlace(id)}
+ if(p){if(!visible().some(p=>p.id===id)){city='';types.clear();tags.clear();status='';query='';$('search').value='';$('status-filter').value='';populateFilters();toast('Фильтры сброшены, чтобы показать выбранное место.')}openPlace(id,{keepMapCredits:true})}
  else if(data.user){$('hidden-places-open').click();toast('Место скрыто или удалено. Скрытые места можно вернуть из этого списка.')}
  else toast('Место скрыто или удалено. Связанная запись календаря сохранена.');
  history.replaceState(null,'',location.pathname+location.search);

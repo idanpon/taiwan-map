@@ -95,7 +95,7 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .card-status { display: block; font-size: 11px; margin-top: 6px; color: var(--status-text, var(--status, var(--ui-text-muted))); }
 .side-footer { padding: 14px 20px; flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 8px 12px; justify-content: space-between; font-size: 10px; border-top: 1px solid var(--ui-border); color: var(--ui-text-muted); }
 .side-footer a { white-space: nowrap; }
-.map-area { position: relative; flex: 1; min-width: 0; min-height: 0; background: var(--map-empty); overflow: hidden; }
+.map-area { --map-credit-height: 1rem; position: relative; flex: 1; min-width: 0; min-height: 0; background: var(--map-empty); overflow: hidden; }
 #map { --map-pin-border-width: 2px; position: relative; z-index: 0; height: 100%; width: 100%; background: var(--map-empty); }
 .map-heading { position: absolute; z-index: 450; top: 20px; left: 20px; max-width: calc(100% - 410px); min-height: 42px; padding: 10px 14px; background: var(--ui-surface-overlay); border: 1px solid var(--ui-border); border-radius: var(--ui-radius-control); display: flex; gap: 8px; align-items: center; font-size: 12px; box-shadow: var(--ui-shadow-panel); pointer-events: none; }
 #map-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -193,7 +193,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
   .map-button span { display: none; }
   .mobile-toggle { display: block; position: fixed; z-index: 700; bottom: var(--ui-bottom-control-inset); left: 50%; transform: translateX(-50%); min-height: 48px; max-width: calc(100% - 32px); border: 1px solid var(--ui-border); border-radius: var(--ui-radius-pill); padding: 12px 22px; color: var(--ui-accent); background: var(--ui-surface-panel); box-shadow: var(--ui-shadow-panel); font-size: 14px; white-space: nowrap; }
   .detail-open .mobile-toggle { display: none; }
-  .map-area .detail { position: fixed; inset: auto var(--ui-sheet-mobile-right) 0 var(--ui-sheet-mobile-left); width: auto; max-height: min(72dvh, calc(100dvh - var(--topbar-height) - env(safe-area-inset-top) - 72px)); }
+  .map-area .detail { position: fixed; inset: auto var(--ui-sheet-mobile-right) var(--map-credit-clearance,0px) var(--ui-sheet-mobile-left); width: auto; max-height: min(72dvh, calc(100dvh - var(--topbar-height) - env(safe-area-inset-top) - 72px)); }
   .detail-links a { min-height: 44px; }
   .map-status { bottom: calc(90px + env(safe-area-inset-bottom)); left: 12px; right: 12px; max-width: none; }
 }
@@ -278,8 +278,20 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
 .map-status-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .map-status button { color: var(--ui-accent); text-decoration: underline; padding: 8px 0; min-height: 40px; text-align: left; }
 .map-status-actions:has(button:not([hidden])) { margin-top: 4px; }
-.maplibregl-ctrl.maplibregl-ctrl-attrib { color: var(--ui-text-muted); background: var(--ui-surface-panel); font: 11px/1.45 var(--ui-font); padding: 2px 6px; }
+.maplibregl-ctrl-bottom-left:has(.maplibregl-ctrl-attrib) {
+  left: env(safe-area-inset-left);
+  right: env(safe-area-inset-right);
+  bottom: env(safe-area-inset-bottom);
+}
+.maplibregl-ctrl.maplibregl-ctrl-attrib {
+  color: var(--ui-text-muted);
+  background: var(--ui-surface-panel);
+  font: 0.625rem/var(--map-credit-height) var(--ui-font);
+  padding: 0 4px;
+  border-radius: 0 6px 0 0;
+}
 .maplibregl-ctrl-attrib a { color: var(--ui-accent); }
+.maplibregl-ctrl-attrib a:is([href="https://openfreemap.org"],[href="https://openfreemap.org/"]) { display: none; }
 .maplibregl-ctrl-bottom-left { max-width: 100%; z-index: 451; }
 .maplibregl-ctrl-bottom-left .maplibregl-ctrl { margin: 0; }
 .user-position { width: 18px; height: 18px; border: 3px solid #fff; background: #287ac9; border-radius: 50%; box-shadow: 0 0 0 2px #1c426e66; }
@@ -290,14 +302,16 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
  .topbar { gap: 8px; }
 
  .map-status { top: calc(var(--map-control-top) + var(--map-control-size) + 16px); left: max(12px, env(safe-area-inset-left)); right: auto; bottom: auto; max-width: calc(100% - 84px); }
- .maplibregl-ctrl-bottom-left:has(.maplibregl-ctrl-attrib) {
-  right: max(var(--ui-space-3),env(safe-area-inset-right));
-  bottom: calc(max(env(safe-area-inset-bottom),var(--map-sheet-height,0px)) + var(--ui-space-1));
-  left: max(var(--ui-space-3),env(safe-area-inset-left));
+ /* Keep the corner visible for OSM raster tiles and cards opened from a link. */
+ .map-area:has(#map[data-provider=fallback],#detail[data-keep-map-credits]) {
+  --map-credit-clearance: calc(env(safe-area-inset-bottom) + var(--map-credit-height));
  }
- .maplibregl-ctrl.maplibregl-ctrl-attrib { margin: 0; border-radius: var(--ui-radius-pill); }
- /* The provider name is optional. The two data credits remain visible. */
- .maplibregl-ctrl-attrib a:is([href="https://openfreemap.org"],[href="https://openfreemap.org/"]) { display: none; }
+ .map-area:has(#map[data-provider=fallback],#detail[data-keep-map-credits]) .detail .ui-overlay-body {
+  padding-bottom: var(--ui-overlay-padding);
+ }
+ .map-area:has(#detail:not([hidden]):not([data-keep-map-credits])) #map[data-provider=primary] .maplibregl-ctrl-attrib {
+  visibility: hidden;
+ }
 }
 
 /* One icon shows the action available from the current theme, before JS too. */
