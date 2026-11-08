@@ -96,13 +96,15 @@ function recordDateHtml(item){
 const statesForKind=kind=>kind==='visit'?{open:'Запланировано',in_progress:'В пути / идёт',done:'Состоялось',cancelled:'Пропустили'}:kind==='decision'?{open:'Открыто',in_progress:'В работе',done:'Принято',cancelled:'Отменено'}:stateLabels;
 function stateLabel(i){return statesForKind(i.kind)[i.state]}
 function render(){
- syncFilterDisplays();if(!plan)return;const top=window.scrollY,items=filtered(),today=dayInZone(new Date(),zone);
+ syncFilterDisplays();if(!plan)return;const items=filtered(),today=dayInZone(new Date(),zone);
  const canvas=$('planning-canvas'),previous=canvas.querySelector('[data-planning-scroller]');
- if(previous)viewScroll[previous.dataset.planningScroller]=previous.scrollTop;
+ const previousView=previous?.dataset.planningScroller;
+ const openingList=view==='list'&&previousView!==view;
+ const pageTop=openingList?0:window.scrollY;
+ if(previous)viewScroll[previousView]=previous.scrollTop;
  if(canvas.dataset.day!==focusDay)viewScroll.month=0;
  $('planning-trip').textContent='Вылет '+dateLabel(plan.trip.departure_date)+' · '+dateLabel(plan.trip.start_date)+' — '+dateLabel(plan.trip.end_date);
  $('planning-new').hidden=!allowed();$('planning-trip-edit').hidden=!allowed();
- for(const button of $('planning-views').querySelectorAll('[data-view]'))button.setAttribute('aria-pressed',String(button.dataset.view===view));
  $('planning-zone-label').textContent=localPoint(Date.now(),zone).badge;
  $('planning-zone-help').innerHTML=`<p>${timezoneExplanation}</p><ul><li>Москва · Europe/Moscow · UTC+3</li>${zone.changes.map(change=>`<li>С ${esc(pointText(localPoint(change.at,zone)))} · ${esc(change.zone)}</li>`).join('')}</ul>`;
  $('planning-period').textContent=view==='month'?new Intl.DateTimeFormat('ru',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(focusDay+'T12:00:00Z')):'';
@@ -112,7 +114,11 @@ function render(){
  $('planning-canvas').dataset.view=view;canvas.dataset.day=focusDay;
  renderPlanningCanvas(canvas,renderPlanningPilot({view,items,plan,zone,focusDay,today,allowed:allowed(),pendingId,listLimit,hasFilters:Boolean(kind||search||state!=='active'||plan.items.length&&!items.length)}));
  $('planning-prev').hidden=$('planning-next').hidden=view==='list';
- layout.refresh({scrollTop:viewScroll[view],pageTop:top});
+ layout.refresh({scrollTop:openingList?0:viewScroll[view],pageTop});
+ // Start the selection animation after layout and scroll have been updated.
+ if(previousView!==view){
+  for(const button of $('planning-views').querySelectorAll('[data-view]'))button.setAttribute('aria-pressed',String(button.dataset.view===view));
+ }
 }
 function placesHtml(item){return item.places.length?'<section class="planning-relations"><h3>Связанные места</h3>'+[...new Map(item.places.map(l=>[(l.place_id||l.place_name),l])).values()].map(l=>l.place_id?`<a class="planning-related-item" href="./#place=${encodeURIComponent(l.place_id)}">${esc(l.place_name)} ↗${l.hidden?'<span>Место скрыто</span>':''}</a>`:`<p>${esc(l.place_name)} <span class="muted">· Место удалено</span></p>`).join('')+'</section>':''}
 function relationRows(items){return '<ul class="planning-relation-list ui-list">'+items.map(i=>`<li><button class="planning-relation-row ui-button-feedback" data-item="${esc(i.id)}"><span class="planning-relation-name">${kindIcon(i.kind)}<span>${esc(i.title)}</span></span><span class="ui-status planning-state" data-state="${esc(i.state)}">${esc(stateLabel(i))}</span></button></li>`).join('')+'</ul>'}
@@ -234,7 +240,6 @@ async function load({signal}={}){
  if(first)focusDay=dayInZone(new Date(),zone);
  accountUI?.update();accountUI?.hideLogin();
  $('application').hidden=false;$('login').hidden=true;document.body.classList.add('app-active');render();
- if(first&&view==='list')layout.scrollListToToday();
  void accountUI?.notifications.refresh();
 }
 drag=installPlanningDrag({surface:$('planning-canvas'),document,window,enabled:()=>Boolean(allowed())&&!busy&&!document.querySelector('dialog[open]'),onDrop:moveItem,onDragEnd:layout.resetScrollTracking,onBlocked:()=>toast(periodMoveMessage,'warning'),onError:error=>toast(error.message,'warning')});
@@ -259,7 +264,6 @@ $('planning-new').onclick=()=>editItem();$('planning-trip-edit').onclick=editTri
 $('planning-views').onclick=event=>{
  const button=event.target.closest('[data-view]');if(!button||button.dataset.view===view)return;
  drag.cancel();view=button.dataset.view;render();
- if(view==='list')layout.scrollListToToday(event.detail===0);
 };
 function navigate(direction){if(view!=='month')return;drag.cancel();const date=new Date(focusDay.slice(0,7)+'-01T12:00:00Z');date.setUTCMonth(date.getUTCMonth()+direction);focusDay=date.toISOString().slice(0,10);render()}
 installPlanningNavigation({canvas:$('planning-canvas'),document,navigate,enabled:()=>Boolean(plan)&&view==='month'&&!busy&&!drag.active&&!document.querySelector('dialog[open]')&&!$('application').hidden});

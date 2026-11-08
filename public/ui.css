@@ -177,6 +177,7 @@ textarea.ui-field { min-height: 88px; resize: vertical; line-height: 1.6; }
   box-sizing: border-box;
   pointer-events: none;
   transform: translateX(0);
+  will-change: transform;
   transition: transform var(--ui-duration-selection) var(--ui-ease-selection);
 }
 .ui-segmented:has(> .ui-button:last-child[aria-pressed=true])::before { transform: translateX(calc(100% + var(--ui-segment-gap))); }
