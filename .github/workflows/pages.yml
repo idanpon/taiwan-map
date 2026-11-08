@@ -31,7 +31,7 @@ jobs:
           node --input-type=module <<'JS'
           import { readFile, writeFile } from 'node:fs/promises';
           import { createHash } from 'node:crypto';
-          const files = ['index.html', 'planning.html', 'app.js', 'planning.js', 'config.js', 'style.css', 'planning.css', 'client-runtime.js', 'sw.js'];
+          const files = ['index.html', 'planning.html', 'assistant.html', 'app.js', 'planning.js', 'assistant.js', 'assistant-card.js', 'assistant.css', 'config.js', 'style.css', 'planning.css', 'client-runtime.js', 'sw.js'];
           const sha256 = Object.fromEntries(await Promise.all(files.map(async file =>
             [file, createHash('sha256').update(await readFile('dist/' + file)).digest('hex')]
           )));
@@ -66,7 +66,7 @@ jobs:
           import hashlib, json, os, time, urllib.request
           base = os.environ['PAGES_URL'].rstrip('/') + '/'
           commit = os.environ['GITHUB_SHA']
-          files = ['index.html', 'planning.html', 'app.js', 'planning.js', 'config.js', 'style.css', 'planning.css', 'client-runtime.js', 'sw.js']
+          files = ['index.html', 'planning.html', 'assistant.html', 'app.js', 'planning.js', 'assistant.js', 'assistant-card.js', 'assistant.css', 'config.js', 'style.css', 'planning.css', 'client-runtime.js', 'sw.js']
           def read(path):
               request = urllib.request.Request(base + path + '?release=' + commit, headers={'Cache-Control': 'no-cache'})
               with urllib.request.urlopen(request, timeout=15) as response:

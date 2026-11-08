@@ -12,9 +12,13 @@
     "start": "node server/index.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/ext-apps": "2.0.4",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@simplewebauthn/browser": "13.2.2",
     "@simplewebauthn/server": "14.0.3",
+    "esbuild": "0.28.2",
     "jose": "6.2.12",
-    "web-push": "3.6.7"
+    "web-push": "3.6.7",
+    "zod": "4.6.7"
   }
 }

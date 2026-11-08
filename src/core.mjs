@@ -25,6 +25,7 @@ import { handlePasskeys } from './passkeys.mjs';
 import { publicCatalog } from './public-catalog.mjs';
 import { handleReminders } from './reminders.mjs';
 import { handleNotifications } from './notifications.mjs';
+import { assistantRoute, handleAssistant } from './assistant-http.mjs';
 export { passwordHash, sha } from './auth.mjs';
 async function handleApi(request, env, context = {}) {
   try {
@@ -107,6 +108,7 @@ function allowedOrigins(env, url) {
   return origins;
 }
 export async function handle(request, env, context = {}) {
+  if (assistantRoute(new URL(request.url).pathname)) return handleAssistant(request, env, context);
   const url = new URL(request.url),
     origin = request.headers.get('origin'),
     allowed = allowedOrigins(env, url);

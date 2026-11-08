@@ -6,6 +6,9 @@ test('Pages build supports repository subpaths and publishes no server code or c
   await buildPages({output,apiBase:'https://taiwan-api.example.com',customDomain:'taiwan.example.com'});
   const html=await readFile(join(output,'index.html'),'utf8'),config=await readFile(join(output,'config.js'),'utf8');
   const version=html.match(/app\.js\?v=([a-f0-9]{12})/)[1];
+  const assistant=await readFile(join(output,'assistant.html'),'utf8');
+  assert.ok(assistant.includes('src="./assistant.js?v='+version+'"'));assert.ok(assistant.includes('href="./assistant.css?v='+version+'"'));
+  assert.ok(assistant.includes('name="referrer" content="no-referrer"'));assert.ok(assistant.includes("connect-src 'self' https://taiwan-api.example.com"));
   for(const file of ['ui-tokens.css','ui.css'])assert.ok(html.includes('href="./'+file+'?v='+version+'"'));
   assert.ok(html.includes('src="./config.js?v='+version+'"'));assert.ok(html.includes('src="./app.js?v='+version+'"'));assert.ok(html.includes('href="./style.css?v='+version+'"'));assert.ok(html.includes("connect-src 'self' https://taiwan-api.example.com"));assert.ok(!html.includes('frame-ancestors'));
   for(const match of html.matchAll(/(?:src|href)="(\.\/[^"#]*)"/g)){const file=match[1].slice(2).split('?')[0];if(file)await readFile(join(output,file))}

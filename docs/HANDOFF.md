@@ -6,6 +6,8 @@
 
 ## Текущее состояние
 
+- Плагин ChatGPT реализован локально в `codex/chatgpt-plugin`, выключен по умолчанию; production не изменён. [Спецификация](../specs/2026-11-08-chatgpt-plugin.md), [устройство и подключение](CHATGPT_PLUGIN.md). Следующий этап после разрешения на выпуск — backup/миграция на VPS, Pages, личный OAuth callback и проверка из настоящего ChatGPT. Telegram не входит в этап.
+
 - Аудит и рефакторинг опубликованы через [PR #43](https://github.com/idanpon/taiwan-map/pull/43), backend обновлён отдельно после проверенного SQLite backup. Данные сохранены; итог и ограничения — [AUDIT_REFACTOR.md](AUDIT_REFACTOR.md).
 - GitHub Pages исправлен в [PR #44](https://github.com/idanpon/taiwan-map/pull/44). Новый [выпуск 42283689723](https://github.com/idanpon/taiwan-map/actions/runs/42283689723) прошёл с первой попытки: 165 тестов, сборка, deploy и сверка публичной ревизии/файлов. Это результат конкретного выпуска, не гарантия для будущего кода.
 - Реализованы публичная карта, аккаунты/Telegram/passkeys, общий календарь, личные Web Push и общий план поясов. Они описаны в модульных документах; прежние планы «ещё не реализовано» неактуальны.
@@ -25,6 +27,7 @@
 | Требования и план нового изменения | [specs/README.md](../specs/README.md), [шаблон](../specs/_template.md) |
 | Публичный доступ, сессии, автозаполнение, passkeys | [PUBLIC_ACCESS_PASSKEYS.md](PUBLIC_ACCESS_PASSKEYS.md) |
 | Учётные записи, роли и Telegram | [ACCOUNTS.md](ACCOUNTS.md) |
+| Наполнение из ChatGPT, личные предложения, OAuth и MCP | [CHATGPT_PLUGIN.md](CHATGPT_PLUGIN.md) |
 | MapLibre, темы, fallback, камера и мобильные жесты | [MAP_THEMES.md](MAP_THEMES.md) |
 | Дизайн-система, токены, компоненты и границы миграции | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) |
 | Категории, дополнительные ярлыки и справка | [CATEGORIES_HELP.md](CATEGORIES_HELP.md) |

@@ -13,6 +13,8 @@ for(const authMode of ['cookie','bearer'])test(`Node HTTP adapter accepts ${auth
   assert.match(html,/href="\/preview-assets\/style\.css"/);
   const calendar=await(await fetch(origin+'/planning.html')).text();
   assert.match(calendar,/type="module" src="\/preview-assets\/planning\.js"/);
+  const assistant=await(await fetch(origin+'/assistant.html')).text();assert.match(assistant,/src="\/preview-assets\/assistant\.js"/);
+  assert.equal((await fetch(origin+'/.well-known/oauth-authorization-server')).status,404);
   for(const path of ['/preview-assets/app.js','/preview-assets/statuses.js','/preview-assets/style.css']){
    const asset=await fetch(origin+path);
    assert.equal(asset.status,200);

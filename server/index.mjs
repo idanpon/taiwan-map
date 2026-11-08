@@ -4,6 +4,8 @@ import {resolve,dirname,extname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {handle,apiErrorResponse} from '../src/core.mjs';
 import {planningPage} from '../src/planning-ui.mjs';
+import {assistantPage} from '../src/assistant-ui.mjs';
+import {assistantRoute} from '../src/assistant-http.mjs';
 import {page,securityHeaders} from '../src/ui.mjs';
 import {appIcon} from '../scripts/generate-icons.mjs';
 import {openDatabase,migrate} from './database.mjs';
@@ -31,14 +33,15 @@ if(!['cookie','bearer'].includes(authMode))throw new Error('AUTH_MODE must be co
 const automaticBackups=process.env.AUTO_BACKUPS!=='0';
 const PUSH=pushTransport(process.env,frontend?.origin,origin.origin);
 const env={DB,PUSH,APP_PASSWORD_HASH:process.env.APP_PASSWORD_HASH,APP_ORIGIN:origin.origin,FRONTEND_ORIGIN:frontend?.origin,SESSION_COOKIE_PATH:cookiePath,AUTH_MODE:authMode,TELEGRAM_CLIENT_ID:process.env.TELEGRAM_CLIENT_ID};
+for(const key of ['ASSISTANT_ENABLED','ASSISTANT_CLIENT_ID','ASSISTANT_REDIRECT_URIS','ASSISTANT_USER_IDS','ASSISTANT_UI_URL'])env[key]=process.env[key];
 const scheduler=PUSH&&createPushScheduler(DB,PUSH.send,{onError:error=>console.error('Push queue failed',error.name)});
 const mime={'.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.txt':'text/plain; charset=utf-8','.webmanifest':'application/manifest+json'};
 const generatedIcons=new Map();
 const server=http.createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,origin);let response;
-  if(url.pathname.startsWith('/api/')){
-   const maxBytes=url.pathname.startsWith('/api/auth/passkeys')?65536:url.pathname.startsWith('/api/planning')||url.pathname==='/api/places/hidden/delete-all'?131072:/^\/api\/places\/[a-zA-Z0-9-]+\/state$/.test(url.pathname)?32768:8192;
+  if(url.pathname.startsWith('/api/')||assistantRoute(url.pathname)){
+   const maxBytes=['/api/assistant/mcp','/api/assistant/tool'].includes(url.pathname)?131072:url.pathname.startsWith('/api/auth/passkeys')?65536:url.pathname.startsWith('/api/planning')||url.pathname==='/api/places/hidden/delete-all'?131072:/^\/api\/places\/[a-zA-Z0-9-]+\/state$/.test(url.pathname)?32768:8192;
    let size=0,chunks=[];
    for await(const chunk of req){
     size+=chunk.length;
@@ -57,6 +60,7 @@ const server=http.createServer(async(req,res)=>{
   }else if(req.method!=='GET'&&req.method!=='HEAD'){response=new Response('Method not allowed',{status:405})}
   else if(url.pathname==='/'){response=renderPage(page)}
   else if(url.pathname==='/planning.html'){response=renderPage(planningPage)}
+  else if(url.pathname==='/assistant.html'){response=renderPage(assistantPage)}
   else if(/^\/icon-(192|512)\.png$/.test(url.pathname)){
    const size=Number(url.pathname.match(/\d+/)[0]);if(!generatedIcons.has(size))generatedIcons.set(size,appIcon(size));
    response=new Response(generatedIcons.get(size),{headers:{'Content-Type':mime['.png'],'Cache-Control':'public, max-age=86400'}});

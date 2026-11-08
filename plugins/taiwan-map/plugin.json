@@ -1,0 +1,18 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "taiwan-map",
+  "version": "0.1.0",
+  "description": "Карта и план поездки: личные предложения, проверка связей и сохранение после подтверждения.",
+  "homepage": "https://idanpon.github.io/taiwan-map/",
+  "repository": "https://github.com/idanpon/taiwan-map",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Taiwan Map",
+        "shortDescription": "Места и план поездки с подтверждением изменений",
+        "capabilities": ["Read", "Write"],
+        "defaultPrompt": ["Предложи, как добавить это место в нашу карту и связать с планом поездки."]
+      }
+    }
+  }
+}
