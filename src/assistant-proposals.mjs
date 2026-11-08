@@ -1,0 +1,120 @@
+import { createHash, randomBytes } from 'node:crypto';
+import { TRIP, fail } from './auth.mjs';
+import { all, one, run, transaction } from './sqlite.mjs';
+import { planningData } from './planning-store.mjs';
+import { applyOperations, assertActor, readPlaces } from './assistant-changes.mjs';
+import { proposalSchema, parse } from './assistant-schema.mjs';
+
+const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const event=(db,user,id,action,payload)=>run(db,'INSERT INTO assistant_events VALUES(?,?,?,?,?,?)',crypto.randomUUID(),id,user.id,action,JSON.stringify(payload),Date.now());
+function snapshot(db){
+  return {places:readPlaces(db),planning:planningData(db),categories:all(db,'SELECT * FROM categories ORDER BY id'),statuses:all(db,'SELECT id,label,color,symbol,dimmed,version,archived FROM statuses WHERE trip_id=? ORDER BY id',TRIP)};
+}
+export function assistantContext(db,user){
+  const actor=assertActor(db,user),data=snapshot(db);
+  return {actor,trip:data.planning.trip,categories:data.categories,statuses:data.statuses,places:data.places,planning:data.planning,snapshot_hash:hash(data)};
+}
+function owned(db,user,id){
+  assertActor(db,user);
+  const p=one(db,'SELECT * FROM assistant_proposals WHERE id=? AND author_id=? AND trip_id=?',id,user.id,TRIP);
+  if(!p)fail(404,'Предложение не найдено.');
+  return p;
+}
+function present(p){return {id:p.id,title:p.title,version:p.version,status:p.status,author_id:p.author_id,...JSON.parse(p.payload),preview:p.preview?JSON.parse(p.preview):null,result:p.result?JSON.parse(p.result):null,created_at:p.created_at,updated_at:p.updated_at};}
+export function readProposal(db,user,id){return present(owned(db,user,id));}
+export function listProposals(db,user){
+  assertActor(db,user);
+  return {proposals:all(db,'SELECT id,title,version,status,created_at,updated_at FROM assistant_proposals WHERE author_id=? AND trip_id=? ORDER BY updated_at DESC LIMIT 100',user.id,TRIP)};
+}
+export function saveProposal(db,user,input){
+  assertActor(db,user,true);const value=parse(proposalSchema,input);
+  if(Buffer.byteLength(JSON.stringify(value))>120000)fail(413,'Пакет слишком большой. Разделите его на независимые предложения.');
+  const keys=value.operations.map(o=>o.key);
+  if(new Set(keys).size!==keys.length)fail(400,'Ключи операций должны быть уникальны.');
+  return transaction(db,()=>{
+    const existing=one(db,'SELECT * FROM assistant_proposals WHERE id=?',value.id);
+    if(existing&&existing.author_id!==user.id)fail(404,'Предложение не найдено.');
+    const old=existing?JSON.parse(existing.payload):null;
+    // Compare the unexpanded input as well: retry after a lost save response
+    // must not allocate new IDs or advance a revision.
+    const inputValue={title:value.title,operations:value.operations,uncertainties:value.uncertainties};
+    if(existing&&JSON.stringify(old.input)===JSON.stringify(inputValue))return present(existing);
+    if(existing){
+      if(['applied','cancelled'].includes(existing.status))fail(409,'Предложение уже завершено. Создайте новое.');
+      if(value.version!==existing.version)fail(409,'Черновик изменён в другом чате. Прочитайте его снова.');
+    }else{
+      if(value.version!==undefined)fail(404,'Исходный черновик не найден.');
+      if(one(db,"SELECT COUNT(*) n FROM assistant_proposals WHERE author_id=? AND status IN ('draft','ready')",user.id).n>=100)fail(400,'Сначала завершите или отмените старые черновики (лимит 100).');
+    }
+    const ids={};for(const op of value.operations)if(op.kind.endsWith('.create'))ids[op.key]=old?.ids[op.key]||crypto.randomUUID();
+    const operations=structuredClone(value.operations);
+    for(const op of operations)if(op.data?.options)op.data.options=op.data.options.map((o,index)=>({...o,id:o.id||old?.operations.find(p=>p.key===op.key)?.data?.options?.[index]?.id||crypto.randomUUID()}));
+    const payload={operations,uncertainties:value.uncertainties,ids,input:inputValue},now=Date.now();
+    if(existing)run(db,"UPDATE assistant_proposals SET title=?,version=version+1,status='draft',payload=?,preview=NULL,snapshot_hash=NULL,confirmation_token=NULL,updated_at=? WHERE id=?",value.title,JSON.stringify(payload),now,value.id);
+    else run(db,'INSERT INTO assistant_proposals(id,trip_id,author_id,title,payload,created_at,updated_at) VALUES(?,?,?,?,?,?,?)',value.id,TRIP,user.id,value.title,JSON.stringify(payload),now,now);
+    event(db,user,value.id,'save',{version:(existing?.version||0)+1});
+    return readProposal(db,user,value.id);
+  });
+}
+const omit=new Set(['id','trip_id','created_by','updated_by','created_at','updated_at','completed_at','version','state_version','catalog_version','tags_version','visibility_version']);
+function display(value){
+  const out=Object.fromEntries(Object.entries(value).filter(([k])=>!omit.has(k)));
+  if(out.places)out.places=out.places.map(l=>Object.fromEntries(Object.entries(l).filter(([k])=>!['id','item_id','current_name','hidden'].includes(k))));
+  if(out.options)out.options=out.options.map(({item_id,...o})=>o);
+  return out;
+}
+function difference(before,after){
+  const changes=[];
+  for(const [entity,a,b] of [['place',before.places,after.places],['plan',before.planning.items,after.planning.items]]){
+    const previous=new Map(a.map(p=>[p.id,p]));
+    for(const row of b){const old=previous.get(row.id),left=old?display(old):null,right=display(row);const fields=Object.keys(right).filter(k=>JSON.stringify(left?.[k])!==JSON.stringify(right[k]));
+      if(!old||fields.length)changes.push({entity,id:row.id,name:row.name||row.title,action:old?'update':'create',fields,before:left,after:right});
+    }
+  }
+  return changes;
+}
+export function previewProposal(db,user,id,version){
+  assertActor(db,user,true);
+  return transaction(db,()=>{
+    const p=owned(db,user,id);if(p.version!==version)fail(409,'Ревизия предложения изменилась.');
+    if(['applied','cancelled'].includes(p.status))fail(409,'Предложение уже завершено.');
+    const before=snapshot(db),fingerprint=hash(before);
+    if(p.status==='ready'&&p.snapshot_hash===fingerprint)return present(p);
+    const payload=JSON.parse(p.payload),rollback={};let after,warnings;
+    // Use the actual write path against a savepoint. Every write, including
+    // reminder refresh and audit events, is rolled back before returning UI.
+    try{transaction(db,()=>{warnings=applyOperations(db,user,payload);after=snapshot(db);throw rollback;});}
+    catch(error){if(error!==rollback)throw error;}
+    const confirmation_token=randomBytes(24).toString('hex');
+    const labels=Object.fromEntries([...after.places,...after.planning.items,...after.categories,...after.statuses,...after.planning.users,...after.planning.items.flatMap(i=>i.options||[])].map(v=>[v.id,v.name||v.title||v.label||v.display_name||v.id]));
+    const preview={proposal_id:id,version,confirmation_token,changes:difference(before,after),labels,warnings,uncertainties:payload.uncertainties,reasons:payload.operations.map(o=>({key:o.key,reason:o.reason})),visibility:'Места публичны, если не скрыты. План и заметки доступны участникам.',prepared_at:Date.now()};
+    run(db,"UPDATE assistant_proposals SET status='ready',preview=?,snapshot_hash=?,confirmation_token=?,updated_at=? WHERE id=?",JSON.stringify(preview),fingerprint,confirmation_token,Date.now(),id);
+    return readProposal(db,user,id);
+  });
+}
+export function applyProposal(db,user,input){
+  assertActor(db,user,true);
+  return transaction(db,()=>{
+    const p=owned(db,user,input.id);
+    if(input.version!==p.version||!input.confirmation_token||input.confirmation_token!==p.confirmation_token)fail(409,'Подтверждение относится к другому предпросмотру.');
+    if(!['chat','button'].includes(input.confirmed_via))fail(400,'Подтвердите конкретный предпросмотр.');
+    if(p.status==='applied')return JSON.parse(p.result);
+    if(p.status!=='ready')fail(409,'Сначала обновите предпросмотр.');
+    if(hash(snapshot(db))!==p.snapshot_hash)fail(409,'Данные поездки изменились. Обновите предпросмотр и подтвердите актуальные изменения.');
+    const payload=JSON.parse(p.payload),before=snapshot(db),warnings=applyOperations(db,user,payload);
+    const changes=difference(before,snapshot(db));
+    const result={operation_id:idOf(p),status:'applied',proposal_id:p.id,title:p.title,version:p.version,applied_at:Date.now(),actor_id:user.id,changes,warnings,ids:payload.ids,labels:JSON.parse(p.preview).labels};
+    run(db,"UPDATE assistant_proposals SET status='applied',result=?,updated_at=? WHERE id=?",JSON.stringify(result),Date.now(),p.id);
+    event(db,user,p.id,'apply',{confirmed_via:input.confirmed_via,...result});
+    return result;
+  });
+}
+const idOf=p=>`${p.id}:${p.version}`;
+export function keepDraft(db,user,id,version){
+  assertActor(db,user,true);
+  return transaction(db,()=>{const p=owned(db,user,id);if(p.version!==version||['applied','cancelled'].includes(p.status))fail(409,'Предложение изменено или завершено.');run(db,"UPDATE assistant_proposals SET status='draft',confirmation_token=NULL,preview=NULL,updated_at=? WHERE id=?",Date.now(),id);return readProposal(db,user,id);});
+}
+export function cancelProposal(db,user,id,version){
+  assertActor(db,user,true);
+  return transaction(db,()=>{const p=owned(db,user,id);if(p.version!==version||p.status==='applied')fail(409,'Предложение изменено или уже применено.');run(db,"UPDATE assistant_proposals SET status='cancelled',confirmation_token=NULL,preview=NULL,updated_at=? WHERE id=?",Date.now(),id);return readProposal(db,user,id);});
+}

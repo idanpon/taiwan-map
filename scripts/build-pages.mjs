@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { planningPage } from '../src/planning-ui.mjs';
+import { assistantPage } from '../src/assistant-ui.mjs';
 import { appIcon } from './generate-icons.mjs';
 import { page, securityHeaders } from '../src/ui.mjs';
 import { assertBuildOutput } from './build-output.mjs';
@@ -74,6 +75,7 @@ export async function buildPages({
         .update(passkeyBundle)
         .update(page)
         .update(planningPage)
+        .update(assistantPage)
         .update(JSON.stringify(manifest))
         .update(JSON.stringify({ apiBase, authMode, customDomain })),
     )
@@ -108,6 +110,10 @@ export async function buildPages({
       `<meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="referrer" content="strict-origin-when-cross-origin"><meta name="theme-color"`,
     );
   await writeFile(resolve(output, 'planning.html'), plannerHtml);
+  await writeFile(resolve(output, 'assistant.html'), assistantPage
+    .replace(/(href|src)="\/(?!api\/)/g, '$1="./')
+    .replace(/((?:href|src)="\.\/[a-z-]+\.(?:js|css))"/g, `$1?v=${version}"`)
+    .replace('<meta name="theme-color"', `<meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="theme-color"`));
   for (const [name, source] of Object.entries(assets))
     if (name.endsWith('.js')) {
       const versioned = source.replace(
