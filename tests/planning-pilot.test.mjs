@@ -2,9 +2,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {calendarDays,listDayGroups,planItemMove,recordCount} from '../public/planning-pilot-model.js';
 import {renderPlanningPilot} from '../public/planning-pilot-view.js';
+import {sortItems} from '../public/planning-model.js';
 import {emptyZonePlan,localPoint} from '../public/trip-timezones.js';
 
 const item=(extra={})=>({id:'record',kind:'task',title:'Запись',state:'open',priority:'normal',sort_order:0,places:[],date_start:'2026-12-29',date_end:null,starts_at:null,ends_at:null,event_timezone:'Europe/Moscow',...extra});
+test('day ordering uses priority after manual order and time, before title',()=>{
+ const starts_at='2026-12-29T10:00:00Z';
+ const rows=[
+  item({id:'low',starts_at,priority:'low',title:'Альфа'}),
+  item({id:'normal',starts_at,title:'Якорь'}),
+  item({id:'high',starts_at,priority:'high',title:'Билет'}),
+  item({id:'manual',sort_order:-1,starts_at,priority:'low'}),
+  item({id:'critical',starts_at,priority:'critical',title:'Яхта'}),
+  item({id:'earlier',starts_at:'2026-12-29T08:00:00Z',priority:'low'}),
+  item({id:'untimed',priority:'low'}),
+  item({id:'legacy',starts_at,priority:undefined,title:'Музей'})
+ ];
+ assert.deepEqual(sortItems(rows).map(row=>row.id),[
+  'manual','untimed','earlier','critical','high','legacy','normal','low'
+ ]);
+});
 test('today deadline warns only active tasks and decisions, not visits or closed records',()=>{
  const options={view:'list',plan:{users:[],trip:{start_date:'2026-12-29',end_date:'2027-01-09'}},zone:emptyZonePlan,focusDay:'2026-12-29',today:'2026-12-29',now:new Date('2026-12-29T09:00:00Z'),allowed:true};
  const render=extra=>renderPlanningPilot({...options,items:[item(extra)]});

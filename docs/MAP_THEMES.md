@@ -11,12 +11,17 @@ bridge, CDN script, runtime `latest`, extra API or tile server.
 `public/map-config.js` contains the Bright/Fiord URLs, same-origin worker path,
 OSM reserve URL and failure thresholds. Provider styles are used unchanged.
 MapLibre reads attribution from the providers' source metadata, with the
-attribution control kept expanded in both layouts. The credits sit at the
-bottom left. On compact screens they clear the bottom safe area and move above
-an open place sheet. The optional OpenFreeMap label is omitted in the compact
-layout, while the OpenMapTiles and OpenStreetMap links stay visible. The reserve style is
-local and has standard OSM raster tiles with their own credit.
-[OpenFreeMap attribution](https://openfreemap.org/#attribution)
+attribution control kept expanded in both layouts. The credits sit flush with
+the bottom-left safe edge of the map and use 10 px text at default scaling.
+The primary style credits OpenMapTiles and OpenStreetMap, with both links also
+available in Help under «Данные карты и лицензии». On compact screens, a place
+sheet opened by interacting with the map or list covers the primary credits in
+place. A place opened directly from a link leaves the credits visible beneath
+the sheet on initial load. The reserve style uses standard OSM raster tiles.
+Its credits always stay visible beneath the sheet at the same coordinates.
+[OpenFreeMap attribution](https://openfreemap.org/#attribution) ·
+[OSMF attribution guidelines](https://osmfoundation.org/wiki/Attribution_Guidelines#Interactive_maps) ·
+[OSM raster tile policy](https://operations.osmfoundation.org/policies/tiles/#2-attribution-and-licensing)
 
 `theme-init.js` is a small, blocking head script before all CSS. It selects a
 stored light/dark preference or the system preference and applies color-scheme
