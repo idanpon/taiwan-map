@@ -13,6 +13,10 @@ OSM reserve URL and failure thresholds. Provider styles are used unchanged.
 MapLibre reads attribution from the providers' source metadata, with the
 attribution control kept expanded in both layouts. The credits sit flush with
 the bottom-left safe edge of the map and use 10 px text at default scaling.
+Both right corners have the same radius. In portrait standalone mode, the
+label can use up to 6 px of the bottom inset, retaining at least 28 px when
+the system inset is large enough. The same offset determines the clearance
+under a place sheet when the credits need to stay visible.
 The primary style credits OpenMapTiles and OpenStreetMap, with both links also
 available in Help under «Данные карты и лицензии». On compact screens, a place
 sheet opened by interacting with the map or list covers the primary credits in
