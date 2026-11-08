@@ -111,9 +111,8 @@ function render(){
  $('planning-completed-control').hidden=!completed&&state==='active';$('planning-completed-label').textContent='Выполненные · '+completed;$('planning-completed').checked=state===''||state==='done';
  $('planning-canvas').dataset.view=view;canvas.dataset.day=focusDay;
  renderPlanningCanvas(canvas,renderPlanningPilot({view,items,plan,zone,focusDay,today,allowed:allowed(),pendingId,listLimit,hasFilters:Boolean(kind||search||state!=='active'||plan.items.length&&!items.length)}));
- $('planning-prev').hidden=$('planning-next').hidden=view==='list';layout.refresh();
- const scroller=canvas.querySelector('[data-planning-scroller]');if(scroller)scroller.scrollTop=viewScroll[view];
- window.scrollTo(0,top);
+ $('planning-prev').hidden=$('planning-next').hidden=view==='list';
+ layout.refresh({scrollTop:viewScroll[view],pageTop:top});
 }
 function placesHtml(item){return item.places.length?'<section class="planning-relations"><h3>Связанные места</h3>'+[...new Map(item.places.map(l=>[(l.place_id||l.place_name),l])).values()].map(l=>l.place_id?`<a class="planning-related-item" href="./#place=${encodeURIComponent(l.place_id)}">${esc(l.place_name)} ↗${l.hidden?'<span>Место скрыто</span>':''}</a>`:`<p>${esc(l.place_name)} <span class="muted">· Место удалено</span></p>`).join('')+'</section>':''}
 function relationRows(items){return '<ul class="planning-relation-list ui-list">'+items.map(i=>`<li><button class="planning-relation-row" data-item="${esc(i.id)}"><span class="planning-relation-name">${kindIcon(i.kind)}<span>${esc(i.title)}</span></span><span class="ui-status planning-state" data-state="${esc(i.state)}">${esc(stateLabel(i))}</span></button></li>`).join('')+'</ul>'}
@@ -238,7 +237,7 @@ async function load({signal}={}){
  if(first&&view==='list')layout.scrollListToToday();
  void accountUI?.notifications.refresh();
 }
-drag=installPlanningDrag({surface:$('planning-canvas'),document,window,enabled:()=>Boolean(allowed())&&!busy&&!document.querySelector('dialog[open]'),onDrop:moveItem,onBlocked:()=>toast(periodMoveMessage,'warning'),onError:error=>toast(error.message,'warning')});
+drag=installPlanningDrag({surface:$('planning-canvas'),document,window,enabled:()=>Boolean(allowed())&&!busy&&!document.querySelector('dialog[open]'),onDrop:moveItem,onDragEnd:layout.resetScrollTracking,onBlocked:()=>toast(periodMoveMessage,'warning'),onError:error=>toast(error.message,'warning')});
 $('planning-canvas').onclick=event=>{
  const quick=event.target.closest('[data-quick-complete]');if(quick){void completeItem(quick.dataset.quickComplete,{quick:true});return}
  const item=event.target.closest('[data-item]'),record=event.target.closest('[data-record]');if(item||record){openItem(item?.dataset.item||record.dataset.record);return}
