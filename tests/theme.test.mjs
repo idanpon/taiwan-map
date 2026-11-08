@@ -12,7 +12,7 @@ test('blocking bootstrap applies saved or system theme before page rendering, ev
  const source=await readFile('public/theme-init.js','utf8');
  for(const [saved,system,expected,blocked] of [[null,true,'dark',false],['light',true,'light',false],['bad',false,'light',false],[null,true,'dark',true]]){
   const f=fixture(saved,system,blocked);vm.runInNewContext(source,{document:f.document,window:f.window,localStorage:f.window.localStorage});
-  assert.equal(f.root.dataset.theme,expected);assert.equal(f.root.style.colorScheme,expected);assert.equal(f.meta.content,expected==='dark'?'#17212d':'#f4f5f7');
+  assert.equal(f.root.dataset.theme,expected);assert.equal(f.root.style.colorScheme,expected);assert.equal(f.meta.content,expected==='dark'?'#182128':'#f6f3ed');
  }
 });
 test('both visible theme controls stay in sync, manual choice survives system changes, and blocked storage does not break switching',()=>{

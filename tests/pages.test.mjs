@@ -6,11 +6,12 @@ test('Pages build supports repository subpaths and publishes no server code or c
   await buildPages({output,apiBase:'https://taiwan-api.example.com',customDomain:'taiwan.example.com'});
   const html=await readFile(join(output,'index.html'),'utf8'),config=await readFile(join(output,'config.js'),'utf8');
   const version=html.match(/app\.js\?v=([a-f0-9]{12})/)[1];
+  for(const file of ['ui-tokens.css','ui.css'])assert.ok(html.includes('href="./'+file+'?v='+version+'"'));
   assert.ok(html.includes('src="./config.js?v='+version+'"'));assert.ok(html.includes('src="./app.js?v='+version+'"'));assert.ok(html.includes('href="./style.css?v='+version+'"'));assert.ok(html.includes("connect-src 'self' https://taiwan-api.example.com"));assert.ok(!html.includes('frame-ancestors'));
   for(const match of html.matchAll(/(?:src|href)="(\.\/[^"#]*)"/g)){const file=match[1].slice(2).split('?')[0];if(file)await readFile(join(output,file))}
   const planner=await readFile(join(output,'planning.html'),'utf8');assert.ok(planner.includes('src="./planning.js?v='+version+'"'));assert.ok(planner.includes('href="./planning.css?v='+version+'"'));assert.ok(planner.includes('href="./"'));assert.ok(planner.includes("connect-src 'self' https://taiwan-api.example.com"));for(const name of ['planning.js','planning-model.js','planning-links.js','planning.css'])await readFile(join(output,name));
   assert.ok(config.includes('"requiresApi":true'));assert.ok(config.includes('"authMode":"bearer"'));assert.ok(html.includes('type="module" src="./app.js?v='));assert.ok((await readFile(join(output,'app.js'),'utf8')).includes("from './api-client.js?v="+version+"'"));await readFile(join(output,'api-client.js'));assert.ok(!html.includes('passwordHash'));assert.ok(!html.includes('APP_PASSWORD_HASH'));
-  const names=await readdir(output);for(const forbidden of ['src','server','drizzle','places.mjs','.env'])assert.ok(!names.includes(forbidden));assert.equal(await readFile(join(output,'CNAME'),'utf8'),'taiwan.example.com\n');
+  const names=await readdir(output);for(const forbidden of ['src','server','drizzle','places.mjs','.env','docs','ui-gallery.html'])assert.ok(!names.includes(forbidden));assert.equal(await readFile(join(output,'CNAME'),'utf8'),'taiwan.example.com\n');
   for(const name of names.filter(n=>n.endsWith('.js'))){
    const source=await readFile(join(output,name),'utf8');
    for(const match of source.matchAll(/(?:from\s*|import\s*\(\s*)['"](\.\/(?!vendor\/)[^'"]+)['"]/g)){

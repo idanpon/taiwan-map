@@ -12,11 +12,11 @@ export function enhancePasswordFields(root){
   if(input.dataset.passwordField)continue;
   input.dataset.passwordField='true';
   if(!input.id)input.id='account-password-'+(++nextId);
-  const wrap=input.ownerDocument.createElement('span');wrap.className='password-input';
+  const wrap=input.ownerDocument.createElement('span');wrap.className='password-input ui-field-group ui-field-group--soft';
   const label=input.parentElement.tagName==='LABEL'?input.parentElement:null;
   if(label){label.htmlFor=input.id;label.after(wrap)}else input.before(wrap);
   wrap.append(input);
-  const button=input.ownerDocument.createElement('button');button.type='button';button.className='password-toggle';
+  const button=input.ownerDocument.createElement('button');button.type='button';button.className='password-toggle ui-button ui-button--quiet ui-button--icon';
   button.dataset.passwordToggle='true';button.setAttribute('aria-controls',input.id);
   updateToggle(button,false);
   wrap.append(button);

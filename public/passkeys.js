@@ -12,7 +12,7 @@ export function createPasskeyUI({api,$,esc,load,toast,reauthenticate}){
  function message(error){return error.name==='NotAllowedError'||error.code==='ERROR_CEREMONY_ABORTED'?'Вход с ключом отменён. Можно повторить или использовать пароль.':error.message}
  async function refresh(){
   const result=await api('/api/auth/passkeys');
-  $('passkey-list').innerHTML=result.keys.length?result.keys.map(k=>`<div class="passkey-entry"><span>${esc(k.name)}<small>${k.last_used_at?'Последний вход: '+new Date(k.last_used_at).toLocaleDateString('ru'):'Добавлен: '+new Date(k.created_at).toLocaleDateString('ru')}</small></span><button class="text-button" type="button" data-remove-passkey="${esc(k.id)}">Удалить</button></div>`).join(''):'<p class="muted">Ключи пока не добавлены.</p>';
+  $('passkey-list').innerHTML=result.keys.length?result.keys.map(k=>`<div class="passkey-entry"><span>${esc(k.name)}<small>${k.last_used_at?'Последний вход: '+new Date(k.last_used_at).toLocaleDateString('ru'):'Добавлен: '+new Date(k.created_at).toLocaleDateString('ru')}</small></span><button class="ui-button ui-button--quiet ui-button--compact" type="button" data-remove-passkey="${esc(k.id)}">Удалить</button></div>`).join(''):'<p class="muted">Ключи пока не добавлены.</p>';
  }
  $('passkey-login').onclick=async()=>{
   if(active||!enabled)return;active=true;$('passkey-login').disabled=true;$('login-error').textContent='';

@@ -5,7 +5,7 @@ export { planningData, guardPlanningStatus, unresolvedForPlace } from './plannin
 import { TRIP, SHARED_USER, body, fail, json, Problem } from './auth.mjs';
 import { validDate } from '../public/planning-model.js';
 import { all, one, run, transaction } from './sqlite.mjs';
-import { refreshItemReminders } from './reminders.mjs';
+import { refreshItemReminders, readZonePlan } from './reminders.mjs';
 const editable = (u) => ['owner', 'admin', 'editor'].includes(u.role);
 const conflict = (message, details = {}) => {
   const error = new Problem(409, message);
@@ -210,6 +210,9 @@ export function applyPlanningChange(db, user, { path, method, body: b, creationI
       run(db, 'DELETE FROM planning_items WHERE id=?', old.id);
       return json({ ok: true });
     }
+    // New date editors opt into a plan revision check; older clients stay compatible.
+    if (Object.hasOwn(b, 'timezone_revision') && b.timezone_revision !== readZonePlan(db).revision)
+      conflict('План часовых поясов изменился. Обновите данные и проверьте дату ещё раз.', { code: 'timezone_changed' });
     if (
       creating &&
       one(db, 'SELECT COUNT(*) n FROM planning_items WHERE trip_id=?', TRIP).n >= 1000

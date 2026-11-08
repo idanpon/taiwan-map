@@ -26,7 +26,7 @@ function choiceGroup({id,title,check,before},esc){
  <fieldset><legend>Когда отправить напоминание?</legend>${previous?'<p class="muted">Сдвиг — относительно сохранённого момента отправки.</p>':''}
  ${preset('before','До перехода',check.before)}
  ${preset('after','После перехода',check.after)}
- <div class="time-choice time-choice-custom"><label><input name="pick-${esc(id)}" type="radio" value="custom"><span><strong>Своё время</strong><small>Указать другое время отправки</small></span></label><div data-time-custom hidden><div class="time-field-grid"><label>Время<input type="time" data-custom-time step="60"></label><label>Часовой пояс<select data-custom-zone aria-label="Пояс своего времени"></select></label></div><p class="time-delta" data-custom-message aria-live="polite"></p></div></div>
+ <div class="time-choice time-choice-custom"><label><input name="pick-${esc(id)}" type="radio" value="custom"><span><strong>Своё время</strong><small>Указать другое время отправки</small></span></label><div data-time-custom hidden><div class="time-field-grid"><label>Время<input class="ui-field ui-field--soft" type="time" data-custom-time step="60"></label><label>Часовой пояс<select class="ui-field ui-field--soft" data-custom-zone aria-label="Пояс своего времени"></select></label></div><p class="time-delta" data-custom-message aria-live="polite"></p></div></div>
  <label class="time-choice time-choice-off"><input name="pick-${esc(id)}" type="radio" value="off"><span><strong>Не отправлять</strong><small>Напоминание этого события будет выключено</small></span>${bellOff}</label></fieldset></section>`;
 }
 export function createTimeReview({dialog,content,title,error,esc,setBusy,setDirty}){
@@ -39,8 +39,8 @@ export function createTimeReview({dialog,content,title,error,esc,setBusy,setDirt
    ${ambiguous.map(row=>choiceGroup(row,esc)).join('')}
    ${simple.length?`<section class="time-review-shifts"><h3>Сдвиги моих напоминаний</h3>${simple.map(row=>`<p><strong>${esc(row.title)}</strong><br><span class="muted">${esc(pointText(row.before))} → ${esc(row.willSkip?'время уже прошло; уточните напоминание':pointText(row.next))}</span></p>`).join('')}</section>`:''}
    ${others?.shifted||others?.frozen?`<div class="time-review-warning">${clockAlert}<p><strong>Напоминания других участников</strong><br>${others.shifted?'Пересчитаются: '+others.shifted+'. ':''}${others.frozen?'Сохранят прежний момент отправки: '+others.frozen+'. Владельцы увидят пометку «Уточните время».':''}</p></div>`:''}
-   ${caption?`<p class="muted">${esc(caption)}</p>`:''}<p class="time-review-error" role="alert"></p>
-   <div class="time-review-footer"><button class="text-button" type="button" data-review-back>Назад</button><button class="primary" type="submit" data-review-save>Сохранить изменения</button></div></form>`;
+   ${caption?`<p class="muted">${esc(caption)}</p>`:''}<p class="ui-error time-review-error" role="alert"></p>
+   <div class="time-review-footer"><button class="ui-button" type="button" data-review-back>Назад</button><button class="ui-button ui-button--primary" type="submit" data-review-save>Сохранить изменения</button></div></form>`;
   const form=content.querySelector('form'),submit=form.querySelector('[data-review-save]');
   const groups=[...form.querySelectorAll('[data-review-id]')];
   function collect(){
@@ -84,17 +84,17 @@ export function createTimeReview({dialog,content,title,error,esc,setBusy,setDirt
  return {show};
 }
 
-const dayInput=(name,value,esc)=>`<span class="date-wrap"><input name="${name}" type="date" value="${esc(value||'')}"></span>`;
+const dayInput=(name,value,esc)=>`<span class="date-wrap ui-field-group ui-field-group--soft"><input name="${name}" type="date" value="${esc(value||'')}"></span>`;
 export function itemDateEditor(item,plan,esc){
  const start=item.starts_at?localPoint(item.starts_at,plan):null,end=item.ends_at?localPoint(item.ends_at,plan):null;
  const first=start?.day||item.date_start||item.date_end||'',last=end?.day||item.date_end||'';
  const mode=(end&&start||item.date_start&&item.date_end&&item.date_start!==item.date_end)?'period':first?'day':'none';
- const html=`<fieldset class="planning-item-dates"><legend>Дата или период</legend>
- <label>Когда<select name="date_mode" aria-label="Когда"><option value="none" ${mode==='none'?'selected':''}>Без даты</option><option value="day" ${mode==='day'?'selected':''}>Один день или дедлайн</option><option value="period" ${mode==='period'?'selected':''}>Период</option></select></label>
+ const html=`<fieldset class="planning-item-dates ui-fieldset"><legend>Дата или период</legend>
+ <label>Когда<select class="ui-field ui-field--soft" name="date_mode" aria-label="Когда"><option value="none" ${mode==='none'?'selected':''}>Без даты</option><option value="day" ${mode==='day'?'selected':''}>Один день или дедлайн</option><option value="period" ${mode==='period'?'selected':''}>Период</option></select></label>
  <div data-dated-fields><div class="form-columns"><label><span data-start-label>Дата</span>${dayInput('date_start',first,esc)}</label><label data-period-field>Окончание${dayInput('date_end',last,esc)}</label></div>
  <label class="inline-check"><input type="checkbox" name="exact_time" ${start||end?'checked':''}> Указать точное время</label>
- <div class="form-columns" data-exact-fields><div><label><span data-time-label>Время</span><input name="start_time" type="time" value="${esc(start?.time||end?.time||'')}"></label><div data-clock-info="start"></div></div>
- <div data-period-field><label>Время окончания<input name="end_time" type="time" value="${esc(end?.time||'')}"></label><div data-clock-info="end"></div></div></div>
+ <div class="form-columns" data-exact-fields><div><label><span data-time-label>Время</span><input class="ui-field ui-field--soft" name="start_time" type="time" value="${esc(start?.time||end?.time||'')}"></label><div data-clock-info="start"></div></div>
+ <div data-period-field><label>Время окончания<input class="ui-field ui-field--soft" name="end_time" type="time" value="${esc(end?.time||'')}"></label><div data-clock-info="end"></div></div></div>
  <p class="muted">Время местное, по плану поездки. Для периода нужны обе даты, а при точном времени — и оба времени.</p></div>
  <label class="inline-check"><input name="fixed_external" type="checkbox" ${item.fixed_external?'checked':''}> Фиксированная внешняя дата / время</label></fieldset>`;
  const selected={start:null,end:null};
@@ -119,7 +119,7 @@ export function itemDateEditor(item,plan,esc){
      selected[side]=localPoint(matches[0],plan);selected[side].iso=old?.at===matches[0]?original:new Date(matches[0]).toISOString();
      box.innerHTML=zoneBadge(selected[side],esc,'planning-form-zone-help');
     }else if(matches.length>1){
-     const select=document.createElement('select');select.setAttribute('aria-label',side==='start'?'Пояс времени начала':'Пояс времени окончания');
+     const select=document.createElement('select');select.className='ui-field ui-field--soft';select.setAttribute('aria-label',side==='start'?'Пояс времени начала':'Пояс времени окончания');
      select.add(new Option('Время встречается дважды: выберите пояс',''));
      for(const at of matches)select.add(new Option(localPoint(at,plan).badge,String(at)));
      if(matches.map(String).includes(picked))select.value=picked;
@@ -180,16 +180,16 @@ export function editTripTime({trip,plan,esc,showDialog,dialog,setBusy,setDirty,e
  <label>Вылет${dayInput('departure_date',trip.departure_date,esc)}</label><div class="form-columns"><label>Начало пребывания${dayInput('start_date',trip.start_date,esc)}</label><label>Окончание${dayInput('end_date',trip.end_date,esc)}</label></div>
  <section class="trip-zone-editor"><h3>Часовые пояса поездки</h3><p class="muted">Выберите новый пояс и укажите дату и время смены по его местным часам. В этот момент календарь переключится на новый пояс. Смену можно запланировать, например, за час до посадки.</p>
  <div class="trip-zone-initial"><strong>Москва</strong><span class="timezone-badge">Europe/Moscow · UTC+3</span></div><div data-zone-changes></div>
- <button type="button" class="text-button" data-zone-change-add>＋ Добавить смену пояса</button></section>
- <p class="muted">Даты задач и маршрута не переносятся автоматически. Связанные переносы можно обсудить в чате.</p><button class="primary" type="submit">Продолжить</button></form>`);
+ <button type="button" class="ui-button ui-button--quiet ui-button--compact" data-zone-change-add>＋ Добавить смену пояса</button></section>
+ <p class="muted">Даты задач и маршрута не переносятся автоматически. Связанные переносы можно обсудить в чате.</p><button class="ui-button ui-button--primary" type="submit">Продолжить</button></form>`);
  const form=dialog.querySelector('#planning-trip-form'),zoneChanges=form.querySelector('[data-zone-changes]');
  function append(change){
   const row=document.createElement('fieldset'),p=change?localPoint(change.at,{changes:[change]}):null;
-  row.className='trip-zone-change';
+  row.className='trip-zone-change ui-fieldset';
   row.innerHTML=`<legend>Смена часового пояса</legend>
-   <div class="form-columns trip-zone-details"><label>Новый часовой пояс<select name="zone" required>${optionsHtml}</select></label><label>Регион (необязательно)<input name="region" value="${esc(p?.region||'')}" maxlength="60" placeholder="Тайвань"></label></div>
-   <div class="form-columns"><label>Дата смены${dayInput('day',p?.day||trip.start_date,esc)}</label><label>Время смены<input type="time" name="time" value="${esc(p?.time||'')}" required></label></div>
-   <div data-zone-offset></div><button type="button" class="text-button" data-zone-change-remove>Убрать смену пояса</button>`;
+   <div class="form-columns trip-zone-details"><label>Новый часовой пояс<select class="ui-field ui-field--soft" name="zone" required>${optionsHtml}</select></label><label>Регион (необязательно)<input class="ui-field ui-field--soft" name="region" value="${esc(p?.region||'')}" maxlength="60" placeholder="Тайвань"></label></div>
+   <div class="form-columns"><label>Дата смены${dayInput('day',p?.day||trip.start_date,esc)}</label><label>Время смены<input class="ui-field ui-field--soft" type="time" name="time" value="${esc(p?.time||'')}" required></label></div>
+   <div data-zone-offset></div><button type="button" class="ui-button ui-button--quiet ui-button--compact" data-zone-change-remove>Убрать смену пояса</button>`;
   const {day,time,zone}=row.elements;
   day.required=true;
   zone.value=p?.zone||'';
@@ -203,7 +203,7 @@ export function editTripTime({trip,plan,esc,showDialog,dialog,setBusy,setDirty,e
    if(options.length===1){offset.textContent=offsetLabel(localPoint(options[0],{changes:[{at:options[0],zone:zone.value,region:''}]}).offset);return}
    const label=document.createElement('label'),select=document.createElement('select');
    label.textContent='Время встречается дважды. Уточните смещение UTC';
-   select.name='at';select.required=true;select.add(new Option('Выберите смещение',''));
+   select.className='ui-field ui-field--soft';select.name='at';select.required=true;select.add(new Option('Выберите смещение',''));
    for(const at of options)select.add(new Option(offsetLabel(localPoint(at,{changes:[{at,zone:zone.value,region:''}]}).offset),String(at)));
    if(options.map(String).includes(String(old)))select.value=String(old);
    label.append(select);offset.append(label);

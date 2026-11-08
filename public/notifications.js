@@ -85,13 +85,13 @@ export function createNotificationUI({api,esc,getUser,toast,root,onChange=()=>{}
  function render(){
   if(!owner||!root.open)return;
   const s=status();
-  body.innerHTML=`<p class="muted">${esc(s.detail)}</p>${s.canConnect?'<button class="primary" type="button" data-push-action="connect">Подключить это устройство</button>':''}
+  body.innerHTML=`<p class="muted">${esc(s.detail)}</p>${s.canConnect?'<button class="ui-button ui-button--primary" type="button" data-push-action="connect">Подключить это устройство</button>':''}
    ${settings?`<label class="checkbox-label notification-pause"><input data-push-pause type="checkbox" ${s.paused?'checked':''}> Приостановить пуши на всех моих устройствах</label>
    <p class="muted">Пауза и отключение устройства сохраняют ваши напоминания.</p>
    <h4>Мои устройства</h4>${settings.devices.length?settings.devices.map(d=>`<details class="notification-device"><summary><strong>${esc(d.name)}</strong>${d.installation_id===installation?' · это устройство':''}<small>${esc(badge(d,s))}</small></summary>
-    <form data-device="${esc(d.id)}"><label>Имя устройства<input name="name" value="${esc(d.name)}" maxlength="60" required></label><div class="notification-actions"><button class="text-button" type="submit">Сохранить имя</button>
-    ${active(d)?`<button class="text-button" type="button" data-push-action="test" ${s.paused||!s.available?'disabled':''}>Отправить тест</button><button class="text-button" type="button" data-push-action="disconnect">Отключить</button>`:''}</div>
-    ${d.last_sent?`<p class="muted">Последняя передача push-сервису: ${esc(new Date(d.last_sent).toLocaleString('ru'))}</p>`:''}</form></details>`).join(''):'<p class="muted">Подключённых устройств пока нет.</p>'}`:'<button class="text-button" type="button" data-push-action="refresh">Проверить ещё раз</button>'}<p class="notification-feedback" role="status"></p>`;
+    <form data-device="${esc(d.id)}"><label>Имя устройства<input class="ui-field ui-field--soft" name="name" value="${esc(d.name)}" maxlength="60" required></label><div class="notification-actions"><button class="ui-button ui-button--quiet ui-button--compact" type="submit">Сохранить имя</button>
+    ${active(d)?`<button class="ui-button ui-button--quiet ui-button--compact" type="button" data-push-action="test" ${s.paused||!s.available?'disabled':''}>Отправить тест</button><button class="ui-button ui-button--quiet ui-button--compact" type="button" data-push-action="disconnect">Отключить</button>`:''}</div>
+    ${d.last_sent?`<p class="muted">Последняя передача push-сервису: ${esc(new Date(d.last_sent).toLocaleString('ru'))}</p>`:''}</form></details>`).join(''):'<p class="muted">Подключённых устройств пока нет.</p>'}`:'<button class="ui-button ui-button--quiet ui-button--compact" type="button" data-push-action="refresh">Проверить ещё раз</button>'}<p class="notification-feedback" role="status"></p>`;
  }
  function feedback(message){
   const el=body.querySelector('.notification-feedback');if(el)el.textContent=message;
@@ -139,7 +139,7 @@ export function createNotificationUI({api,esc,getUser,toast,root,onChange=()=>{}
   invite.hidden=!owner||!useful||invitationDismissed||!invitationShown&&Boolean(safeStorage.get(invitationKey()));
   if(invite.hidden)return;
   if(!invitationShown){invitationShown=true;safeStorage.set(invitationKey(),'seen')}
-  invite.innerHTML=`<div>${pushIcon}<p><strong>Напоминания календаря</strong><br><span>${s.canConnect?'Можно получать личные напоминания на этом устройстве.':'На iPhone пуши доступны в приложении с домашнего экрана.'}</span></p></div><div class="notification-actions"><button type="button" class="text-button" data-push-invite="enable">${s.canConnect?'Включить пуши':'Как включить'}</button><button type="button" class="text-button" data-push-invite="dismiss">Не сейчас</button></div>`;
+  invite.innerHTML=`<div>${pushIcon}<p><strong>Напоминания календаря</strong><br><span>${s.canConnect?'Можно получать личные напоминания на этом устройстве.':'На iPhone пуши доступны в приложении с домашнего экрана.'}</span></p></div><div class="notification-actions"><button type="button" class="ui-button ui-button--quiet ui-button--compact" data-push-invite="enable">${s.canConnect?'Включить пуши':'Как включить'}</button><button type="button" class="ui-button ui-button--quiet ui-button--compact" data-push-invite="dismiss">Не сейчас</button></div>`;
  }
  root.addEventListener('toggle',()=>{if(root.open){render();void refresh({fresh:true})}});
  root.addEventListener('click',event=>{

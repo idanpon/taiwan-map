@@ -4,6 +4,7 @@ import {openDatabase,migrate} from '../server/database.mjs';
 import {handle,passwordHash,sha} from '../src/core.mjs';
 import {dayInZone,onDay,urgency,zonedInstant,itemDates,monthDays,monday} from '../public/planning-model.js';
 import {readFileSync} from 'node:fs';
+import {planItemMove,dateSnapshot} from '../public/planning-pilot-model.js';
 async function fixture(){
  const DB=openDatabase();migrate(DB,'drizzle');const env={DB,APP_ORIGIN:'https://api.example',AUTH_MODE:'bearer',APP_PASSWORD_HASH:await passwordHash('planning-fixture')};
  const call=(path,method='GET',data,role='editor')=>handle(new Request(env.APP_ORIGIN+path,{method,headers:{Origin:env.APP_ORIGIN,...(role?{Authorization:'Bearer '+tokens[role]}:{}),...(data!==undefined?{'Content-Type':'application/json'}:{})},...(data===undefined?{}:{body:JSON.stringify(data)})}),env);
@@ -18,6 +19,24 @@ async function fixture(){
  return {DB,call,create,preview,resolve,get,place};
 }
 const link=(option_id,extra={})=>({place_id:'taipei-101',option_id,affects_visit:true,unselected_action:'hide',...extra});
+test('pilot date moves preserve data, enforce roles and reject stale item or timezone undo',async()=>{
+ const f=await fixture();try{
+  const original=await f.create({title:'Move me',note:'Keep this note',description:'Prepared text',assignee_id:'editor',date_start:'2026-12-29',date_end:'2026-12-31',places:[{place_id:'taipei-101'}],source_urls:['https://example.com']});
+  const plan=(await f.get()).timezone_plan,patch=planItemMove(original,'2027-01-03',plan,'2026-12-30').patch;
+  const payload={...patch,version:original.version,timezone_revision:plan.revision};
+  assert.equal((await f.call('/api/planning/items/'+original.id,'PUT',payload,'viewer')).status,403);
+  const movedResponse=await f.call('/api/planning/items/'+original.id,'PUT',payload);assert.equal(movedResponse.status,200);const moved=(await movedResponse.json()).item;
+  assert.equal(moved.date_start,'2027-01-02');assert.equal(moved.date_end,'2027-01-04');
+  for(const key of ['note','description','assignee_id','state','source_urls','dependencies'])assert.deepEqual(moved[key],original[key]);
+  assert.equal(moved.places[0].place_id,original.places[0].place_id);
+  f.DB.sqlite.prepare('UPDATE trips SET timezone_revision=timezone_revision+1').run();
+  assert.equal((await f.call('/api/planning/items/'+original.id,'PUT',{...dateSnapshot(original),version:moved.version,timezone_revision:plan.revision})).status,409);
+  const newer=await f.call('/api/planning/items/'+original.id,'PUT',{version:moved.version,note:'Another participant'});assert.equal(newer.status,200);
+  assert.equal((await f.call('/api/planning/items/'+original.id,'PUT',{...dateSnapshot(original),version:moved.version,timezone_revision:plan.revision+1})).status,409);
+  const saved=(await f.get()).items.find(item=>item.id===original.id);assert.equal(saved.note,'Another participant');assert.equal(saved.date_start,moved.date_start);
+  const undo=await f.call('/api/planning/items/'+original.id,'PUT',{...dateSnapshot(original),version:saved.version,timezone_revision:plan.revision+1});assert.equal(undo.status,200);assert.equal((await undo.json()).item.date_start,original.date_start);
+ }finally{f.DB.close()}
+});
 test('failed calendar batch rolls back records, links, place states, history and import ledger',async()=>{
  const f=await fixture();
  try{
@@ -121,9 +140,10 @@ test('calendar computation handles Monday boundaries, inclusive periods, urgency
  assert.equal(zonedInstant('2026-11-05','10:00','Asia/Taipei'),'2026-11-05T02:00:00.000Z');
  assert.throws(()=>zonedInstant('2026-03-08','02:30','America/New_York'));assert.throws(()=>zonedInstant('2026-11-01','01:30','America/New_York'));
 });
-test('planning page uses existing gated authentication, theme, relative links and overflow access',async()=>{
- const {planningPage}=await import('../src/planning-ui.mjs');assert.ok(planningPage.includes('src="/planning.js"'));assert.ok(planningPage.includes('id="auth-content" hidden'));assert.ok(planningPage.includes('data-view="day"'));assert.ok(planningPage.includes('data-view="list"'));
- const source=readFileSync('public/planning.js','utf8');assert.ok(source.includes('Ещё ${more}'));assert.ok(source.includes('planning-today-line'));assert.ok(source.includes('Без срока · '));assert.ok(!source.includes('innerHTML=i.note'));
+test('planning page keeps gated authentication and exposes the two approved views',async()=>{
+ const {planningPage}=await import('../src/planning-ui.mjs');assert.ok(planningPage.includes('src="/planning.js"'));assert.ok(planningPage.includes('id="auth-content" hidden'));assert.ok(planningPage.includes('data-view="month"'));assert.ok(planningPage.includes('data-view="list"'));
+ assert.ok(!planningPage.includes('data-view="day"'));assert.ok(!planningPage.includes('data-view="week"'));assert.ok(planningPage.includes('<h1>План поездки</h1>'));
+ const source=readFileSync('public/planning.js','utf8');assert.ok(source.includes('renderPlanningPilot'));assert.ok(!source.includes('innerHTML=i.note'));
 });
 
 test('resolved decisions allow notes but require a new preview for structural changes',async()=>{const f=await fixture();try{

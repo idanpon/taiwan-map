@@ -89,7 +89,7 @@ export async function buildPages({
   const html = page
     .replace(/(href|src)="\/(?!api\/)/g, '$1="./')
     .replace(
-      /((?:href|src)="\.\/(?:app\.js|style\.css|config\.js|theme-init\.js|favicon\.svg|apple-touch-icon\.png))"/g,
+      /((?:href|src)="\.\/(?:[a-z-]+\.(?:js|css)|favicon\.svg|apple-touch-icon\.png))"/g,
       `$1?v=${version}"`,
     )
     .replace(

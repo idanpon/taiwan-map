@@ -13,6 +13,13 @@ const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 
 const origin=new URL(process.env.APP_ORIGIN||'http://localhost:8080');
 if(!['http:','https:'].includes(origin.protocol))throw new Error('APP_ORIGIN must be http(s).');
+const localPreview=['localhost','127.0.0.1','[::1]'].includes(origin.hostname);
+const previewPrefix='/preview-assets';
+function renderPage(source){
+ // Give local modules a new URL tree so even cached relative imports are bypassed.
+ const html=localPreview?source.replace(/((?:src|href)=")\/(?!config\.js")([a-z-]+\.(?:js|css))"/g,`$1${previewPrefix}/$2"`):source;
+ return new Response(html,{headers:securityHeaders});
+}
 const databasePath=resolve(process.env.DATABASE_PATH||'data/taiwan.sqlite');
 const DB=openDatabase(databasePath);migrate(DB,resolve(root,'drizzle'));
 const frontend=process.env.FRONTEND_ORIGIN?new URL(process.env.FRONTEND_ORIGIN):null;
@@ -48,17 +55,20 @@ const server=http.createServer(async(req,res)=>{
    response=await handle(request,env,{clientIp});
    if(automaticBackups&&response.ok&&req.method==='POST'&&['/api/login','/api/auth/setup','/api/auth/telegram/login'].includes(url.pathname))tryBackup();
   }else if(req.method!=='GET'&&req.method!=='HEAD'){response=new Response('Method not allowed',{status:405})}
-  else if(url.pathname==='/'){response=new Response(page,{headers:securityHeaders})}
-  else if(url.pathname==='/planning.html'){response=new Response(planningPage,{headers:securityHeaders})}
+  else if(url.pathname==='/'){response=renderPage(page)}
+  else if(url.pathname==='/planning.html'){response=renderPage(planningPage)}
   else if(/^\/icon-(192|512)\.png$/.test(url.pathname)){
    const size=Number(url.pathname.match(/\d+/)[0]);if(!generatedIcons.has(size))generatedIcons.set(size,appIcon(size));
    response=new Response(generatedIcons.get(size),{headers:{'Content-Type':mime['.png'],'Cache-Control':'public, max-age=86400'}});
   }
   else if(url.pathname==='/config.js'){response=new Response('window.TAIWAN_CONFIG = Object.freeze('+JSON.stringify({apiBase:'',requiresApi:false,authMode})+');',{headers:{'Content-Type':mime['.js'],'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}})}
   else{
-   let path;try{path=resolve(root,'public','.'+decodeURIComponent(url.pathname))}catch{path=''}
+   const previewAsset=localPreview&&url.pathname.startsWith(previewPrefix+'/');
+   const assetPath=previewAsset?url.pathname.slice(previewPrefix.length):url.pathname;
+   const cache=assetPath==='/sw.js'?'no-cache':previewAsset&&!assetPath.startsWith('/vendor/')?'no-store':'public, max-age=3600';
+   let path;try{path=resolve(root,'public','.'+decodeURIComponent(assetPath))}catch{path=''}
    if(!path.startsWith(resolve(root,'public')+'/'))response=new Response('Not found',{status:404});
-   else try{response=new Response(readFileSync(path),{headers:{'Content-Type':mime[extname(path)]||'application/octet-stream','X-Content-Type-Options':'nosniff','Cache-Control':url.pathname==='/sw.js'?'no-cache':'public, max-age=3600'}})}catch{response=new Response('Not found',{status:404})}
+   else try{response=new Response(readFileSync(path),{headers:{'Content-Type':mime[extname(path)]||'application/octet-stream','X-Content-Type-Options':'nosniff','Cache-Control':cache}})}catch{response=new Response('Not found',{status:404})}
   }
   res.writeHead(response.status,Object.fromEntries(response.headers));res.end(req.method==='HEAD'?undefined:Buffer.from(await response.arrayBuffer()));
  }catch(error){console.error('Request failed',error.name);res.writeHead(500);res.end('Internal server error')}
