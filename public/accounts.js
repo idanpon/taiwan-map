@@ -84,8 +84,11 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true,s
   };
  }
  async function openProfile({focusNotifications=false}={}){
-  const user=getData()?.user;if(!user||!focusNotifications&&!canOpen())return;error('');if(!$('accounts-dialog').open)$('accounts-dialog').showModal();
-  $('account-title').textContent=user.can_setup?'Первый admin':user.role==='admin'?'Профиль и пользователи':'Мой профиль';$('account-title').focus({preventScroll:true});
+  const user=getData()?.user;if(!user||!focusNotifications&&!canOpen())return;error('');
+  const dialog=$('accounts-dialog'),title=$('account-title');
+  title.textContent=user.can_setup?'Первый admin':user.role==='admin'?'Профиль и пользователи':'Мой профиль';
+  if(!dialog.open){dialog.showModal();dialog.querySelector('.ui-overlay-body').scrollTop=0}
+  title.focus({preventScroll:true});
   resetPasswordFields($('change-password'));$('change-password').reset();
   $('own-profile').hidden=user.can_setup;$('own-profile').querySelector('h3').hidden=user.role!=='admin';
   $('current-password-field').hidden=!user.has_password;$('change-password').elements.current_password.required=user.has_password;

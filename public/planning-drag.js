@@ -1,7 +1,7 @@
 import {planningScrollArea,scrollPlanningBy,planningScrollBounds} from './planning-scroll.js';
 
 // A DOM copy keeps the original geometry and rounded transparent corners.
-export function installPlanningDrag({surface,document,window,enabled,onDrop,onError}){
+export function installPlanningDrag({surface,document,window,enabled,onDrop,onBlocked=()=>{},onError}){
  let session=null,target=null,frame=0,suppressUntil=0;
  const holdMilliseconds=400,slop=8;
  function cancel(){
@@ -18,14 +18,17 @@ export function installPlanningDrag({surface,document,window,enabled,onDrop,onEr
   return element.closest('[data-drag-item]');
  }
  function updateTarget(){
-  if(!session)return;
-  let next=document.elementFromPoint(session.x,session.y)?.closest('[data-drop-day]');
-  if(!next||!surface.contains(next)||next.dataset.dropDay===session.anchor)next=null;
+  if(!session?.preview)return;
+  const hit=document.elementFromPoint(session.x,session.y);
+  const grid=hit?.closest('.planning-month-grid'),overGrid=Boolean(grid&&surface.contains(grid));
+  if(overGrid)session.preview.classList.add('over-calendar');else session.preview.classList.remove('over-calendar');
+  let next=hit?.closest('[data-drop-day]');
+  if(!next?.dataset.dropDay||!surface.contains(next)||next.dataset.dropDay===session.anchor)next=null;
   if(next!==target){target?.classList.remove('is-drop-target');target=next;target?.classList.add('is-drop-target')}
  }
  function position(){
   const d=session;if(!d?.preview)return;
-  d.preview.style.transform=`translate3d(${Math.max(8,Math.min(d.x-d.offsetX,window.innerWidth-d.preview.offsetWidth-8))}px,${Math.max(8,Math.min(d.y-d.offsetY,window.innerHeight-d.preview.offsetHeight-8))}px,0)`;
+  d.preview.style.translate=`${d.x-d.offsetX}px ${d.y-d.offsetY}px`;
   updateTarget();
  }
  function scrollFrame(){
@@ -40,9 +43,11 @@ export function installPlanningDrag({surface,document,window,enabled,onDrop,onEr
  }
  function activate(){
   const d=session;if(!d||!enabled())return cancel();
+  if('dragBlocked' in d.source.dataset){d.blocked=true;onBlocked();return}
   const before=d.source.getBoundingClientRect();
   d.preview=d.source.cloneNode(true);d.preview.classList.add('planning-drag-preview');d.preview.removeAttribute('data-drag-item');d.preview.setAttribute('aria-hidden','true');d.preview.inert=true;
   d.preview.style.width=before.width+'px';d.preview.style.height=before.height+'px';
+  d.preview.style.transformOrigin=`${d.offsetX}px ${d.offsetY}px`;
   d.scroller=planningScrollArea(d.source,window);
   document.body.append(d.preview);d.source.classList.add('is-drag-source');document.body.classList.add('planning-dragging');
   // Revealing empty days above the source must not make it jump away from the finger.
@@ -56,15 +61,18 @@ export function installPlanningDrag({surface,document,window,enabled,onDrop,onEr
  function finish(x,y){
   const d=session;if(!d)return false;d.x=x;d.y=y;const active=!!d.preview;
   if(active)updateTarget();const day=active?target?.dataset.dropDay:null;
-  cancel();if(active){suppressUntil=Date.now()+500;if(day)Promise.resolve(onDrop(d.id,day,d.anchor)).catch(onError)}return active;
+  cancel();if(active||d.blocked)suppressUntil=Date.now()+500;
+  if(day)Promise.resolve(onDrop(d.id,day,d.anchor)).catch(onError);
+  return active||Boolean(d.blocked);
  }
  surface.addEventListener('pointerdown',event=>{
   if(event.pointerType==='touch'||event.button!==0)return;
+  suppressUntil=0;
   const source=sourceFor(event.target);if(!source)return;
   begin(source,event.clientX,event.clientY,event.pointerId);source.setPointerCapture(event.pointerId);
  });
  surface.addEventListener('pointermove',event=>{
-  const d=session;if(!d||d.touchId!==undefined||d.pointerId!==event.pointerId)return;
+  const d=session;if(!d||d.blocked||d.touchId!==undefined||d.pointerId!==event.pointerId)return;
   d.x=event.clientX;d.y=event.clientY;
   if(!d.preview){if(Math.hypot(d.x-d.startX,d.y-d.startY)<6)return;activate()}
   event.preventDefault();position();
@@ -72,13 +80,16 @@ export function installPlanningDrag({surface,document,window,enabled,onDrop,onEr
  surface.addEventListener('pointerup',event=>{if(session?.touchId===undefined&&session?.pointerId===event.pointerId&&finish(event.clientX,event.clientY))event.preventDefault()});
  for(const name of ['pointercancel','lostpointercapture'])surface.addEventListener(name,event=>{if(session?.touchId===undefined&&session?.pointerId===event.pointerId){suppressUntil=Date.now()+500;cancel()}});
  surface.addEventListener('touchstart',event=>{
-  if(event.touches.length!==1){cancel();return}const source=sourceFor(event.target);if(!source)return;
+  if(event.touches.length!==1){cancel();return}
+  suppressUntil=0;
+  const source=sourceFor(event.target);if(!source)return;
   const touch=event.touches[0];begin(source,touch.clientX,touch.clientY,undefined,touch.identifier);
  },{passive:true});
  surface.addEventListener('touchmove',event=>{
   const d=session;if(d?.touchId===undefined)return;if(event.touches.length!==1){cancel();return}
   const touch=Array.from(event.touches).find(touch=>touch.identifier===d.touchId);if(!touch)return;
   d.x=touch.clientX;d.y=touch.clientY;
+  if(d.blocked)return;
   if(!d.preview){if(Math.hypot(d.x-d.startX,d.y-d.startY)>slop){suppressUntil=Date.now()+500;cancel()}return}
   if(event.cancelable)event.preventDefault();position();
  },{passive:false});
@@ -86,7 +97,7 @@ export function installPlanningDrag({surface,document,window,enabled,onDrop,onEr
  surface.addEventListener('touchcancel',()=>{suppressUntil=Date.now()+500;cancel()});
  surface.addEventListener('contextmenu',event=>{if(sourceFor(event.target))event.preventDefault()});
  surface.addEventListener('dragstart',event=>{if(event.target.closest('.planning-card'))event.preventDefault()});
- surface.addEventListener('click',event=>{if(Date.now()<suppressUntil){event.preventDefault();event.stopImmediatePropagation()}},true);
+ surface.addEventListener('click',event=>{if(event.detail!==0&&Date.now()<suppressUntil){event.preventDefault();event.stopImmediatePropagation()}},true);
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&session){event.preventDefault();suppressUntil=Date.now()+500;cancel()}});
  window.addEventListener('blur',cancel);
  document.addEventListener('visibilitychange',()=>{if(document.hidden)cancel()});

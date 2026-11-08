@@ -11,8 +11,11 @@ bridge, CDN script, runtime `latest`, extra API or tile server.
 `public/map-config.js` contains the Bright/Fiord URLs, same-origin worker path,
 OSM reserve URL and failure thresholds. Provider styles are used unchanged.
 MapLibre reads attribution from the providers' source metadata, with the
-attribution control kept expanded in both layouts. The reserve style is local
-and has only standard OSM raster tiles and attribution.
+attribution control kept expanded in both layouts. On compact screens it sits
+below the map heading. The optional OpenFreeMap label is omitted there and
+the OpenMapTiles and OpenStreetMap credits stay visible. The reserve style is
+local and has standard OSM raster tiles with their own credit.
+[OpenFreeMap attribution](https://openfreemap.org/#attribution)
 
 `theme-init.js` is a small, blocking head script before all CSS. It selects a
 stored light/dark preference or the system preference and applies color-scheme
@@ -108,7 +111,8 @@ Sources: [OpenFreeMap quick start](https://openfreemap.org/quick_start/),
 ## Place-card camera transitions
 
 Opening a place uses one 300ms MapLibre easeTo with an absolute geographic
-target and an offset measured from the card edge within the map viewport.
+target. The offset uses the layout size of the sheet so the entry animation
+does not affect framing.
 Desktop cards reserve the right-hand strip, mobile cards the bottom strip.
 Closing with the cross, outside click or Escape eases the same place to the
 full map centre without changing zoom or bearing. Repeated or interrupted
@@ -117,7 +121,13 @@ prefers-reduced-motion; data and style loading remain independent of framing.
 
 ## Mobile place-card dismissal
 
-`public/place-card-swipe.js` uses the shared touch recognizer to pull the card down from its header at any scroll position, or from non-editable body content only when the body starts at the top. The header has a subtle handle; the card follows the finger and returns on a short/cancelled pull. A completed swipe uses the existing closeDetail path, including dirty/busy guards, focus restoration and map recentering. Form fields, links, selected text, upward body scrolling and pinch remain available. Mouse dragging does not dismiss the card. Reduced-motion styling is respected.
+The place card uses the shared bottom sheet and `public/sheet-swipe.js`.
+A touch pull can start in the heading at any scroll position, or in the body
+when it is at the top. A short or cancelled pull returns to the original
+position. A complete pull follows the same dirty and busy checks as the
+close button. A tap outside must start and finish outside the sheet.
+Fields, links, text selection and scrolling keep their native behaviour.
+[Overlay rules](DESIGN_SYSTEM.md#карточки-и-системные-окна)
 
 ## Initial framing and compact card details
 
@@ -155,7 +165,8 @@ card ends below the map controls. In short windows the zoom buttons move to
 the left of the card to leave more height for reading. The card enters from
 below in 220 ms with a quick start and a gradual stop, or appears immediately
 with reduced motion. Its body scrolls independently. The camera centres the selected pin in the exposed
-map to the left. The compact layout uses its inset bottom card.
+map to the left. The compact sheet spans the screen and pads its contents above the bottom safe area.
+The zoom pair has a single rounded boundary and one inner divider.
 
 The detail form labels its existing save request as busy, keeps an inline error
 next to the save action and clears it on the next attempt. The existing version

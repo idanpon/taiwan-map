@@ -48,7 +48,8 @@ test('list covers every occupied day, exposes empty neighbours and paginates lon
 test('the two views preserve ordering, permissions and completion semantics',()=>{
  const rows=[item(),item({id:'undated',date_start:null}),item({id:'choice',kind:'decision'})],options={items:rows,plan:{users:[],trip:{start_date:'2026-12-29',end_date:'2027-01-09'}},zone:emptyZonePlan,focusDay:'2026-12-29',today:'2026-12-29',allowed:true};
  const calendar=renderPlanningPilot({...options,view:'month'});
- assert.ok(calendar.indexOf('planning-selected-day')<calendar.indexOf('planning-undated'));assert.ok(!calendar.includes('data-quick-complete'));
+ assert.ok(calendar.indexOf('planning-selected-day')<calendar.indexOf('planning-undated'));
+ assert.match(calendar,/<section class="planning-selected-day" data-drop-day="2026-12-29">/);assert.ok(!calendar.includes('data-quick-complete'));
  const list=renderPlanningPilot({...options,view:'list'});assert.ok(list.includes('data-quick-complete="record"'));assert.ok(!list.includes('data-quick-complete="choice"'));
  const viewer=renderPlanningPilot({...options,allowed:false,view:'list'});assert.ok(!viewer.includes('data-quick-complete'));assert.ok(!viewer.includes('data-drag-item'));
  assert.deepEqual([1,2,5,11,21].map(recordCount),['1 запись','2 записи','5 записей','11 записей','21 запись']);
