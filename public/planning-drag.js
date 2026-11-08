@@ -1,7 +1,7 @@
 import {planningScrollArea,scrollPlanningBy,planningScrollBounds} from './planning-scroll.js';
 
 // A DOM copy keeps the original geometry and rounded transparent corners.
-export function installPlanningDrag({surface,document,window,enabled,onDrop,onBlocked=()=>{},onError}){
+export function installPlanningDrag({surface,document,window,enabled,onDrop,onDragEnd=()=>{},onBlocked=()=>{},onError}){
  let session=null,target=null,frame=0,suppressUntil=0;
  const holdMilliseconds=400,slop=8;
  function cancel(){
@@ -10,6 +10,7 @@ export function installPlanningDrag({surface,document,window,enabled,onDrop,onBl
   if(before!==null&&old.source.isConnected)scrollPlanningBy(old.scroller,old.source.getBoundingClientRect().top-before,window);
   if(!old)return;window.clearTimeout(old.timer);old.preview?.remove();old.source.classList.remove('is-drag-source');
   if(old.pointerId!==undefined&&old.source.hasPointerCapture(old.pointerId))old.source.releasePointerCapture(old.pointerId);
+  if(old.preview)onDragEnd();
  }
  function sourceFor(element){
   if(!enabled())return null;

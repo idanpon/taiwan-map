@@ -27,18 +27,39 @@ export function scrollFade(top,height,total,size=16){
 }
 export function installPlanningLayout({canvas,topbar,topButton,window}){
  const desktop=window.matchMedia('(min-width:721px)');
- const topButtonDistance=360;
- let scroller=null;
- function updateScroll(){
-  if(!scroller){topButton.hidden=true;return}
-  const edge=desktop.matches?scrollFade(scroller.scrollTop,scroller.clientHeight,scroller.scrollHeight):{top:0,bottom:0};
+ const topButtonDistance=360,revealDistance=48,hideDistance=24;
+ let scroller=null,showTopButton=false,turningPoint=0;
+ function updateScroll(trackDirection=false){
+  if(!scroller){showTopButton=false;topButton.hidden=true;return}
+  const wide=desktop.matches;
+  const edge=wide?scrollFade(scroller.scrollTop,scroller.clientHeight,scroller.scrollHeight):{top:0,bottom:0};
   scroller.style.setProperty('--planning-fade-top',edge.top+'px');
   scroller.style.setProperty('--planning-fade-bottom',edge.bottom+'px');
   scroller.style.setProperty('--planning-scrollbar-size',Math.max(0,scroller.offsetWidth-scroller.clientWidth)+'px');
-  const distance=desktop.matches?scroller.scrollTop:topbar.offsetHeight-scroller.getBoundingClientRect().top;
-  topButton.hidden=scroller.dataset.planningScroller!=='list'||distance<topButtonDistance;
+  if(scroller.dataset.planningScroller!=='list'){showTopButton=false;topButton.hidden=true;return}
+
+  const area=wide?scroller:canvas.ownerDocument.scrollingElement;
+  const rawPosition=wide?area.scrollTop:window.scrollY;
+  // Safari can report positions beyond the scroll range during rubber-banding.
+  const position=Math.min(Math.max(0,rawPosition),Math.max(0,area.scrollHeight-area.clientHeight));
+  const distance=wide?position:topbar.offsetHeight-scroller.getBoundingClientRect().top+position-rawPosition;
+  if(distance<topButtonDistance){
+   showTopButton=false;
+   turningPoint=position;
+  }else if(!trackDirection||canvas.ownerDocument.body.classList.contains('planning-dragging')){
+   turningPoint=position;
+  }else{
+   // Measure the reversal from the furthest position reached in the current state.
+   turningPoint=showTopButton?Math.min(turningPoint,position):Math.max(turningPoint,position);
+   if(showTopButton?position-turningPoint>=hideDistance:turningPoint-position>=revealDistance){
+    showTopButton=!showTopButton;
+    turningPoint=position;
+   }
+  }
+  topButton.hidden=!showTopButton&&!topButton.matches(':focus-visible');
  }
- function updateLayout(){
+ const handleScroll=()=>updateScroll(true);
+ function updateSizes(){
   const panel=canvas.querySelector('.planning-month-panel');
   if(panel&&desktop.matches){
    const fixed=28+panel.querySelector('.planning-month-legend').offsetHeight+2;
@@ -53,30 +74,38 @@ export function installPlanningLayout({canvas,topbar,topButton,window}){
    // Keep the date aligned even when the plan ends with today's group.
    scroller.style.setProperty('--planning-list-tail',Math.max(0,Math.ceil(height-offset-remaining))+'px');
   }
-  updateScroll();
  }
+ function updateLayout(){updateSizes();updateScroll()}
  const observer=new window.ResizeObserver(updateLayout);
- function refresh(){
-  scroller?.removeEventListener('scroll',updateScroll);observer.disconnect();
+ function refresh({scrollTop,pageTop}){
+  scroller?.removeEventListener('scroll',handleScroll);observer.disconnect();
   scroller=canvas.querySelector('[data-planning-scroller]');
-  scroller?.addEventListener('scroll',updateScroll,{passive:true});
+  scroller?.addEventListener('scroll',handleScroll,{passive:true});
   observer.observe(canvas);observer.observe(topbar);
   if(scroller){observer.observe(scroller);for(const child of scroller.children)observer.observe(child)}
   const legend=canvas.querySelector('.planning-month-legend');if(legend)observer.observe(legend);
-  updateLayout();
+  updateSizes();
+  if(scroller)scroller.scrollTop=scrollTop;
+  window.scrollTo(0,pageTop);
+  updateScroll();
  }
  function scrollListToToday(focus=false){
   const today=scroller?.querySelector('[data-list-today]');
   if(!today)return;
   today.scrollIntoView({block:'start',behavior:'instant'});
   if(focus)today.querySelector('.planning-day-date').focus({preventScroll:true});
+  showTopButton=false;
+  updateScroll();
  }
  function scrollListToStart(){
+  showTopButton=true;
+  updateScroll();
   const area=desktop.matches?scroller:window;
   const behavior=window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth';
   area?.scrollTo({top:0,behavior});
  }
  window.addEventListener('resize',updateLayout);
- window.addEventListener('scroll',updateScroll,{passive:true});
- return {refresh,scrollListToToday,scrollListToStart};
+ window.addEventListener('scroll',handleScroll,{passive:true});
+ topButton.addEventListener('blur',()=>{topButton.hidden=!showTopButton});
+ return {refresh,scrollListToToday,scrollListToStart,resetScrollTracking:updateScroll};
 }
