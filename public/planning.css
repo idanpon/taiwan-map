@@ -103,8 +103,11 @@
 .planning-undated-heading>span { font-size: var(--ui-text-caption); }
 .planning-itinerary { margin-inline: auto; padding-block-end: var(--planning-list-tail,0px); }
 .planning-itinerary-content { display: flow-root; }
-.planning-top { position: fixed; z-index: 12; bottom: var(--ui-bottom-control-inset); right: max(var(--ui-space-4),env(safe-area-inset-right)); box-shadow: var(--ui-shadow-panel); }
-.planning-page:has(.ui-notice:not([hidden])) .planning-top { bottom: calc(var(--ui-bottom-control-inset) + 72px); }
+.planning-top { z-index: 12; }
+@media (width > 1000px) {
+ .planning-top { right: max(var(--ui-space-4),env(safe-area-inset-right)); }
+ .planning-page:has(.ui-notice:not([hidden])) .planning-top { bottom: calc(var(--ui-bottom-control-inset) + 72px); }
+}
 .planning-dragging .planning-top { visibility: hidden; }
 .planning-day-group { display: grid; grid-template-columns: var(--planning-date-width) minmax(0,1fr); gap: var(--planning-list-gap); margin-bottom: var(--ui-space-4); min-width: 0; }
 .planning-day-stamp { padding-top: var(--ui-space-3); position: sticky; top: 88px; align-self: start; font-size: var(--ui-text-caption); color: var(--ui-text-muted); }

@@ -202,19 +202,19 @@ function editMove(id,target=null,anchor=null,reason=''){
 }
 async function moveItem(id,target,anchor){
  if(!allowed()||busy)return;const item=plan.items.find(item=>item.id===id);if(!item)return;
- const [start,end]=itemDates(item,zone);if(start&&start!==end){toast(periodMoveMessage);return}
+ const [start,end]=itemDates(item,zone);if(start&&start!==end){toast(periodMoveMessage,'warning');return}
  const move=planItemMove(item,target,zone,anchor);if(move.unchanged)return;
  if(move.review){editMove(id,target,anchor,move.review);return}
- try{await persistMove(item,move.patch)}catch(error){toast(error.message);if(error.status===409)await load().catch(()=>{})}
+ try{await persistMove(item,move.patch)}catch(error){toast(error.message,'warning');if(error.status===409)await load().catch(()=>{})}
 }
-function showMoveNotice(message){notice.show(message,{action:{label:'Отменить',run:undoMove}})}
+function showMoveNotice(message,tone='neutral'){notice.show(message,{tone,action:{label:'Отменить',run:undoMove}})}
 async function undoMove(){
  if(!lastMove||!allowed()||busy)return;
  const undo=lastMove;busy=true;pendingId=undo.id;++loadSequence;render();notice.setActionBusy(true);
  try{const result=await saveItem(undo.id,{...undo.before,version:undo.version,timezone_revision:zone.revision});applySavedItem(result.item);focusDay=undo.previousFocus;lastMove=null;toast('Перенос отменён.')}
  catch(error){
-  if(error.status===409){lastMove=null;toast('Запись уже изменена. Отмена не применена, чтобы сохранить новую правку.');await load().catch(()=>{})}
-  else if(lastMove===undo)showMoveNotice(error.message);
+  if(error.status===409){lastMove=null;toast('Запись уже изменена. Отмена не применена, чтобы сохранить новую правку.','warning');await load().catch(()=>{})}
+  else if(lastMove===undo)showMoveNotice(error.message,'warning');
  }
  finally{busy=false;pendingId=null;notice.setActionBusy(false);render()}
 }
@@ -238,7 +238,7 @@ async function load({signal}={}){
  if(first&&view==='list')layout.scrollListToToday();
  void accountUI?.notifications.refresh();
 }
-drag=installPlanningDrag({surface:$('planning-canvas'),document,window,enabled:()=>Boolean(allowed())&&!busy&&!document.querySelector('dialog[open]'),onDrop:moveItem,onBlocked:()=>toast(periodMoveMessage),onError:error=>toast(error.message)});
+drag=installPlanningDrag({surface:$('planning-canvas'),document,window,enabled:()=>Boolean(allowed())&&!busy&&!document.querySelector('dialog[open]'),onDrop:moveItem,onBlocked:()=>toast(periodMoveMessage,'warning'),onError:error=>toast(error.message,'warning')});
 $('planning-canvas').onclick=event=>{
  const quick=event.target.closest('[data-quick-complete]');if(quick){void completeItem(quick.dataset.quickComplete,{quick:true});return}
  const item=event.target.closest('[data-item]'),record=event.target.closest('[data-record]');if(item||record){openItem(item?.dataset.item||record.dataset.record);return}
