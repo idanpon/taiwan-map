@@ -11,9 +11,10 @@ bridge, CDN script, runtime `latest`, extra API or tile server.
 `public/map-config.js` contains the Bright/Fiord URLs, same-origin worker path,
 OSM reserve URL and failure thresholds. Provider styles are used unchanged.
 MapLibre reads attribution from the providers' source metadata, with the
-attribution control kept expanded in both layouts. On compact screens it sits
-below the map heading. The optional OpenFreeMap label is omitted there and
-the OpenMapTiles and OpenStreetMap credits stay visible. The reserve style is
+attribution control kept expanded in both layouts. The credits sit at the
+bottom left. On compact screens they clear the bottom safe area and move above
+an open place sheet. The optional OpenFreeMap label is omitted in the compact
+layout, while the OpenMapTiles and OpenStreetMap links stay visible. The reserve style is
 local and has standard OSM raster tiles with their own credit.
 [OpenFreeMap attribution](https://openfreemap.org/#attribution)
 
@@ -165,8 +166,12 @@ card ends below the map controls. In short windows the zoom buttons move to
 the left of the card to leave more height for reading. The card enters from
 below in 220 ms with a quick start and a gradual stop, or appears immediately
 with reduced motion. Its body scrolls independently. The camera centres the selected pin in the exposed
-map to the left. The compact sheet spans the screen and pads its contents above the bottom safe area.
-The zoom pair has a single rounded boundary and one inner divider.
+map to the left. The compact sheet leaves at least 8 px at each side and
+pads its contents above the bottom safe area.
+The zoom pair has a single rounded boundary and one inner divider. The zoom
+and other map controls share the app's press and hover feedback. Closing a
+place sheet by touch leaves the map controls without a focus outline.
+Keyboard dismissal restores focus.
 
 The detail form labels its existing save request as busy, keeps an inline error
 next to the save action and clears it on the next attempt. The existing version

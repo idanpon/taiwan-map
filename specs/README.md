@@ -41,7 +41,8 @@
 [пилот «Плана поездки»](2026-11-07-planning-interactions.md) опубликованы
 через [PR #46](https://github.com/idanpon/taiwan-map/pull/46).
 Доработка [по замечаниям iPhone PWA](2026-11-08-mobile-pwa-polish.md)
-доставляется отдельным выпуском интерфейса через GitHub Pages.
+опубликована в [PR #47](https://github.com/idanpon/taiwan-map/pull/47).
+[Уточнения после повторной проверки](2026-11-08-pwa-follow-up.md) выпускаются через GitHub Pages.
 Прочие кандидаты следующих задач —
 в [HANDOFF](../docs/HANDOFF.md). Их наличие не является разрешением начать работу.
 

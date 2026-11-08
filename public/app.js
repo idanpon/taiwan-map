@@ -1,4 +1,4 @@
-import {readClientConfiguration,sessionStores,escapeHtml as esc} from './client-runtime.js';
+import {readClientConfiguration,sessionStores,trackTouchInput,escapeHtml as esc} from './client-runtime.js';
 import {planningPlaceSummary,planningConflictContent,hydratePlanningLinks} from './planning-links.js';
 import {copyTextControl,installPlaceCopy} from './copy-text.js';
 import {createPlaceTagControls} from './place-tag-controls.js';
@@ -17,6 +17,7 @@ import {installSheetSwipe} from './sheet-swipe.js';
 import {createNotice} from './notice.js';
 import {installSidebarResize} from './sidebar-resize.js';
 const $=id=>document.getElementById(id);
+trackTouchInput(document);
 const config=window.TAIWAN_CONFIG||{apiBase:'',requiresApi:false};
 const {apiBase,configurationError,authMode}=readClientConfiguration(config,{missing:'Сервер данных ещё не подключён. Адрес API будет добавлен после настройки VPS.',invalid:'В настройках сайта указан некорректный HTTPS-адрес API.'});
 
@@ -49,7 +50,10 @@ function closeDetail(restoreFocus=false){
  if(restoreFocus){const card=Array.from(document.querySelectorAll('[data-place]')).find(el=>el.dataset.place===id);const target=matchMedia('(max-width:1000px)').matches?$('fit'):card||$('fit');target.focus({preventScroll:true})}
  return true;
 }
-const detailSwipe=installSheetSwipe({card:$('detail'),document,enabled:()=>!$('detail').hidden&&!busy&&!$('application').inert&&!document.querySelector('dialog[open]'),close:()=>closeDetail(true)});
+const detailCard=$('detail');
+const mapArea=detailCard.parentElement;
+new ResizeObserver(()=>mapArea.style.setProperty('--map-sheet-height',detailCard.offsetHeight+'px')).observe(detailCard);
+const detailSwipe=installSheetSwipe({card:detailCard,document,enabled:()=>!detailCard.hidden&&!busy&&!$('application').inert&&!document.querySelector('dialog[open]'),close:()=>closeDetail()});
 function getCategory(p){return data.categories.find(c=>c.id===p.category_id)}
 function getStatus(p){const value=data.statuses.find(s=>s.id===p.status_id);return value?statusAppearance(value,themeUI.value):undefined}
 function visible(){return data.places.filter(p=>(!city||p.city===city)&&(!types.size||types.has(p.category_id))&&(!status||(status==='none'?!p.status_id:p.status_id===status))&&matchesTags(p.tags,tags)&&(!query||`${p.name} ${p.local_name} ${p.summary} ${p.address}`.toLowerCase().includes(query)))}
@@ -77,7 +81,7 @@ function detail(p){detailSwipe.cancel();resetDirty();tagControls=undefined;const
  bindTagHints();
  if(canEdit())tagControls=createPlaceTagControls({root:$('place-tag-editor'),place:p,esc,onDirty:value=>{tagDirty=value;dirty=tagDirty||stateDirty}});
  for(const button of $('detail').querySelectorAll('[data-place-action]'))button.onclick=()=>button.dataset.placeAction==='hide'?placeUI.hide(p):placeUI.remove(p);
- $('detail').hidden=false;$('application').classList.add('detail-open');$('detail-close').onclick=()=>closeDetail(true);if($('state-form'))$('state-form').oninput=event=>{if(!event.target.closest('#place-tag-editor')){stateDirty=true;dirty=true}};if($('state-form'))$('state-form').onsubmit=event=>saveState(event,p);
+ $('detail').hidden=false;$('application').classList.add('detail-open');$('detail-close').onclick=event=>closeDetail(event.detail===0);if($('state-form'))$('state-form').oninput=event=>{if(!event.target.closest('#place-tag-editor')){stateDirty=true;dirty=true}};if($('state-form'))$('state-form').onsubmit=event=>saveState(event,p);
 }
 function focusPlaceOnMap(p){
  if(!map)return;

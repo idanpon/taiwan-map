@@ -25,30 +25,58 @@ export function scrollFade(top,height,total,size=16){
  const remaining=Math.max(0,total-height-top);
  return {top:top>1?Math.min(size,top):0,bottom:remaining>1?Math.min(size,remaining):0};
 }
-export function installPlanningLayout({canvas,window}){
+export function installPlanningLayout({canvas,topbar,topButton,window}){
+ const desktop=window.matchMedia('(min-width:721px)');
+ const topButtonDistance=360;
  let scroller=null;
- function update(){
-  const desktop=window.matchMedia('(min-width:721px)').matches;
-  const panel=canvas.querySelector('.planning-month-panel');
-  if(panel&&desktop){
-   const fixed=28+panel.querySelector('.planning-month-legend').offsetHeight+2;
-   panel.style.setProperty('--planning-week-height',Math.max(0,(canvas.clientHeight-fixed)/6)+'px');
-  }
-  if(!scroller)return;
-  const edge=desktop?scrollFade(scroller.scrollTop,scroller.clientHeight,scroller.scrollHeight):{top:0,bottom:0};
+ function updateScroll(){
+  if(!scroller){topButton.hidden=true;return}
+  const edge=desktop.matches?scrollFade(scroller.scrollTop,scroller.clientHeight,scroller.scrollHeight):{top:0,bottom:0};
   scroller.style.setProperty('--planning-fade-top',edge.top+'px');
   scroller.style.setProperty('--planning-fade-bottom',edge.bottom+'px');
   scroller.style.setProperty('--planning-scrollbar-size',Math.max(0,scroller.offsetWidth-scroller.clientWidth)+'px');
+  const distance=desktop.matches?scroller.scrollTop:topbar.offsetHeight-scroller.getBoundingClientRect().top;
+  topButton.hidden=scroller.dataset.planningScroller!=='list'||distance<topButtonDistance;
  }
- const observer=new window.ResizeObserver(update);
+ function updateLayout(){
+  const panel=canvas.querySelector('.planning-month-panel');
+  if(panel&&desktop.matches){
+   const fixed=28+panel.querySelector('.planning-month-legend').offsetHeight+2;
+   panel.style.setProperty('--planning-week-height',Math.max(0,(canvas.clientHeight-fixed)/6)+'px');
+  }
+  const today=scroller?.querySelector('[data-list-today]');
+  if(today){
+   const offset=desktop.matches?Number.parseFloat(window.getComputedStyle(scroller).scrollPaddingBlockStart)||0:topbar.offsetHeight+8;
+   today.style.scrollMarginBlockStart=desktop.matches?'':offset+'px';
+   const height=desktop.matches?scroller.clientHeight:window.innerHeight;
+   const remaining=today.parentElement.getBoundingClientRect().bottom-today.getBoundingClientRect().top;
+   // Keep the date aligned even when the plan ends with today's group.
+   scroller.style.setProperty('--planning-list-tail',Math.max(0,Math.ceil(height-offset-remaining))+'px');
+  }
+  updateScroll();
+ }
+ const observer=new window.ResizeObserver(updateLayout);
  function refresh(){
-  scroller?.removeEventListener('scroll',update);observer.disconnect();
+  scroller?.removeEventListener('scroll',updateScroll);observer.disconnect();
   scroller=canvas.querySelector('[data-planning-scroller]');
-  scroller?.addEventListener('scroll',update,{passive:true});
-  observer.observe(canvas);if(scroller){observer.observe(scroller);for(const child of scroller.children)observer.observe(child)}
+  scroller?.addEventListener('scroll',updateScroll,{passive:true});
+  observer.observe(canvas);observer.observe(topbar);
+  if(scroller){observer.observe(scroller);for(const child of scroller.children)observer.observe(child)}
   const legend=canvas.querySelector('.planning-month-legend');if(legend)observer.observe(legend);
-  update();
+  updateLayout();
  }
- window.addEventListener('resize',update);
- return {refresh};
+ function scrollListToToday(focus=false){
+  const today=scroller?.querySelector('[data-list-today]');
+  if(!today)return;
+  today.scrollIntoView({block:'start',behavior:'instant'});
+  if(focus)today.querySelector('.planning-day-date').focus({preventScroll:true});
+ }
+ function scrollListToStart(){
+  const area=desktop.matches?scroller:window;
+  const behavior=window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth';
+  area?.scrollTo({top:0,behavior});
+ }
+ window.addEventListener('resize',updateLayout);
+ window.addEventListener('scroll',updateScroll,{passive:true});
+ return {refresh,scrollListToToday,scrollListToStart};
 }

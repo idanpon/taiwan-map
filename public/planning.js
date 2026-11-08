@@ -1,4 +1,4 @@
-import {readClientConfiguration,sessionStores,escapeHtml as esc} from './client-runtime.js';
+import {readClientConfiguration,sessionStores,trackTouchInput,escapeHtml as esc} from './client-runtime.js';
 import {createApiClient} from './api-client.js';
 import {createAccountUI} from './accounts.js';
 import {createAuthStartup,createLoadingScreenUI} from './auth-startup.js';
@@ -18,6 +18,7 @@ import {initialZone,emptyZonePlan,localPoint,offsetLabel,zoneAt} from './trip-ti
 import {createTimeReview,editTripTime,itemDateEditor,timezoneExplanation,zoneBadge,pointText} from './planning-time-ui.js';
 import {reminderCard} from './planning-reminders-ui.js';
 const $=id=>document.getElementById(id);
+trackTouchInput(document);
 const config=window.TAIWAN_CONFIG||{};
 let zone=emptyZonePlan;
 let data,plan,view='month',focusDay=dayInZone(new Date(),zone),kind='',state='active',search='',busy=false,dirty=false,editingId=null,currentPreview=null,previewSequence=0,accountUI,startup,reminderUI;
@@ -34,7 +35,7 @@ const setBusy=value=>{busy=value},setDirty=value=>{dirty=value};
 const timeReview=createTimeReview({scroller:dialogBody,content:dialogContent,title:dialogTitle,error:dialogError,esc,setBusy,setDirty});
 let drag,pendingId=null,lastMove=null,loadSequence=0,activeItemId=null,listLimit=180;
 const viewScroll={month:0,list:0};
-const layout=installPlanningLayout({canvas:$('planning-canvas'),window});
+const layout=installPlanningLayout({canvas:$('planning-canvas'),topbar:document.querySelector('.topbar'),topButton:$('planning-top'),window});
 installPlanningZoneDisclosure({container:$('planning-zone-disclosure'),button:$('planning-zone-label'),popup:$('planning-zone-help'),document,window});
 const notice=createNotice($('toast'));
 const toast=(message,tone='neutral')=>notice.show(message,{tone});
@@ -110,15 +111,16 @@ function render(){
  $('planning-completed-control').hidden=!completed&&state==='active';$('planning-completed-label').textContent='Выполненные · '+completed;$('planning-completed').checked=state===''||state==='done';
  $('planning-canvas').dataset.view=view;canvas.dataset.day=focusDay;
  renderPlanningCanvas(canvas,renderPlanningPilot({view,items,plan,zone,focusDay,today,allowed:allowed(),pendingId,listLimit,hasFilters:Boolean(kind||search||state!=='active'||plan.items.length&&!items.length)}));
+ $('planning-prev').hidden=$('planning-next').hidden=view==='list';layout.refresh();
  const scroller=canvas.querySelector('[data-planning-scroller]');if(scroller)scroller.scrollTop=viewScroll[view];
- $('planning-prev').hidden=$('planning-next').hidden=view==='list';window.scrollTo(0,top);layout.refresh();
+ window.scrollTo(0,top);
 }
 function placesHtml(item){return item.places.length?'<section class="planning-relations"><h3>Связанные места</h3>'+[...new Map(item.places.map(l=>[(l.place_id||l.place_name),l])).values()].map(l=>l.place_id?`<a class="planning-related-item" href="./#place=${encodeURIComponent(l.place_id)}">${esc(l.place_name)} ↗${l.hidden?'<span>Место скрыто</span>':''}</a>`:`<p>${esc(l.place_name)} <span class="muted">· Место удалено</span></p>`).join('')+'</section>':''}
 function relationRows(items){return '<ul class="planning-relation-list ui-list">'+items.map(i=>`<li><button class="planning-relation-row" data-item="${esc(i.id)}"><span class="planning-relation-name">${kindIcon(i.kind)}<span>${esc(i.title)}</span></span><span class="ui-status planning-state" data-state="${esc(i.state)}">${esc(stateLabel(i))}</span></button></li>`).join('')+'</ul>'}
 function relationsHtml(item){const incoming=plan.items.filter(i=>i.dependencies.includes(item.id)),deps=item.dependencies.map(id=>plan.items.find(i=>i.id===id)).filter(Boolean);return (deps.length?'<section class="planning-relations"><h3>Зависит от</h3>'+relationRows(deps)+'</section>':'')+(incoming.length?'<section class="planning-relations"><h3>Следующие шаги</h3>'+relationRows(incoming)+'</section>':'')}
 function actionsHtml(item){
  if(!allowed())return '';
- const id=esc(item.id),primary=item.kind==='decision'&&item.state==='done'?`<button class="ui-button ui-button--primary" data-reopen="${id}">Пересмотреть решение</button>`:item.kind!=='decision'&&item.state!=='cancelled'?`<button class="ui-button ${item.state==='done'?'ui-button--quiet':'ui-button--success'}" data-complete="${id}">${kindIcon(item.state==='done'?'undo':'check')}${item.state==='done'?'Вернуть в план':'Готово'}</button>`:'';
+ const id=esc(item.id),primary=item.kind==='decision'&&item.state==='done'?`<button class="ui-button ui-button--primary" data-reopen="${id}">Пересмотреть решение</button>`:item.kind!=='decision'&&item.state!=='cancelled'?`<button class="ui-button ${item.state==='done'?'ui-button--soft':'ui-button--success'}" data-complete="${id}">${kindIcon(item.state==='done'?'undo':'check')}${item.state==='done'?'Вернуть в план':'Готово'}</button>`:'';
  return `<div class="planning-record-actions">${primary}<div class="planning-record-secondary"><button class="ui-button ui-button--quiet ui-button--compact" data-edit="${id}">Изменить</button><button class="ui-button ui-button--quiet ui-button--compact ui-button--danger" data-delete="${id}">Удалить</button></div></div>`;
 }
 function openItem(id){
@@ -233,6 +235,7 @@ async function load({signal}={}){
  if(first)focusDay=dayInZone(new Date(),zone);
  accountUI?.update();accountUI?.hideLogin();
  $('application').hidden=false;$('login').hidden=true;document.body.classList.add('app-active');render();
+ if(first&&view==='list')layout.scrollListToToday();
  void accountUI?.notifications.refresh();
 }
 drag=installPlanningDrag({surface:$('planning-canvas'),document,window,enabled:()=>Boolean(allowed())&&!busy&&!document.querySelector('dialog[open]'),onDrop:moveItem,onBlocked:()=>toast(periodMoveMessage),onError:error=>toast(error.message)});
@@ -254,12 +257,22 @@ $('planning-canvas').onclick=event=>{
 $('planning-dialog-content').addEventListener('click',e=>{const item=e.target.closest('[data-item]'),edit=e.target.closest('[data-edit]'),complete=e.target.closest('[data-complete]'),move=e.target.closest('[data-move-date]'),remove=e.target.closest('[data-delete]'),option=e.target.closest('[data-option]'),reopen=e.target.closest('[data-reopen]');if(item)openItem(item.dataset.item);if(edit)editItem(edit.dataset.edit);if(complete)void completeItem(complete.dataset.complete);if(move)editMove(move.dataset.moveDate);if(remove)void deleteItem(remove.dataset.delete);if(option)void previewDecision(option.dataset.decision,option.dataset.option);if(reopen)void previewDecision(reopen.dataset.reopen,null,'reopen')});
 $('planning-preview-content').addEventListener('click',e=>{const b=e.target.closest('[data-related-preview]');if(b&&!busy){previewDialog.close();openItem(b.dataset.relatedPreview)}});
 $('planning-new').onclick=()=>editItem();$('planning-trip-edit').onclick=editTrip;
-$('planning-views').onclick=event=>{const button=event.target.closest('[data-view]');if(button&&button.dataset.view!==view){drag.cancel();view=button.dataset.view;render()}};
+$('planning-views').onclick=event=>{
+ const button=event.target.closest('[data-view]');if(!button||button.dataset.view===view)return;
+ drag.cancel();view=button.dataset.view;render();
+ if(view==='list')layout.scrollListToToday(event.detail===0);
+};
 function navigate(direction){if(view!=='month')return;drag.cancel();const date=new Date(focusDay.slice(0,7)+'-01T12:00:00Z');date.setUTCMonth(date.getUTCMonth()+direction);focusDay=date.toISOString().slice(0,10);render()}
 installPlanningNavigation({canvas:$('planning-canvas'),document,navigate,enabled:()=>Boolean(plan)&&view==='month'&&!busy&&!drag.active&&!document.querySelector('dialog[open]')&&!$('application').hidden});
 $('planning-prev').onclick=()=>navigate(-1);$('planning-next').onclick=()=>navigate(1);
-$('planning-today').onclick=()=>{focusDay=dayInZone(new Date(),zone);render();if(view==='list'){const days=[...document.querySelectorAll('.planning-day-group[data-drop-day]:not(.planning-empty-day)')];const target=days.find(day=>day.dataset.dropDay>=focusDay)||days.at(-1)||$('planning-canvas');target.scrollIntoView({block:'start'})}};
-$('planning-list-today').onclick=$('planning-today').onclick;
+$('planning-today').onclick=()=>{focusDay=dayInZone(new Date(),zone);render()};
+$('planning-list-today').onclick=event=>{
+ focusDay=dayInZone(new Date(),zone);render();layout.scrollListToToday(event.detail===0);
+};
+$('planning-top').onclick=event=>{
+ layout.scrollListToStart();
+ if(event.detail===0)$('planning-views').querySelector('[data-view="list"]').focus({preventScroll:true});
+};
 $('planning-completed').onchange=()=>{state=$('planning-completed').checked?'':'active';$('planning-state').value=state;render()};
 $('planning-kind').onchange=e=>{kind=e.target.value;render()};$('planning-state').onchange=e=>{state=e.target.value;render()};$('planning-search').oninput=e=>{search=e.target.value.toLowerCase().trim();render()};
 function resetFilters(){kind='';state='active';search='';$('planning-kind').value='';$('planning-state').value='active';$('planning-search').value='';render()}
