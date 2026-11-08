@@ -37,7 +37,8 @@ HTTP, конфигурацию, базу, статические страниц�
 | SQLite и неизменяемые SQL-миграции | `server/database.mjs`, `src/sqlite.mjs`, `drizzle/*.sql` |
 | Общие настройки клиента, хранилище сессии, экранирование | `public/client-runtime.js`, `public/api-client.js` |
 | Камера, подложки, жесты и карточки | `public/map-view.js`, `public/basemap.js`, `public/app.js` и небольшие модули рядом |
-| Представления календаря, формы и напоминания | `public/planning.js`, `public/planning-layout.js`, `public/planning-time-ui.js`, `public/planning-reminders-ui.js` |
+| План поездки: API и формы, два вида, перенос дат и жесты | `public/planning.js`, `public/planning-pilot-view.js`, `public/planning-pilot-model.js`, `public/planning-drag.js`, `public/planning-scroll.js`, `public/planning-viewport.js` |
+| Дата/время, личные напоминания и навигация месяца | `public/planning-time-ui.js`, `public/planning-reminders-ui.js`, `public/planning-navigation.js`, `public/planning-zone-disclosure.js` |
 
 Frontend-модули чистой логики категорий, ярлыков, календарных дней и поясов
 переиспользуются сервером. Они не должны читать DOM или браузерные глобальные

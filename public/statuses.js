@@ -17,7 +17,7 @@ export function createStatusUI({api,$,esc,getData,onChange,toast}){
   $('status-preview-label').textContent=$('status-name').value.trim()||'Ваш статус';
  }
  function renderList(){
-  $('status-list').innerHTML=getData().statuses.map(s=>{const view=statusAppearance(s);return `<button type="button" class="status-option" data-edit-status="${esc(s.id)}" aria-label="Изменить статус «${esc(s.label)}»" aria-pressed="${editing?.id===s.id}"><span class="status-preview-circle" style="background:${view.color};color:${view.symbolColor};opacity:${view.opacity}" aria-hidden="true">${esc(view.symbol)}</span><span>${esc(s.label)}</span><span class="status-edit-label">Изменить</span></button>`}).join('');
+  $('status-list').innerHTML=getData().statuses.map(s=>{const view=statusAppearance(s);return `<button type="button" class="status-option ui-list-item" data-edit-status="${esc(s.id)}" aria-label="Изменить статус «${esc(s.label)}»" aria-pressed="${editing?.id===s.id}"><span class="status-preview-circle" style="background:${view.color};color:${view.symbolColor};opacity:${view.opacity}" aria-hidden="true">${esc(view.symbol)}</span><span>${esc(s.label)}</span><span class="status-edit-label">Изменить</span></button>`}).join('');
  }
  function choose(status=null,open=true){
   editing=status?{...status}:null;

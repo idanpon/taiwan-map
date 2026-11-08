@@ -33,6 +33,23 @@ the user marker persist, and the accuracy source/layers are restored on
 reload the page. Without MapLibre/WebGL, the list and Google Maps links remain
 available; mobile keeps the map view with an explicit action to open the list.
 
+Below zoom 10 the map shows city groups with a count. Their circles are 45 px
+across, compared with 40 px for individual place markers. Both use a 2 px border.
+
+## Desktop places panel
+
+Drag the right edge to resize the panel to 80–150% of its standard width at
+the current breakpoint. Drag the divider above the results to resize the
+filters to 25–70% of the panel height. Short windows lower the upper limit
+to leave space for results. Tab focuses each divider. The arrow keys adjust
+its size, and Home and End move it to either limit. Double-click a divider or
+press Enter while it is focused to reset that dimension to its default.
+
+By default, filters occupy up to 60% of the panel height. The compact results
+and the filters scroll independently. Dimensions live in the page until
+reload. At widths up to 1000 px, the list and filters share one scroll area
+and the dividers are hidden.
+
 ## Failure decisions
 
 `basemap.js` observes actual Style, Source (TileJSON) and Tile requests with a
@@ -113,3 +130,34 @@ Mobile opens the map; the places/filter panel is opened explicitly.
 English and local names and the address are individually copyable. Temporary
 copy feedback clears automatically; keyboard focus remains accessible. Additional
 source links start collapsed, with the Google Maps action kept visible.
+
+## Light clarity
+
+The map, calendar and shared screens use semantic tokens and common buttons,
+fields, chips, selection rows and panel surfaces. The map controls use a
+translucent panel surface so their labels remain readable above tiles.
+See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for the component contract and gallery.
+
+The approved “Quiet depth” refinement applies the same static panel gradient
+to place details and shared dialogs as to planning cards. Dark surfaces are
+slightly darker behind left-aligned text; light surfaces stay almost white
+there and shade subtly toward the right. Primary buttons use the shared action
+gradient. No new animation is introduced. Planning links use shared state
+badges; a successful place save uses the same green confirmation as completing
+a planning item. Category and user-defined status colors remain data-owned.
+Light surfaces now use a warm milk/sand scale that fits the beige basemap;
+filters and soft fields have stronger fills and a subtle shared control border.
+Neutral hover remains separate from selection and green completion actions.
+
+Above 1000 px the card sits flush with the bottom of the map and aligns with
+the right edge of the toolbar. Its width scales between 380 and 480 px. The
+card ends below the map controls. In short windows the zoom buttons move to
+the left of the card to leave more height for reading. The card enters from
+below in 220 ms with a quick start and a gradual stop, or appears immediately
+with reduced motion. Its body scrolls independently. The camera centres the selected pin in the exposed
+map to the left. The compact layout uses its inset bottom card.
+
+The detail form labels its existing save request as busy, keeps an inline error
+next to the save action and clears it on the next attempt. The existing version
+conflict refresh retains the note and tag draft and now shows an inline prompt
+to review and save again. Theme changes keep the same form DOM and draft.

@@ -22,7 +22,7 @@ export function reminderCard({mount,item,plan,notifications,api,esc,review,setDi
   const panel=section.querySelector('[data-reminder-devices]');if(!panel)return;
   panel.innerHTML=`<p class="muted">${esc(s.detail)}${s.others?' · Других подключённых устройств: '+s.others+'.':''}</p>
    ${s.paused?'<p class="planning-warning">Пуши на всех ваших устройствах на паузе. Правило сохранится.</p>':s.noDevices?'<p class="planning-warning">Получать пуши пока некуда. Напоминание можно сохранить сейчас и подключить устройство позже.</p>':''}
-   <button type="button" class="text-button" data-reminder-settings>Уведомления и устройства</button>`;
+   <button type="button" class="ui-button ui-button--quiet ui-button--compact" data-reminder-settings>Уведомления и устройства</button>`;
   panel.querySelector('[data-reminder-settings]').onclick=openSettings;
  }
  function heading(){return `<h3>${pushIcon} Напомнить мне</h3>`}
@@ -42,8 +42,8 @@ export function reminderCard({mount,item,plan,notifications,api,esc,review,setDi
    ${!eligible?`<p class="muted">${active(item)?'Чтобы включить напоминание, у записи должна быть дата или дата и время.':'Эта запись закрыта. Напоминание не отправляется.'}</p>`:''}
    ${note?`<p class="planning-warning"><strong>Уточните время.</strong> ${esc(note)}</p>`:''}
    ${rule?.enabled&&s&&s.at<=Date.now()?`<p class="muted">${rule.sent?'Напоминание передано push-сервису.':'Время напоминания уже прошло.'}</p>`:''}
-   <div class="notification-actions">${eligible?`<button type="button" class="text-button" data-reminder-edit>${rule?.enabled?(rule.review?'Уточнить время':'Изменить напоминание'):'Настроить напоминание'}</button>`:'<button type="button" class="text-button" disabled>Настроить напоминание</button>'}
-   ${rule?.enabled?'<button type="button" class="text-button" data-reminder-disable>Выключить</button>':''}</div><p data-reminder-error role="alert"></p><div data-reminder-devices></div>`;
+   <div class="notification-actions">${eligible?`<button type="button" class="ui-button ui-button--quiet ui-button--compact" data-reminder-edit>${rule?.enabled?(rule.review?'Уточнить время':'Изменить напоминание'):'Настроить напоминание'}</button>`:'<button type="button" class="ui-button ui-button--quiet ui-button--compact" disabled>Настроить напоминание</button>'}
+   ${rule?.enabled?'<button type="button" class="ui-button ui-button--quiet ui-button--compact" data-reminder-disable>Выключить</button>':''}</div><p class="ui-error" data-reminder-error role="alert"></p><div data-reminder-devices></div>`;
   section.querySelector('[data-reminder-edit]')?.addEventListener('click',edit);
   section.querySelector('[data-reminder-disable]')?.addEventListener('click',async e=>{
    e.target.disabled=true;setBusy(true);
@@ -61,11 +61,11 @@ export function reminderCard({mount,item,plan,notifications,api,esc,review,setDi
   const savedOffset=rule?.offset_minutes??0,custom=!isPreset(savedOffset);
   const unit=savedOffset%1440===0?1440:savedOffset%60===0?60:1;
   section.innerHTML=`${heading()}<form class="planning-form reminder-form">${exact===null?
-   `<label>Время отправки<input type="time" name="local_time" value="${esc(rule?.adjusted&&rule.scheduled?.day===day?rule.scheduled.time:rule?.local_time||'09:00')}" required></label><p class="muted">По местному времени ${item.date_end&&item.date_start&&item.date_end!==item.date_start?'первого дня периода':'этого дня'}.</p>`:
-   `<label>Когда напомнить<select name="preset">${Object.entries(presets).map(([v,label])=>`<option value="${v}" ${Number(v)===savedOffset?'selected':''}>${label}</option>`).join('')}<option value="custom" ${custom?'selected':''}>Свой интервал</option></select></label>
-    <div class="time-field-grid" data-offset-custom hidden><label>За сколько<input name="amount" type="number" min="1" max="43200" value="${custom?savedOffset/unit:15}"></label><label>Единица<select name="unit"><option value="1" ${unit===1?'selected':''}>минут</option><option value="60" ${unit===60?'selected':''}>часов</option><option value="1440" ${unit===1440?'selected':''}>дней</option></select></label></div>`}
+   `<label>Время отправки<input class="ui-field ui-field--soft" type="time" name="local_time" value="${esc(rule?.adjusted&&rule.scheduled?.day===day?rule.scheduled.time:rule?.local_time||'09:00')}" required></label><p class="muted">По местному времени ${item.date_end&&item.date_start&&item.date_end!==item.date_start?'первого дня периода':'этого дня'}.</p>`:
+   `<label>Когда напомнить<select class="ui-field ui-field--soft" name="preset">${Object.entries(presets).map(([v,label])=>`<option value="${v}" ${Number(v)===savedOffset?'selected':''}>${label}</option>`).join('')}<option value="custom" ${custom?'selected':''}>Свой интервал</option></select></label>
+    <div class="time-field-grid" data-offset-custom hidden><label>За сколько<input class="ui-field ui-field--soft" name="amount" type="number" min="1" max="43200" value="${custom?savedOffset/unit:15}"></label><label>Единица<select class="ui-field ui-field--soft" name="unit"><option value="1" ${unit===1?'selected':''}>минут</option><option value="60" ${unit===60?'selected':''}>часов</option><option value="1440" ${unit===1440?'selected':''}>дней</option></select></label></div>`}
    <p class="reminder-calculated muted" data-calculated aria-live="polite"></p><div data-reminder-devices></div>
-   <p data-reminder-error role="alert"></p><div class="notification-actions"><button class="primary" type="submit">Сохранить напоминание</button><button class="text-button" type="button" data-reminder-back>Отмена</button></div></form>`;
+   <p class="ui-error" data-reminder-error role="alert"></p><div class="notification-actions"><button class="ui-button ui-button--primary" type="submit">Сохранить напоминание</button><button class="ui-button ui-button--quiet ui-button--compact" type="button" data-reminder-back>Отмена</button></div></form>`;
   const form=section.querySelector('form'),fields=form.elements,button=form.querySelector('[type=submit]');
   function input(){return exact===null?{enabled:true,local_time:fields.local_time.value}:{enabled:true,offset_minutes:fields.preset.value==='custom'?Number(fields.amount.value)*Number(fields.unit.value):Number(fields.preset.value)}}
   function update(){

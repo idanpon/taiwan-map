@@ -6,7 +6,18 @@ for(const authMode of ['cookie','bearer'])test(`Node HTTP adapter accepts ${auth
  try{
   await Promise.race([new Promise((resolve,reject)=>{const timer=setInterval(()=>{if(output.includes('listening on port')){clearInterval(timer);resolve()}else if(child.exitCode!==null){clearInterval(timer);reject(new Error(output))}},20)}),new Promise((_,reject)=>setTimeout(()=>reject(new Error('HTTP startup timed out')),5000).unref())]);
   assert.equal((await fetch(origin+'/api/health')).status,200);
-  assert.match(await(await fetch(origin+'/')).text(),/type="module" src="\/app.js"/);assert.equal((await fetch(origin+'/api-client.js')).status,200);
+  const map=await fetch(origin+'/');
+  assert.equal(map.headers.get('cache-control'),'no-store');
+  const html=await map.text();
+  assert.match(html,/type="module" src="\/preview-assets\/app\.js"/);
+  assert.match(html,/href="\/preview-assets\/style\.css"/);
+  const calendar=await(await fetch(origin+'/planning.html')).text();
+  assert.match(calendar,/type="module" src="\/preview-assets\/planning\.js"/);
+  for(const path of ['/preview-assets/app.js','/preview-assets/statuses.js','/preview-assets/style.css']){
+   const asset=await fetch(origin+path);
+   assert.equal(asset.status,200);
+   assert.equal(asset.headers.get('cache-control'),'no-store');
+  }
   assert.ok((await(await fetch(origin+'/config.js')).text()).includes('"authMode":"'+authMode+'"'));
   for(const requestOrigin of [frontend,'https://untrusted.example']){
    const oversized=await fetch(origin+'/api/login',{method:'POST',headers:{Origin:requestOrigin,'Content-Type':'application/json'},body:JSON.stringify({password:'x'.repeat(9000)})});

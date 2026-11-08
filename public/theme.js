@@ -9,7 +9,7 @@ export function createThemeUI({document,window,onChange}){
  }
  function apply(value){
   theme=value;document.documentElement.dataset.theme=theme;document.documentElement.style.colorScheme=theme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content',theme==='dark'?'#17212d':'#f4f5f7');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content',theme==='dark'?'#182128':'#f6f3ed');
   sync();onChange(theme);
  }
  for(const control of controls)control.addEventListener('click',()=>{

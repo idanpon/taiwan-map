@@ -14,6 +14,7 @@ import {createMapView} from './map-view.js';
 import {createAuthStartup,createLoadingScreenUI} from './auth-startup.js';
 import {createPlaceLifecycleUI} from './place-lifecycle.js';
 import {installPlaceCardSwipe} from './place-card-swipe.js';
+import {installSidebarResize} from './sidebar-resize.js';
 const $=id=>document.getElementById(id);
 const config=window.TAIWAN_CONFIG||{apiBase:'',requiresApi:false};
 const {apiBase,configurationError,authMode}=readClientConfiguration(config,{missing:'Сервер данных ещё не подключён. Адрес API будет добавлен после настройки VPS.',invalid:'В настройках сайта указан некорректный HTTPS-адрес API.'});
@@ -23,7 +24,7 @@ let data,map,selected=null,city='',types=new Set(),status='',query='',tags=new S
 function resetDirty(){dirty=false;stateDirty=false;tagDirty=false}
 const themeUI=createThemeUI({document,window,onChange:value=>{map?.setTheme(value);if(data)render()}});
 let toastTimer;
-function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5500)}
+function toast(message,tone='neutral'){$('toast').dataset.tone=tone;$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5500)}
 const {storage,legacyStorage}=sessionStores(window);
 const transport=createApiClient({apiBase,authMode,storage,legacyStorage,onUnauthorized:()=>{if(!startup?.running)void load().then(()=>toast('Вход завершился. Карта доступна для просмотра.')).catch(e=>toast(e.message))}});
 async function api(path,options={}){if(configurationError)throw new Error(configurationError);return transport(path,options)}
@@ -54,12 +55,12 @@ function visible(){return data.places.filter(p=>(!city||p.city===city)&&(!types.
 function populateFilters(){
  const cities=cityOptions(data.places);if(city&&!cities.some(c=>c.name===city))city='';
  $('city-filter').innerHTML=`<option value="">Все места · ${data.places.length}</option>`+cities.map(c=>`<option value="${esc(c.name)}">${esc(c.name)} · ${c.count}</option>`).join('');$('city-filter').value=city;
- $('category-filters').innerHTML=data.categories.map(c=>`<button class="chip ${types.has(c.id)?'active':''}" data-category="${esc(c.id)}" aria-pressed="${types.has(c.id)}">${icon(c.icon)}${esc(c.label)}</button>`).join('');
- $('tag-filters').innerHTML=tagDefinitions.map(t=>`<button type="button" class="chip ${tags.has(t.id)?'active':''}" data-tag="${t.id}" aria-pressed="${tags.has(t.id)}">${tagIcon(t.icon)}${esc(t.filterLabel||t.label)}</button>`).join('');
+ $('category-filters').innerHTML=data.categories.map(c=>`<button class="ui-chip ${types.has(c.id)?'active':''}" data-category="${esc(c.id)}" aria-pressed="${types.has(c.id)}">${icon(c.icon)}${esc(c.label)}</button>`).join('');
+ $('tag-filters').innerHTML=tagDefinitions.map(t=>`<button type="button" class="ui-chip ${tags.has(t.id)?'active':''}" data-tag="${t.id}" aria-pressed="${tags.has(t.id)}">${tagIcon(t.icon)}${esc(t.filterLabel||t.label)}</button>`).join('');
  const previous=$('status-filter').value;$('status-filter').innerHTML='<option value="">Все статусы</option><option value="none">Без статуса</option>'+data.statuses.map(s=>`<option value="${esc(s.id)}">${esc(s.label)}</option>`).join('');$('status-filter').value=previous;
 }
 function render(){if(!data)return;const ps=visible();$('place-count').textContent=`${ps.length} из ${data.places.length} мест`;$('map-label').textContent=`${city||'Тайвань'} · ${ps.length} мест`;
- $('place-list').innerHTML=ps.length?ps.map(p=>{const c=getCategory(p),s=getStatus(p);return `<button class="place-card ${selected===p.id?'selected':''}" data-place="${esc(p.id)}" style="--category:${c.color};--category-bg:${c.color}14;--status:${s?.color||'#697568'};--status-opacity:${s?.opacity??1};--status-symbol:${s?.symbolColor||'#ffffff'};--status-text:${s?.textColor||'var(--muted)'}"><span class="place-icon">${icon(c.icon)}</span><span class="place-card-content"><span class="place-name">${esc(p.name)}</span><span class="place-meta">${esc(p.city)} <span>·</span> ${esc(c.label)}</span><span class="card-status"><i class="status-dot" aria-hidden="true">${esc(s?.symbol||'')}</i> ${esc(s?.label||'Без статуса')}</span></span></button>`}).join(''):'<p class="empty">Под эти фильтры пока нет мест.<br>Попробуйте другой статус или сбросьте фильтры.</p>';
+ $('place-list').innerHTML=ps.length?ps.map(p=>{const c=getCategory(p),s=getStatus(p);return `<button class="place-card ui-list-item ${selected===p.id?'selected':''}" data-place="${esc(p.id)}" aria-pressed="${selected===p.id}" style="--category:${c.color};--category-bg:${c.color}14;--status:${s?.color||'#697568'};--status-opacity:${s?.opacity??1};--status-symbol:${s?.symbolColor||'#ffffff'};--status-text:${s?.textColor||'var(--ui-text-muted)'}"><span class="place-icon">${icon(c.icon)}</span><span class="place-card-content"><span class="place-name">${esc(p.name)}</span><span class="place-meta">${esc(p.city)} <span>·</span> ${esc(c.label)}</span><span class="card-status"><i class="status-dot" aria-hidden="true">${esc(s?.symbol||'')}</i> ${esc(s?.label||'Без статуса')}</span></span></button>`}).join(''):'<p class="empty">Под эти фильтры пока нет мест.<br>Попробуйте другой статус или сбросьте фильтры.</p>';
  if(selected&&!ps.some(p=>p.id===selected)&&!dirty){const p=data.places.find(p=>p.id===selected);if(p)map?.centerPlace(p);selected=null;$('detail').hidden=true;$('application').classList.remove('detail-open');resetDirty()}renderMarkers(ps);
 }
 function renderMarkers(ps=visible()){
@@ -70,7 +71,7 @@ function initMap(){
 }
 function fit(){map?.fit()}
 function detail(p){detailSwipe.cancel();resetDirty();tagControls=undefined;const c=getCategory(p),s=getStatus(p),links=p.links.filter(l=>/^https:\/\//.test(l.url));$('detail').style.setProperty('--category',c.color);
- $('detail').innerHTML=`<div class="detail-header"><p class="eyebrow">${esc(p.city)} / ${esc(c.label)}</p><button type="button" class="detail-close" id="detail-close" aria-label="Закрыть карточку">×</button></div><div class="detail-body"><div class="detail-title" id="detail-title"><h2>${copyTextControl(p.name,'name',esc)}</h2>${tagsHeading(p.tags,esc)}</div>${p.local_name?`<p class="local-name">${copyTextControl(p.local_name,'local_name',esc)}</p>`:''}<p class="detail-summary">${esc(p.summary)}</p><div class="detail-info"><strong>Часы · Тайвань (UTC+8)</strong><p>${esc(p.hours.label)}</p>${p.hours.note?`<p class="hours-note">${esc(p.hours.note)}</p>`:''}<strong>Адрес</strong><p>${copyTextControl(p.address,'address',esc)}</p></div><div id="place-tag-details">${tagsDetails(p.tags,esc)}</div><p class="tip">${esc(p.tip)}</p><a class="google-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name+' '+p.address)}">Открыть в Google Maps ↗</a>${links.length?`<details class="place-links"><summary><span>Ссылки и источники</span>${tagIcon('chevron-down')}</summary><div class="detail-links">${links.map(l=>`<a target="_blank" rel="noopener noreferrer" href="${esc(l.url)}">${esc(l.label)} ↗</a>`).join('')}</div></details>`:''}<div id="place-planning-links">${planningPlaceSummary(planning,p.id,esc)}</div>${data.user?`<form id="state-form"><label for="place-status">Наш статус</label><select id="place-status"><option value="">Без статуса</option>${data.statuses.map(s=>`<option value="${esc(s.id)}" ${s.id===p.status_id?'selected':''}>${esc(s.label)}</option>`).join('')}</select><label for="place-note">Заметка к месту</label><textarea id="place-note" maxlength="2000" placeholder="Что попробовать или не забыть">${esc(p.note)}</textarea>${canEdit()?'<div id="place-tag-editor"></div>':''}<button type="submit" id="save-state" class="primary">Сохранить</button></form>`:''}<p class="verification">${esc(hoursVerification(p.verified_at))}</p>${canEdit()?'<div class="place-actions"><button type="button" class="text-button" data-place-action="hide">Скрыть место</button><button type="button" class="text-button" data-place-action="delete">Удалить</button></div>':''}</div>`;
+ $('detail').innerHTML=`<div class="detail-header"><p class="eyebrow">${esc(p.city)} / ${esc(c.label)}</p><button type="button" class="detail-close ui-button ui-button--quiet ui-button--icon" id="detail-close" aria-label="Закрыть карточку">×</button></div><div class="detail-body"><div class="detail-title" id="detail-title"><h2>${copyTextControl(p.name,'name',esc)}</h2>${tagsHeading(p.tags,esc)}</div>${p.local_name?`<p class="local-name">${copyTextControl(p.local_name,'local_name',esc)}</p>`:''}<p class="detail-summary">${esc(p.summary)}</p><div class="detail-info"><strong>Часы · Тайвань (UTC+8)</strong><p>${esc(p.hours.label)}</p>${p.hours.note?`<p class="hours-note">${esc(p.hours.note)}</p>`:''}<strong>Адрес</strong><p>${copyTextControl(p.address,'address',esc)}</p></div><div id="place-tag-details">${tagsDetails(p.tags,esc)}</div><p class="tip">${esc(p.tip)}</p><a class="google-link ui-button ui-button--block" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name+' '+p.address)}">Открыть в Google Maps ↗</a>${links.length?`<details class="place-links"><summary><span>Ссылки и источники</span>${tagIcon('chevron-down')}</summary><div class="detail-links">${links.map(l=>`<a target="_blank" rel="noopener noreferrer" href="${esc(l.url)}">${esc(l.label)} ↗</a>`).join('')}</div></details>`:''}<div id="place-planning-links">${planningPlaceSummary(planning,p.id,esc)}</div>${data.user?`<form id="state-form"><label for="place-status">Наш статус</label><select id="place-status" class="ui-field ui-field--soft"><option value="">Без статуса</option>${data.statuses.map(s=>`<option value="${esc(s.id)}" ${s.id===p.status_id?'selected':''}>${esc(s.label)}</option>`).join('')}</select><label for="place-note">Заметка к месту</label><textarea class="ui-field ui-field--soft" id="place-note" maxlength="2000" placeholder="Что попробовать или не забыть">${esc(p.note)}</textarea>${canEdit()?'<div id="place-tag-editor"></div>':''}<p id="place-save-error" class="ui-error" role="alert"></p><button type="submit" id="save-state" class="ui-button ui-button--primary ui-button--block">Сохранить</button></form>`:''}<p class="verification">${esc(hoursVerification(p.verified_at))}</p>${canEdit()?'<div class="place-actions"><button type="button" class="ui-button ui-button--quiet" data-place-action="hide">Скрыть место</button><button type="button" class="ui-button ui-button--quiet ui-button--danger" data-place-action="delete">Удалить</button></div>':''}</div>`;
  if(data.user&&!canEdit()){const form=$('state-form');form.insertAdjacentHTML('afterbegin','<p class="muted">Доступ только для просмотра</p>');form.querySelectorAll('select,textarea').forEach(el=>el.disabled=true);$('save-state').hidden=true;}
  bindTagHints();
  if(canEdit())tagControls=createPlaceTagControls({root:$('place-tag-editor'),place:p,esc,onDirty:value=>{tagDirty=value;dirty=tagDirty||stateDirty}});
@@ -93,12 +94,13 @@ async function saveState(event,p){
  let patch;try{patch=tagControls?.patch()||{}}catch(error){toast(error.message);return}
  const note=$('place-note').value,statusId=$('place-status').value||null,tagDraft=tagDirty?tagControls?.snapshot():null;
  const payload={version:p.version,note,status_id:statusId,...(Object.keys(patch).length?{tags:patch,tags_version:p.tags_version}:{})};
- busy=true;const form=$('state-form');form.querySelectorAll('input,select,textarea,button').forEach(el=>el.disabled=true);tagControls?.setBusy(true);
+ busy=true;const form=$('state-form');form.setAttribute('aria-busy','true');$('place-save-error').textContent='';$('save-state').textContent='Сохраняем…';$('save-state').setAttribute('aria-busy','true');form.querySelectorAll('input,select,textarea,button').forEach(el=>el.disabled=true);tagControls?.setBusy(true);
  try{
   const result=await api(`/api/places/${encodeURIComponent(p.id)}/state`,{method:'PUT',body:JSON.stringify(payload)});
   Object.assign(p,{note,status_id:statusId,...result});resetDirty();tagControls?.commit(p.tags);
-  $('detail-title').innerHTML=`<h2>${copyTextControl(p.name,'name',esc)}</h2>${tagsHeading(p.tags,esc)}`;$('place-tag-details').innerHTML=tagsDetails(p.tags,esc);bindTagHints();render();toast('Изменения сохранены.');
+  $('detail-title').innerHTML=`<h2>${copyTextControl(p.name,'name',esc)}</h2>${tagsHeading(p.tags,esc)}`;$('place-tag-details').innerHTML=tagsDetails(p.tags,esc);bindTagHints();render();toast('Изменения сохранены.','success');
  }catch(error){
+  const errorElement=$('place-save-error');if(errorElement)errorElement.textContent=error.message;
   toast(error.message);
   if(error.details?.code==='planning_decision_required'){
    $('place-status').value=p.status_id||'';
@@ -108,10 +110,12 @@ async function saveState(event,p){
   }
   if(error.status===409)try{
    data=await api('/api/data');const current=data.places.find(x=>x.id===p.id);populateFilters();render();
-   if(current){detail(current);$('place-note').value=note;if(!statusId||data.statuses.some(s=>s.id===statusId))$('place-status').value=statusId||'';stateDirty=true;dirty=true;if(tagDraft)tagControls?.restore(tagDraft);toast('Данные обновлены. Ваши изменения оставлены в полях: проверьте и сохраните ещё раз.')}
+   if(current){detail(current);$('place-note').value=note;if(!statusId||data.statuses.some(s=>s.id===statusId))$('place-status').value=statusId||'';stateDirty=true;dirty=true;if(tagDraft)tagControls?.restore(tagDraft);$('place-save-error').textContent='Данные обновлены. Сверьте изменения и сохраните ещё раз.';toast('Данные обновлены. Ваши изменения оставлены в полях: проверьте и сохраните ещё раз.')}
   }catch(refreshError){toast(refreshError.message)}
  }finally{
-  busy=false;const currentForm=$('state-form');if(currentForm)currentForm.querySelectorAll('input,select,textarea,button').forEach(el=>el.disabled=false);tagControls?.setBusy(false);
+  busy=false;const currentForm=$('state-form');
+  if(currentForm){currentForm.removeAttribute('aria-busy');currentForm.querySelectorAll('input,select,textarea,button').forEach(el=>el.disabled=false);$('save-state').textContent='Сохранить';$('save-state').removeAttribute('aria-busy')}
+  tagControls?.setBusy(false);
  }
 }
 
@@ -137,6 +141,12 @@ $('mobile-toggle').onclick=()=>{if(!closeDetail())return;setSidebar(!$('places-p
 document.addEventListener('click',event=>{if($('detail').hidden||$('status-dialog').open||$('accounts-dialog').open||$('help-dialog').open||$('hidden-places-dialog').open||event.target.closest('#login, #login-open, #detail, #status-dialog, #help-dialog, #help-open, #manage-statuses, #hidden-places-open, [data-place], .maplibregl-marker, .maplibregl-ctrl, .map-tools, .map-zoom, #map-status, .theme-control'))return;if(!closeDetail()){event.preventDefault();event.stopPropagation()}},true);
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('login').hidden&&data){closeLogin();return}if(event.key!=='Escape'||$('status-dialog').open||$('accounts-dialog').open||$('help-dialog').open||$('hidden-places-dialog').open)return;if(!$('detail').hidden){event.preventDefault();closeDetail(true)}else if($('places-panel').classList.contains('mobile-open')){setSidebar(false);$('mobile-toggle').focus()}});
 window.addEventListener('resize',()=>{if(map)map.resize()});
+const placesPanel=$('places-panel');
+installSidebarResize({
+ panel:placesPanel,filters:$('side-filters'),list:$('place-list'),
+ heading:placesPanel.querySelector('.list-heading'),footer:placesPanel.querySelector('.side-footer'),
+ widthDivider:$('sidebar-width-divider'),heightDivider:$('sidebar-height-divider'),
+});
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
 document.addEventListener('visibilitychange',async()=>{if(document.hidden||!data||dirty||busy||!$('login').hidden||$('accounts-dialog').open)return;try{const id=selected;await load();if(id&&data.places.some(p=>p.id===id))detail(data.places.find(p=>p.id===id))}catch(e){toast(e.message)}});
 installPlaceCopy({root:$('detail'),getPlace:()=>data?.places.find(p=>p.id===selected),toast});

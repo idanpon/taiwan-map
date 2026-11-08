@@ -1,11 +1,48 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {installSwipeGesture} from '../public/swipe-gesture.js';
-import {installPlanningNavigation} from '../public/planning-navigation.js';
+import {installPlanningNavigation,createMonthWheelGesture} from '../public/planning-navigation.js';
 import {installPlaceCardSwipe} from '../public/place-card-swipe.js';
 function surface(){
  const handlers={};return {handlers,addEventListener(type,fn,options){handlers[type+(options===true||options?.capture?'Capture':'')]=fn},setPointerCapture(){}};
 }
 const target={closest:()=>null};
+test('one horizontal trackpad gesture changes one month, including its inertial tail',()=>{
+ const wheel=createMonthWheelGesture(),move=(x,y,time,deltaMode=0)=>wheel({deltaX:x,deltaY:y,timeStamp:time,deltaMode});
+ assert.deepEqual(move(24,3,0),{claimed:true,direction:0});
+ assert.deepEqual(move(34,4,16),{claimed:true,direction:1});
+ for(let time=32;time<400;time+=16)assert.equal(move(20,1,time).direction,0);
+ assert.equal(move(-60,0,700).direction,-1);
+ assert.equal(move(4,0,1000,1).direction,1);
+});
+test('vertical trackpad scroll stays native and pinch, fields, cards and agenda never switch months',()=>{
+ const wheel=createMonthWheelGesture();assert.equal(wheel({deltaX:2,deltaY:40,timeStamp:0}).claimed,false);assert.equal(wheel({deltaX:100,deltaY:0,timeStamp:16}).claimed,false);
+ const canvas=surface(),document=surface(),moves=[];let enabled=true;
+ installPlanningNavigation({canvas,document,navigate:n=>moves.push(n),enabled:()=>enabled});
+ const event=(extra={})=>({target,timeStamp:0,deltaX:70,deltaY:0,cancelable:true,preventDefault(){this.prevented=true},...extra});
+ for(const selector of ['input','planning-card','planning-day-panel'])canvas.handlers.wheel(event({target:{closest:s=>s.includes(selector)?{}:null}}));
+ canvas.handlers.wheel(event({ctrlKey:true}));enabled=false;canvas.handlers.wheel(event());assert.deepEqual(moves,[]);
+ enabled=true;const horizontal=event();canvas.handlers.wheel(horizontal);assert.equal(horizontal.prevented,true);assert.deepEqual(moves,[1]);
+});
+test('rapid consecutive strokes restart inside an inertial tail without any pointer movement',()=>{
+ const wheel=createMonthWheelGesture(),directions=[];let time=0;
+ const stroke=[18,38,30,20,12,7,4,2];
+ for(let n=0;n<3;n++)for(const deltaX of stroke){const result=wheel({deltaX,deltaY:1,timeStamp:time});time+=20;if(result.direction)directions.push(result.direction)}
+ assert.deepEqual(directions,[1,1,1]);
+ for(const deltaX of [-16,-42,-28,-12,-5,-2]){const result=wheel({deltaX,deltaY:0,timeStamp:time});time+=20;if(result.direction)directions.push(result.direction)}
+ assert.deepEqual(directions,[1,1,1,-1]);
+});
+test('a long decaying tail and small noisy rebound cannot trigger extra month changes',()=>{
+ const wheel=createMonthWheelGesture(),directions=[];
+ [60,48,40,32,24,18,12,7,4,2,4,2,1,2,0].forEach((deltaX,n)=>{const result=wheel({deltaX,deltaY:0,timeStamp:n*20});if(result.direction)directions.push(result.direction)});
+ assert.deepEqual(directions,[1]);
+});
+test('large isolated wheel steps restart while dense or decaying events remain one gesture',()=>{
+ for(const [events,expected] of [
+  [[[0,1536],[63,1536],[113,1536]],[1,1,1]],
+  [[[0,1536],[16,1536],[32,1536]],[1]],
+  [[[0,1536],[60,900],[120,600],[180,300],[240,100]],[1]]
+ ]){const wheel=createMonthWheelGesture();assert.deepEqual(events.map(([timeStamp,deltaX])=>wheel({timeStamp,deltaX,deltaY:0}).direction).filter(Boolean),expected)}
+});
 function touch(surface,type,x,y,time,{count=1,node=target}={}){
  const point={identifier:1,clientX:x,clientY:y},event={target:node,timeStamp:time,cancelable:true,touches:type==='touchend'?[]:Array.from({length:count},(_,i)=>({...point,identifier:i+1})),changedTouches:[point],preventDefault(){this.prevented=true}};
  surface.handlers[type](event);return event;

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Taiwan Map · UI Gallery</title>
+<script src="../public/theme-init.js"></script>
+<link rel="stylesheet" href="../public/style.css">
+<link rel="stylesheet" href="../public/planning.css">
+<link rel="stylesheet" href="../public/ui-tokens.css">
+<link rel="stylesheet" href="../public/ui.css">
+<style>
+  body { background: var(--ui-surface-page); }
+  .gallery { max-width: 1040px; margin: auto; padding: 24px; }
+  .gallery header { display: flex; gap: 16px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+  .gallery h1 { margin: 0; font-size: var(--ui-text-title); }
+  .gallery h2 { font-size: var(--ui-text-section); margin: 0 0 16px; }
+  .gallery section { margin-block: 28px; }
+  .gallery p { max-width: 70ch; }
+  .gallery-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .gallery-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; }
+  .gallery-example { padding: 20px; min-width: 0; }
+  .gallery label { margin: 12px 0 6px; color: var(--ui-text-muted); font-size: var(--ui-text-caption); }
+  .gallery .ui-field { margin-top: 6px; }
+  .gallery code { overflow-wrap: anywhere; }
+  #gallery-list { border-block: 1px solid var(--ui-border); }
+  .gallery .ui-list-item span { min-width: 0; overflow-wrap: anywhere; }
+  .gallery .ui-list-item strong, .gallery .ui-list-item small { display: block; }
+  .gallery .ui-list-item small { color: var(--ui-text-muted); }
+  .gallery .ui-chip { margin: 0; }
+  #gallery-panel { padding: 20px; }
+  #gallery-feedback { min-height: 20px; }
+  @media(max-width:640px) { .gallery { padding: 16px; } .gallery-grid { grid-template-columns: minmax(0,1fr); } }
+</style>
+</head>
+<body>
+<main class="gallery">
+<header><div><h1>Лёгкая ясность</h1><p class="muted">UI Gallery · компоненты пилота Taiwan Map</p></div><button class="ui-button" id="gallery-theme" data-theme-toggle>Переключить тему</button></header>
+<p>Демонстрационные значения. Все примеры используют общие <code>ui-tokens.css</code> и <code>ui.css</code>. Для проверки фокуса пройдите элементы клавишей Tab.</p>
+<section aria-labelledby="buttons-title"><h2 id="buttons-title">Действия и состояния</h2><div class="gallery-row">
+<button class="ui-button ui-button--primary" id="gallery-save">Сохранить</button>
+<button class="ui-button">Открыть в Google Maps ↗</button>
+<button class="ui-button ui-button--quiet">Отмена</button>
+<button class="ui-button ui-button--quiet ui-button--danger">Удалить</button>
+<button class="ui-button" disabled>Недоступно</button>
+<button class="ui-button ui-button--primary" disabled aria-busy="true">Сохраняем…</button>
+<button class="ui-button ui-button--compact">Компактное действие</button>
+<button class="ui-button ui-button--success">Готово</button>
+</div><p>Связанные текстовые и иконные действия имеют общую высоту во всех состояниях.</p><div class="ui-button-group" role="group" aria-label="Навигация месяца">
+<button class="ui-button ui-button--quiet ui-button--icon" aria-label="Предыдущий месяц">‹</button>
+<button class="ui-button ui-button--quiet ui-button--compact">Сегодня</button>
+<button class="ui-button ui-button--quiet ui-button--icon" aria-label="Следующий месяц">›</button>
+</div><p id="gallery-feedback" class="ui-feedback" role="status" aria-live="polite"></p></section>
+<section aria-label="Смысловые состояния"><div class="gallery-row"><span class="ui-status" data-state="in_progress">В работе</span><span class="ui-status" data-state="done">Выполнено</span><span class="ui-status ui-status--warning">Срок сегодня</span><span class="ui-status ui-status--danger">Просрочено</span></div></section>
+<section aria-labelledby="surface-title"><h2 id="surface-title">Различимость на фоне страницы и при наведении</h2>
+<p>Проверьте обе темы: обычный фильтр виден до наведения, выбранный сохраняет акцент при наведении. Наведите на текст карточки, затем на «Готово»: кнопка и значок не должны сливаться с подсветкой карточки. Tab проверяет те же границы с клавиатуры.</p>
+<div class="gallery-row"><button class="ui-chip" aria-pressed="false">Обычный фильтр</button><button class="ui-chip" aria-pressed="true">Выбранный фильтр</button><button class="ui-chip" disabled>Недоступный</button></div>
+<div class="planning-items">
+<article class="planning-card kind-task has-action"><button class="planning-card-open"><span class="planning-card-icon"><svg class="planning-kind-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m8 12 3 3 5-6"/></svg></span><span class="planning-card-body"><strong class="planning-card-title">Подготовить документы и проверить бронирования для длинной поездки</strong><span class="planning-card-meta">Без точного времени · Задача · <span class="ui-status" data-state="in_progress">В работе</span></span></span></button><button class="ui-button ui-button--success planning-finish"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>Готово</button></article>
+</div></section>
+<div class="gallery-grid">
+<section class="ui-panel gallery-example" aria-labelledby="fields-title"><h2 id="fields-title">Поля</h2>
+<label>Город<select class="ui-field"><option>Все места</option><option>Очень длинное название города для проверки переноса</option></select></label>
+<label>Наш статус<select class="ui-field ui-field--soft"><option>Без статуса</option><option>Хотим посетить</option></select></label>
+<label>Заметка<textarea class="ui-field ui-field--soft">Можно отредактировать и переключить тему.</textarea></label>
+<label>Просмотр<input class="ui-field ui-field--soft" value="Доступ только для просмотра" disabled></label>
+<label>Ссылка с ошибкой<input class="ui-field" aria-invalid="true" aria-describedby="gallery-error" value="Неполная ссылка"></label>
+<p id="gallery-error" class="ui-error">Проверьте адрес ссылки.</p>
+<label>Поиск<span class="ui-field-group"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="search" placeholder="Найти место или адрес"></span></label>
+<label>Дата<span class="ui-field-group ui-field-group--soft"><input type="date" value="2026-11-07"></span></label>
+<fieldset class="ui-fieldset"><legend>Группа дат</legend><label>Начало<span class="ui-field-group ui-field-group--soft"><input type="date" value="2026-11-07"></span></label><label>Окончание<span class="ui-field-group ui-field-group--soft"><input type="date" value="2026-11-09"></span></label></fieldset>
+</section>
+<section class="ui-panel gallery-example" aria-labelledby="choices-title"><h2 id="choices-title">Выбор и список</h2>
+<div class="gallery-row" id="gallery-chips"><button class="ui-chip" aria-pressed="true">Достопримечательности</button><button class="ui-chip" aria-pressed="false">Музеи</button><button class="ui-chip" disabled>Недоступный фильтр</button></div>
+<p class="muted">Контейнер <code>ui-list</code> отделяет подсветку крайних строк от границ списка.</p>
+<div id="gallery-list" class="ui-list"><button class="ui-list-item" aria-pressed="true"><span><strong>Taipei 101</strong><small>Тайбэй · Хотим посетить</small></span></button><button class="ui-list-item" aria-pressed="false"><span><strong>Длинное название места с дополнительным пояснением для проверки переноса</strong><small>Город · Без статуса</small></span></button></div>
+<p class="empty">Под эти фильтры пока нет мест.<br>Попробуйте другой статус или сбросьте фильтры.</p>
+</section>
+</div>
+<section class="ui-panel" id="gallery-panel" aria-labelledby="tags-title"><h2 id="tags-title">Составной редактор из карточки</h2><form id="gallery-tags-form"><div id="gallery-tags"></div></form></section>
+<p class="muted">Галерея дополняет проверку реальных карты, плана, входа и диалогов на широком и узком экране.</p>
+</main>
+<script type="module">
+import {createThemeUI} from '../public/theme.js';
+import {createPlaceTagControls} from '../public/place-tag-controls.js';
+import {escapeHtml} from '../public/client-runtime.js';
+createThemeUI({document,window,onChange(){}});
+createPlaceTagControls({root:document.getElementById('gallery-tags'),place:{tags:{}},esc:escapeHtml,onDirty(){}});
+document.getElementById('gallery-tags-form').onsubmit=event=>event.preventDefault();
+document.getElementById('gallery-chips').onclick=event=>{
+  const button=event.target.closest('button');
+  if(button&&!button.disabled)button.setAttribute('aria-pressed',String(button.getAttribute('aria-pressed')!=='true'));
+};
+document.getElementById('gallery-list').onclick=event=>{
+  const selected=event.target.closest('button');
+  if(selected)for(const button of event.currentTarget.querySelectorAll('button'))button.setAttribute('aria-pressed',String(button===selected));
+};
+document.getElementById('gallery-save').onclick=()=>{document.getElementById('gallery-feedback').textContent='Демонстрация сохранения завершена.'};
+</script>
+</body>
+</html>
