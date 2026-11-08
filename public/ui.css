@@ -26,6 +26,12 @@
 }
 .ui-button--primary { --ui-button-hover-fill: var(--ui-depth-action), var(--ui-accent-hover); background: var(--ui-depth-action), var(--ui-accent); border-color: transparent; color: var(--ui-on-accent); font-weight: 500; }
 .ui-button--success { --ui-button-hover-fill: var(--ui-depth-soft-action), var(--ui-success-action-hover); background: var(--ui-depth-soft-action), var(--ui-success-action); color: var(--ui-success); border-color: transparent; }
+.ui-button--soft {
+  --ui-button-hover-fill: var(--ui-depth-soft-action), color-mix(in srgb,var(--ui-surface-soft) 90%,var(--ui-text));
+  background: var(--ui-depth-soft-action), var(--ui-surface-soft);
+  border-color: transparent;
+  color: var(--ui-text);
+}
 .ui-button--quiet { border-color: transparent; background: transparent; color: var(--ui-text-muted); }
 .ui-button--danger { color: var(--ui-danger); }
 .ui-button--compact { min-height: var(--ui-control-compact); font-size: var(--ui-text-caption); }

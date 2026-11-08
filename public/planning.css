@@ -96,7 +96,6 @@
 .planning-card.is-done .planning-card-title { color: var(--ui-text-muted); }
 .planning-card .planning-finish { align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: var(--ui-space-1); min-height: 64px; height: auto; width: 64px; padding: var(--ui-space-2) var(--ui-space-1); border-color: transparent; border-radius: var(--ui-radius-control); font-size: 11px; }
 .planning-card .planning-finish svg { width: 22px; height: 22px; }
-.planning-card .planning-finish.is-finished { background: var(--ui-surface-soft); color: var(--ui-text-muted); }
 .planning-card[aria-busy=true] { opacity: .6; cursor: progress; }
 .planning-undated { margin-top: var(--ui-space-5); padding-top: var(--ui-space-3); border-top: 1px solid var(--ui-border); }
 .planning-undated-heading { display: flex; justify-content: space-between; align-items: baseline; gap: var(--ui-space-2); margin-bottom: var(--ui-space-2); flex-wrap: wrap; }
