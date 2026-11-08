@@ -3,13 +3,16 @@
   --ui-surface-page: #f6f3ed;
   --ui-surface-panel: #fffdf9;
   --ui-surface-soft: #eae5dc;
-  --ui-surface-hover: #e2dbcf;
   --ui-surface-selected: #dce9e8;
   --ui-surface-icon: #d8d3c9;
   --ui-depth-panel: linear-gradient(90deg, #fffdf9 0%, #fffdf9 38%, #f4efe5 100%);
-  --ui-depth-panel-hover: linear-gradient(90deg, #eee8dc 0%, #eee8dc 38%, #e8e1d3 100%);
-  --ui-depth-action: linear-gradient(90deg, #0000000a, #ffffff08);
-  --ui-depth-soft-action: linear-gradient(90deg, #ffffff14, #00000005);
+  --ui-feedback-ink: #433a30;
+  --ui-hover-strength: 7%;
+  --ui-press-strength: 12%;
+  --ui-hover-layer: color-mix(in srgb, var(--ui-feedback-ink) var(--ui-hover-strength), transparent);
+  --ui-press-layer: color-mix(in srgb, var(--ui-feedback-ink) var(--ui-press-strength), transparent);
+  --ui-depth-panel-hover: linear-gradient(var(--ui-hover-layer), var(--ui-hover-layer)), var(--ui-depth-panel);
+  --ui-depth-panel-press: linear-gradient(var(--ui-press-layer), var(--ui-press-layer)), var(--ui-depth-panel);
   --ui-surface-overlay: color-mix(in srgb, var(--ui-surface-panel) 96%, transparent);
   --ui-text: #343833;
   --ui-text-muted: #5e6058;
@@ -18,15 +21,19 @@
   --ui-border-control: #d2cbbf;
   --ui-border-selected: color-mix(in srgb, var(--ui-accent) 40%, var(--ui-surface-panel));
   --ui-accent: #365f67;
-  --ui-accent-hover: #294d54;
   --ui-on-accent: #ffffff;
   --ui-focus: #397680;
-  --ui-danger: #a43f37;
+  --ui-danger: #9c3b33;
   --ui-danger-surface: #faece9;
   --ui-success: #315b3b;
   --ui-success-surface: #e4eee2;
   --ui-success-action: #d3e4d1;
-  --ui-success-action-hover: #bfd8bf;
+  --ui-button-fill: var(--ui-surface-panel);
+  --ui-button-border: var(--ui-border);
+  --ui-button-ink: var(--ui-accent);
+  --ui-soft-button-fill: var(--ui-surface-soft);
+  --ui-soft-button-border: transparent;
+  --ui-soft-button-ink: var(--ui-text);
   --ui-warning: #6d4d20;
   --ui-warning-surface: #fff4de;
   --ui-warning-marker: #bc8424;
@@ -35,6 +42,8 @@
   --ui-scroll: #b5ad9f;
   --ui-backdrop: #302d2877;
   --ui-shadow-panel: 0 2px 4px #342e2404, 0 8px 24px #342e2414;
+  --ui-shadow-control: 0 1px 2px #463a2818;
+  --ui-shadow-control-floating: 0 1px 3px #463a2824, 0 4px 8px #463a280f;
   --ui-font: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --ui-text-title: 24px;
   --ui-text-section: 16px;
@@ -55,37 +64,40 @@
   --ui-radius-panel: 16px;
   --ui-radius-pill: 999px;
   --ui-duration-feedback: 160ms;
+  --ui-duration-selection: 180ms;
   --ui-ease: ease-out;
+  --ui-ease-selection: cubic-bezier(.22, .7, .3, 1);
   --ui-layer-sidebar: 501;
   --ui-layer-detail: 502;
   --ui-layer-mobile-sidebar: 600;
 }
 :root[data-theme=dark] {
-  --ui-surface-page: #182128;
+  --ui-surface-page: #141d24;
   --ui-surface-panel: #202a32;
   --ui-surface-soft: #2b3842;
-  --ui-surface-hover: #2b3842;
   --ui-surface-selected: #304650;
   --ui-surface-icon: color-mix(in srgb,var(--ui-text-muted) 20%,var(--ui-surface-panel));
   --ui-depth-panel: linear-gradient(90deg, #1e2830 0%, #202a32 38%, #25313a 100%);
-  --ui-depth-panel-hover: linear-gradient(90deg, #27353f 0%, #2b3842 38%, #2e3c47 100%);
-  --ui-depth-action: linear-gradient(90deg, #ffffff0a, #00000008);
-  --ui-depth-soft-action: linear-gradient(90deg, #0000000a, #ffffff08);
+  --ui-feedback-ink: var(--ui-text);
   --ui-text: #e7edf1;
   --ui-text-muted: #afbdc7;
   --ui-border: #42515d;
   --ui-border-panel: #3b4a54;
   --ui-border-control: transparent;
   --ui-accent: #9dcedc;
-  --ui-accent-hover: #b5dce6;
   --ui-on-accent: #16323c;
   --ui-focus: #94cee8;
   --ui-danger: #ffaea1;
   --ui-danger-surface: #452e2c;
   --ui-success: #b0d9bd;
   --ui-success-surface: #273d32;
-  --ui-success-action: var(--ui-success-surface);
-  --ui-success-action-hover: color-mix(in srgb,var(--ui-success-surface) 90%,var(--ui-success));
+  --ui-success-action: #30483a;
+  --ui-button-fill: #32424e;
+  --ui-button-border: #586b78;
+  --ui-button-ink: #e1ecf3;
+  --ui-soft-button-fill: #27343e;
+  --ui-soft-button-border: #3b4b56;
+  --ui-soft-button-ink: #c0cdd6;
   --ui-warning: #f0d7a3;
   --ui-warning-surface: #3b3b30;
   --ui-decision: #d0b9e3;
@@ -93,7 +105,9 @@
   --ui-scroll: #586e82;
   --ui-backdrop: #0d1826aa;
   --ui-shadow-panel: 0 2px 4px #00000012, 0 8px 24px #00000024;
+  --ui-shadow-control: 0 1px 2px #00000038;
+  --ui-shadow-control-floating: 0 1px 3px #00000050, 0 4px 8px #00000024;
 }
 @media (prefers-reduced-motion: reduce) {
-  :root { --ui-duration-feedback: 0ms; }
+  :root { --ui-duration-feedback: 0ms; --ui-duration-selection: 0ms; }
 }

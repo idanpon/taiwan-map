@@ -5,7 +5,7 @@ const fields=Object.freeze({
 });
 export function copyTextControl(text,field,esc){
  if(!fields[field]||!String(text??'').trim())return '';
- return `<button type="button" class="copy-text" data-copy-field="${field}" title="${fields[field].action}" aria-label="${esc(fields[field].action+': '+text)}">${esc(text)}</button>`;
+ return `<button type="button" class="copy-text ui-button-feedback" data-copy-field="${field}" title="${fields[field].action}" aria-label="${esc(fields[field].action+': '+text)}">${esc(text)}</button>`;
 }
 export async function copyText(text,{navigator=globalThis.navigator,document=globalThis.document}={}){
  if(typeof text!=='string'||!text.trim())return false;

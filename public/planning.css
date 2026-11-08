@@ -16,7 +16,7 @@
 .planner-navigation h2::first-letter { text-transform: uppercase; }
 .planner-period-actions { justify-content: flex-end; gap: var(--ui-space-1); }
 .planner-list-actions { display: flex; align-items: center; gap: var(--ui-space-4); flex-wrap: wrap; }
-.planner-completed-control { display: inline-flex; align-items: center; gap: var(--ui-space-2); min-height: var(--ui-control-compact); margin: 0; color: var(--ui-text-muted); font-size: var(--ui-text-caption); white-space: nowrap; }
+.planner-completed-control { display: inline-flex; align-items: center; gap: var(--ui-space-2); min-height: var(--ui-control-compact); margin: 0; padding-inline: var(--ui-space-1); border-radius: var(--ui-radius-control); color: var(--ui-text-muted); font-size: var(--ui-text-caption); white-space: nowrap; }
 .planner-completed-control input { width: 16px; height: 16px; margin: 0; accent-color: var(--ui-accent); }
 .planner-navigation .ui-button--icon { font-size: 22px; }
 .planner-filter-block { margin: 0 0 var(--ui-space-3); }
@@ -54,17 +54,24 @@
 .planning-weekday { text-align: center; font-size: var(--ui-text-caption); color: var(--ui-text-muted); padding: var(--ui-space-3) 0; }
 .planning-calendar-day { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; min-height: 62px; padding: 7px; border-radius: 0; border: 0; border-top: 1px solid var(--ui-border-panel); color: var(--ui-text); background: transparent; }
 .planning-calendar-day.other-month { color: var(--ui-text-muted); }
-.planning-calendar-day.is-trip { background: color-mix(in srgb,var(--ui-surface-selected) 55%,var(--ui-surface-panel)); }
-.planning-calendar-day:active { background: var(--ui-surface-hover); }
-@media (hover: hover) and (pointer: fine) { .planning-calendar-day:hover { background: var(--ui-surface-hover); } }
-.planning-calendar-day[aria-pressed=true] { background: var(--ui-surface-selected); }
+.planning-calendar-day.is-trip { --ui-action-fill: color-mix(in srgb,var(--ui-surface-selected) 55%,var(--ui-surface-panel)); }
+.planning-calendar-day[aria-pressed=true] { --ui-action-fill: var(--ui-surface-selected); }
 .planning-calendar-day { align-items: center; justify-content: center; border-inline-start: 1px solid var(--ui-border-panel); }
 .planning-calendar-day:nth-child(7n + 1) { border-inline-start: 0; }
 .planning-day-number { width: 24px; height: 24px; flex: none; display: grid; place-items: center; border-radius: 50%; font-size: var(--ui-text-caption); }
 .planning-calendar-day[aria-current=date] .planning-day-number { box-shadow: inset 0 0 0 1px var(--ui-accent); }
 .planning-calendar-day[aria-pressed=true] .planning-day-number { background: var(--ui-accent); color: var(--ui-on-accent); }
-.planning-day-count { font-size: 11px; color: var(--ui-accent); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.planning-day-count { padding: 1px 5px; border-radius: 6px; background: color-mix(in srgb,var(--ui-accent) 8%,transparent); }
+.planning-day-count {
+ font-size: 11px;
+ color: color-mix(in srgb,var(--ui-accent) 40%,var(--ui-text));
+ max-width: 100%;
+ overflow: hidden;
+ text-overflow: ellipsis;
+ white-space: nowrap;
+ padding: 1px 5px;
+ border-radius: 6px;
+ background: color-mix(in srgb,var(--ui-accent) 8%,transparent);
+}
 .planning-day-count[data-empty=true] { visibility: hidden; }
 .planning-day-dots { display: none; height: 5px; width: 24px; flex: none; align-items: center; justify-content: center; gap: 3px; }
 .planning-day-dots>span { height: 5px; width: 5px; flex: none; border-radius: 50%; background: var(--ui-accent); }
@@ -79,9 +86,10 @@
 .planning-card { display: grid; grid-template-columns: minmax(0,1fr); gap: var(--ui-space-3); padding: var(--ui-space-2); border: 1px solid var(--ui-border); border-radius: var(--ui-radius-panel); background: var(--ui-depth-panel); min-width: 0; overflow: hidden; }
 .planning-card.has-action { grid-template-columns: minmax(0,1fr) 64px; }
 .planning-card-open { display: flex; align-items: flex-start; gap: var(--ui-space-2); min-width: 0; min-height: var(--ui-control); width: 100%; padding: var(--ui-space-1); background: transparent; border: 0; color: var(--ui-text); text-align: left; border-radius: var(--ui-radius-control); }
-.planning-card:has(.planning-card-open:active),
-:where(:root:not([data-ui-touch])) .planning-card:has(.planning-card-open:focus-visible) { background: var(--ui-depth-panel-hover); }
-@media (hover: hover) and (pointer: fine) { .planning-card:has(.planning-card-open:hover) { background: var(--ui-depth-panel-hover); } }
+.planning-card:has(.planning-card-open:active) { background: var(--ui-depth-panel-press); }
+@media (hover: hover) and (pointer: fine) {
+ :where(:root:not([data-ui-touch])) .planning-card:has(.planning-card-open:hover:not(:active)) { background: var(--ui-depth-panel-hover); }
+}
 :where(:root:not([data-ui-touch])) .planning-card:has(.planning-card-open:focus-visible) { outline: 3px solid var(--ui-focus); outline-offset: -3px; }
 .planning-card-open:focus-visible { outline: none; }
 .planning-card-body { min-width: 0; flex: 1; overflow-wrap: anywhere; }
@@ -94,7 +102,7 @@
 .planning-card-next { display: block; color: var(--ui-accent); font-size: var(--ui-text-caption); margin-bottom: var(--ui-space-1); }
 .planning-card.is-done .planning-card-title { text-decoration: line-through; }
 .planning-card.is-done .planning-card-title { color: var(--ui-text-muted); }
-.planning-card .planning-finish { align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: var(--ui-space-1); min-height: 64px; height: auto; width: 64px; padding: var(--ui-space-2) var(--ui-space-1); border-color: transparent; border-radius: var(--ui-radius-control); font-size: 11px; }
+.planning-card .planning-finish { align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: var(--ui-space-1); min-height: 64px; height: auto; width: 64px; padding: var(--ui-space-2) var(--ui-space-1); border-color: color-mix(in srgb,var(--ui-action-fill) 60%,currentColor); border-radius: var(--ui-radius-control); font-size: 11px; }
 .planning-card .planning-finish svg { width: 22px; height: 22px; }
 .planning-card[aria-busy=true] { opacity: .6; cursor: progress; }
 .planning-undated { margin-top: var(--ui-space-5); padding-top: var(--ui-space-3); border-top: 1px solid var(--ui-border); }
@@ -227,7 +235,7 @@ button.planning-date-action>span { text-decoration: underline; text-decoration-s
  .planning-day-panel,.planning-itinerary { padding-inline-end: var(--ui-space-2); }
  .planning-agenda { height: 100%; min-height: 0; display: flex; flex-direction: column; }
  .planning-agenda>.planning-day-panel { flex: 1; min-height: 0; height: 0; }
- .planning-itinerary { width: calc(var(--planning-agenda-width) + var(--planning-date-width) + var(--planning-list-gap)); }
+ .planning-itinerary { width: min(100%,calc(var(--planning-agenda-width) + var(--planning-date-width) + var(--planning-list-gap) + 80px)); }
  .planning-day-stamp { top: 0; }
  .planner-zone-help { position: absolute; left: 0; top: 100%; z-index: 20; max-width: min(680px,100%); max-height: 120px; overflow-y: auto; }
 }
@@ -260,7 +268,6 @@ button.planning-date-action>span { text-decoration: underline; text-decoration-s
  #planning-trip-edit>span { display: none; }
  .planner-toolbar { align-items: stretch; }
  #planning-views { width: 100%; }
- #planning-views button { flex: 1; }
  .planner-toolbar .planner-search { width: 100%; }
  .planner-search input { font-size: 16px; }
  .planner-filters { grid-template-columns: repeat(2,minmax(0,1fr)); }
@@ -282,7 +289,6 @@ button.planning-date-action>span { text-decoration: underline; text-decoration-s
 .planning-relation-list { padding-inline: 0; margin: 0; list-style: none; border-block: 1px solid var(--ui-border); }
 .planning-relation-list > li + li { border-top: 1px solid var(--ui-border); }
 .planning-relation-row { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 10px 0; min-height: 44px; font-size: 13px; }
-@media (hover: hover) and (pointer: fine) { .planning-relation-row:hover { background: var(--ui-surface-hover); } }
 .planning-relation-name { display: flex; align-items: flex-start; gap: 7px; min-width: 0; overflow-wrap: anywhere; }
 .planning-relation-name .planning-kind-icon { margin-top: 2px; }
 .planning-state { justify-self: end; white-space: nowrap; }
@@ -290,8 +296,8 @@ button.planning-date-action>span { text-decoration: underline; text-decoration-s
 .planning-record-secondary { display: flex; gap: 8px; align-items: center; width: 100%; }
 /* Shared route time and personal reminder controls. */
 .planner-trip-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
-.timezone-badge { display: inline-flex; align-items: center; vertical-align: baseline; max-width: 100%; padding: 1px 7px; border: 1px solid var(--ui-border); border-radius: var(--ui-radius-pill); background: var(--ui-surface-soft); color: var(--ui-text-muted); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
-@media (hover: hover) and (pointer: fine) { button.timezone-badge:hover { color: var(--ui-accent); border-color: var(--ui-border-selected); } }
+.timezone-badge { --ui-action-fill: var(--ui-surface-soft); display: inline-flex; align-items: center; vertical-align: baseline; max-width: 100%; padding: 1px 7px; border: 1px solid var(--ui-border); border-radius: var(--ui-radius-pill); background: var(--ui-action-fill); color: var(--ui-text-muted); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+button.timezone-badge:active { color: var(--ui-text); }
 button.timezone-badge:focus-visible { outline-offset: 1px; }
 .planner-zone-help { padding: 9px 12px; margin-top: 8px; border: 1px solid var(--ui-border); border-radius: var(--ui-radius-control); background: var(--ui-surface-panel); }
 .planner-zone-help p, .planner-zone-help li { margin: 0; font-size: 12px; }

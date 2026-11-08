@@ -33,7 +33,7 @@ export function matchesTags(tags,selected){return !selected.size||tagDefinitions
 export function taipeiDay(now=new Date()){const parts=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);const part=type=>parts.find(x=>x.type===type).value;return `${part('year')}-${part('month')}-${part('day')}`}
 export function eventEnded(tags,now=new Date()){const d=tags?.limitedDates;return Boolean(d?.enabled&&validDate(d.endDate||'')&&d.endDate<taipeiDay(now))}
 function dateLabel(value){return value.split('-').reverse().join('.')}
-export function tagsHeading(tags,esc){const active=tagDefinitions.filter(t=>hasTag(tags,t.id));return active.length?`<span class="place-tags" aria-label="Дополнительные ярлыки">${active.map(t=>`<button type="button" class="place-tag" data-tag-info="${t.id}" title="${esc(t.tooltip)}" aria-label="${esc(t.tooltip)}">${tagIcon(t.icon)}</button>`).join('')}</span>`:''}
+export function tagsHeading(tags,esc){const active=tagDefinitions.filter(t=>hasTag(tags,t.id));return active.length?`<span class="place-tags" aria-label="Дополнительные ярлыки">${active.map(t=>`<button type="button" class="place-tag ui-button-feedback" data-tag-info="${t.id}" title="${esc(t.tooltip)}" aria-label="${esc(t.tooltip)}">${tagIcon(t.icon)}</button>`).join('')}</span>`:''}
 export function tagsDetails(tags,esc,now=new Date()){
  const d=tags?.limitedDates,r=tags?.reservation;
  const period=d?.startDate&&d?.endDate?`${dateLabel(d.startDate)} — ${dateLabel(d.endDate)}`:d?.startDate?`С ${dateLabel(d.startDate)}`:d?.endDate?`До ${dateLabel(d.endDate)}`:'';

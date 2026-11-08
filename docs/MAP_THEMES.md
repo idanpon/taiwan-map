@@ -154,20 +154,20 @@ source links start collapsed, with the Google Maps action kept visible.
 ## Light clarity
 
 The map, calendar and shared screens use semantic tokens and common buttons,
-fields, chips, selection rows and panel surfaces. The map controls use a
-translucent panel surface so their labels remain readable above tiles.
+fields, chips, selection rows and panel surfaces. Floating map buttons use
+the regular button fill and border, with the floating shadow above the tiles.
 See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for the component contract and gallery.
 
-The approved “Quiet depth” refinement applies the same static panel gradient
-to place details and shared dialogs as to planning cards. Dark surfaces are
-slightly darker behind left-aligned text; light surfaces stay almost white
-there and shade subtly toward the right. Primary buttons use the shared action
-gradient. No new animation is introduced. Planning links use shared state
-badges; a successful place save uses the same green confirmation as completing
-a planning item. Category and user-defined status colors remain data-owned.
-Light surfaces now use a warm milk/sand scale that fits the beige basemap;
-filters and soft fields have stronger fills and a subtle shared control border.
-Neutral hover remains separate from selection and green completion actions.
+“Light layer” applies the same static panel gradient to place details and
+shared dialogs as to planning cards. Dark surfaces are slightly darker behind
+left-aligned text. Light surfaces stay almost white there and shade subtly
+toward the right. Buttons use flat fills and a small shadow for raised actions.
+Hover and press apply the same neutral tint from each control's resting fill.
+Planning links use shared state badges, and a successful place save uses the
+same green confirmation as completing a planning item. Category and user-defined
+status colors remain data-owned. Light surfaces use warm milk and sand tones
+that fit the beige basemap. The dark page uses `#141d24`, shared with the
+browser theme color.
 
 Above 1000 px the card sits flush with the bottom of the map and aligns with
 the right edge of the toolbar. Its width scales between 380 and 480 px. The
@@ -177,8 +177,8 @@ below in 220 ms with a quick start and a gradual stop, or appears immediately
 with reduced motion. Its body scrolls independently. The camera centres the selected pin in the exposed
 map to the left. The compact sheet leaves at least 8 px at each side and
 pads its contents above the bottom safe area.
-The zoom pair has a single rounded boundary and one inner divider. The zoom
-and other map controls share the app's press and hover feedback. Closing a
+The zoom pair has a single rounded boundary, one shadow and one inner divider.
+Its flat buttons and the other map controls share the app's press and hover feedback. Closing a
 place sheet by touch leaves the map controls without a focus outline.
 Keyboard dismissal restores focus.
 

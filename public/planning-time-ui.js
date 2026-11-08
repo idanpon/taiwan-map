@@ -7,7 +7,7 @@ const clockAlert=icon('<path d="M12 8v4l2 2m7-3v4m0 4h.01M18 19a9 9 0 1 1 3-9"/>
 const bellOff=icon('<path d="m3 3 18 18M10 21a2 2 0 0 0 4 0M6 9c0 6-3 6-3 8h14m1-6V8a6 6 0 0 0-9-5"/>');
 export const timezoneExplanation='Календарь показывает местное время по общему плану поездки. До указанного момента смены действует предыдущий пояс, затем календарь переключается на новый. Даты без времени остаются теми же.';
 export const pointText=p=>p?dateLabel(p.day)+' · '+p.time+' · '+p.badge:'';
-export const zoneBadge=(p,esc,control='planning-item-zone-help')=>`<button class="timezone-badge" type="button" data-zone-toggle="${control}" aria-expanded="false" aria-controls="${control}" title="${esc(p.zone)} · Как выбирается пояс">${esc(p.badge)}</button>`;
+export const zoneBadge=(p,esc,control='planning-item-zone-help')=>`<button class="timezone-badge ui-button-feedback" type="button" data-zone-toggle="${control}" aria-expanded="false" aria-controls="${control}" title="${esc(p.zone)} · Как выбирается пояс">${esc(p.badge)}</button>`;
 function delta(point,previous){
  if(!point||!previous)return '';
  const difference=Math.round((point.at-previous.at)/minute);
