@@ -29,9 +29,9 @@ function choiceGroup({id,title,check,before},esc){
  <div class="time-choice time-choice-custom"><label><input name="pick-${esc(id)}" type="radio" value="custom"><span><strong>Своё время</strong><small>Указать другое время отправки</small></span></label><div data-time-custom hidden><div class="time-field-grid"><label>Время<input class="ui-field ui-field--soft" type="time" data-custom-time step="60"></label><label>Часовой пояс<select class="ui-field ui-field--soft" data-custom-zone aria-label="Пояс своего времени"></select></label></div><p class="time-delta" data-custom-message aria-live="polite"></p></div></div>
  <label class="time-choice time-choice-off"><input name="pick-${esc(id)}" type="radio" value="off"><span><strong>Не отправлять</strong><small>Напоминание этого события будет выключено</small></span>${bellOff}</label></fieldset></section>`;
 }
-export function createTimeReview({dialog,content,title,error,esc,setBusy,setDirty}){
+export function createTimeReview({scroller,content,title,error,esc,setBusy,setDirty}){
  function show({mine,others,plan,back,save,caption}){
-  const draft=document.createDocumentFragment(),oldTitle=title.textContent,scroll=dialog.scrollTop;
+  const draft=document.createDocumentFragment(),oldTitle=title.textContent,scroll=scroller.scrollTop;
   while(content.firstChild)draft.append(content.firstChild);
   title.textContent='Проверка времени';error.textContent='';
   const ambiguous=mine.filter(row=>row.check),simple=mine.filter(row=>!row.check);
@@ -69,7 +69,7 @@ export function createTimeReview({dialog,content,title,error,esc,setBusy,setDirt
   }
   form.addEventListener('input',collect);form.addEventListener('change',collect);
   const previousStep=()=>{
-   content.replaceChildren(draft);title.textContent=oldTitle;error.textContent='';dialog.scrollTop=scroll;title.focus({preventScroll:true});
+   content.replaceChildren(draft);title.textContent=oldTitle;error.textContent='';scroller.scrollTop=scroll;title.focus({preventScroll:true});
   };
   form.querySelector('[data-review-back]').onclick=()=>{previousStep();back?.()};
   form.onsubmit=async e=>{
@@ -79,7 +79,7 @@ export function createTimeReview({dialog,content,title,error,esc,setBusy,setDirt
    try{await save(choices,previousStep)}catch(e){form.querySelector('[role=alert]').textContent=e.message}
    finally{setBusy(false);backButton.disabled=false;collect()}
   };
-  setDirty(true);collect();dialog.scrollTop=0;title.focus({preventScroll:true});
+  setDirty(true);collect();scroller.scrollTop=0;title.focus({preventScroll:true});
  }
  return {show};
 }
@@ -181,7 +181,7 @@ export function editTripTime({trip,plan,esc,showDialog,dialog,setBusy,setDirty,e
  <section class="trip-zone-editor"><h3>Часовые пояса поездки</h3><p class="muted">Выберите новый пояс и укажите дату и время смены по его местным часам. В этот момент календарь переключится на новый пояс. Смену можно запланировать, например, за час до посадки.</p>
  <div class="trip-zone-initial"><strong>Москва</strong><span class="timezone-badge">Europe/Moscow · UTC+3</span></div><div data-zone-changes></div>
  <button type="button" class="ui-button ui-button--quiet ui-button--compact" data-zone-change-add>＋ Добавить смену пояса</button></section>
- <p class="muted">Даты задач и маршрута не переносятся автоматически. Связанные переносы можно обсудить в чате.</p><button class="ui-button ui-button--primary" type="submit">Продолжить</button></form>`);
+ <p class="muted">Даты задач и маршрута не переносятся автоматически. Связанные переносы можно обсудить в чате.</p><button class="ui-button ui-button--primary" type="submit">Продолжить</button></form>`,{system:true});
  const form=dialog.querySelector('#planning-trip-form'),zoneChanges=form.querySelector('[data-zone-changes]');
  function append(change){
   const row=document.createElement('fieldset'),p=change?localPoint(change.at,{changes:[change]}):null;

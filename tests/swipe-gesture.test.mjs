@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {installSwipeGesture} from '../public/swipe-gesture.js';
 import {installPlanningNavigation,createMonthWheelGesture} from '../public/planning-navigation.js';
-import {installPlaceCardSwipe} from '../public/place-card-swipe.js';
+import {installSheetSwipe} from '../public/sheet-swipe.js';
 function surface(){
  const handlers={};return {handlers,addEventListener(type,fn,options){handlers[type+(options===true||options?.capture?'Capture':'')]=fn},setPointerCapture(){}};
 }
@@ -86,8 +86,8 @@ test('swipe clicks are suppressed, keyboard clicks and a fresh intentional tap r
 function cardFixture(){
  const card=surface(),document=surface(),styles=new Map(),classes=new Set(),body={scrollTop:0};let closed=0;
  card.style={setProperty:(k,v)=>styles.set(k,v),removeProperty:k=>styles.delete(k)};card.classList={add:v=>classes.add(v),remove:v=>classes.delete(v)};card.querySelector=()=>body;
- const gesture=installPlaceCardSwipe({card,document,enabled:()=>true,close:()=>closed++});
- const node=kind=>({closest:s=>s.includes('input,textarea')?(kind==='input'?{}:null):s==='.detail-header'?(kind==='header'?{}:null):null});
+ const gesture=installSheetSwipe({card,document,enabled:()=>true,close:()=>closed++});
+ const node=kind=>({closest:s=>s.includes('input,textarea')?(kind==='input'?{}:null):s==='.ui-overlay-heading'?(kind==='header'?{}:null):null});
  const drag=(kind,dy=110)=>{const n=node(kind);touch(card,'touchstart',100,100,0,{node:n});const move=touch(card,'touchmove',103,100+dy,200,{node:n});touch(card,'touchend',103,100+dy,300,{node:n});return move};
  return {card,document,body,styles,classes,gesture,drag,closed:()=>closed};
 }

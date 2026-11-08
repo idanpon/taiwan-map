@@ -5,6 +5,8 @@ import {createAuthStartup,createLoadingScreenUI} from './auth-startup.js';
 import {createThemeUI} from './theme.js';
 import {createHelpUI} from './help.js';
 import {installDialogBackdrop} from './dialogs.js';
+import {installSheetSwipe} from './sheet-swipe.js';
+import {createNotice} from './notice.js';
 import {renderPlanningPilot,pilotIcon as kindIcon} from './planning-pilot-view.js';
 import {dateSnapshot,moveDateDraft,planItemMove} from './planning-pilot-model.js';
 import {installPlanningDrag} from './planning-drag.js';
@@ -26,14 +28,17 @@ const filterDisplays=[...document.querySelectorAll('.planner-filters select,.pla
 });
 function syncFilterDisplays(){for(const update of filterDisplays)update()}
 const dialog=$('planning-dialog'),previewDialog=$('planning-preview');
+const dialogBody=dialog.querySelector('.ui-overlay-body'),previewBody=previewDialog.querySelector('.ui-overlay-body');
 const dialogContent=$('planning-dialog-content'),dialogError=$('planning-dialog-error'),dialogTitle=$('planning-dialog-title');
 const setBusy=value=>{busy=value},setDirty=value=>{dirty=value};
-const timeReview=createTimeReview({dialog,content:dialogContent,title:dialogTitle,error:dialogError,esc,setBusy,setDirty});
+const timeReview=createTimeReview({scroller:dialogBody,content:dialogContent,title:dialogTitle,error:dialogError,esc,setBusy,setDirty});
 let drag,pendingId=null,lastMove=null,loadSequence=0,activeItemId=null,listLimit=180;
 const viewScroll={month:0,list:0};
 const layout=installPlanningLayout({canvas:$('planning-canvas'),window});
 installPlanningZoneDisclosure({container:$('planning-zone-disclosure'),button:$('planning-zone-label'),popup:$('planning-zone-help'),document,window});
-let toastTimer;function toast(message,tone='neutral'){$('toast').dataset.tone=tone;$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6500)}
+const notice=createNotice($('toast'));
+const toast=(message,tone='neutral')=>notice.show(message,{tone});
+const periodMoveMessage='Период переносится целиком. Измените даты в карточке записи.';
 const {storage,legacyStorage}=sessionStores(window);
 const {apiBase,configurationError,authMode}=readClientConfiguration(config);
 const transport=createApiClient({apiBase,authMode,storage,legacyStorage,onUnauthorized:()=>{if(!startup?.running)showLogin()}});
@@ -42,6 +47,10 @@ const allowed=()=>data&&['admin','editor'].includes(data.user.role);
 createThemeUI({document,window,onChange:()=>{}});
 function canLeave(){return !busy&&(!dirty||window.confirm('Изменения не сохранены. Закрыть без сохранения?'))}
 installDialogBackdrop(dialog,{canClose:canLeave});installDialogBackdrop(previewDialog,{canClose:()=>!busy});
+for(const [card,canClose] of [[dialog,canLeave],[previewDialog,()=>!busy]]){
+ const swipe=installSheetSwipe({card,document,enabled:()=>card.open&&card.classList.contains('ui-sheet')&&!busy,close:()=>{if(canClose())card.close()}});
+ card.addEventListener('close',swipe.cancel);
+}
 dialog.addEventListener('cancel',e=>{if(!canLeave())e.preventDefault()});previewDialog.addEventListener('cancel',e=>{if(busy)e.preventDefault()});
 dialog.addEventListener('close',()=>{
  dirty=false;editingId=null;reminderUI=null;const previous=activeItemId;activeItemId=null;if(previous)document.querySelector(`[data-record="${CSS.escape(previous)}"] [data-item]`)?.focus({preventScroll:true});
@@ -55,9 +64,16 @@ document.addEventListener('click',event=>{
 });
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('planning-filter-block').open&&!dialog.open){$('planning-filter-block').open=false;$('planning-filter-block').querySelector('summary').focus()}});
 $('planning-close').onclick=()=>{if(canLeave())dialog.close()};$('planning-preview-close').onclick=()=>{if(!busy)previewDialog.close()};
-function showDialog(title,html){dialog.classList.toggle('planning-form-sheet',html.includes('<form'));$('planning-dialog-title').textContent=title;$('planning-dialog-content').innerHTML=html;$('planning-dialog-error').textContent='';dirty=false;if(!dialog.open)dialog.showModal();dialog.scrollTop=0;$('planning-dialog-title').focus({preventScroll:true})}
+function showDialog(title,html,{system=false,wide=false}={}){
+ dialog.classList.toggle('ui-dialog',system);
+ dialog.classList.toggle('ui-sheet',!system);
+ dialog.classList.toggle('planning-form-sheet',wide);
+ dialogTitle.textContent=title;dialogContent.innerHTML=html;dialogError.textContent='';dirty=false;
+ if(!dialog.open)dialog.showModal();
+ dialogBody.scrollTop=0;dialogTitle.focus({preventScroll:true});
+}
 $('login-back').onclick=()=>{location.href='./'};
-function showLogin(){drag?.cancel();lastMove=null;++loadSequence;$('planning-move-feedback').hidden=true;data=null;plan=null;dirty=false;busy=false;for(const id of ['planning-canvas','planning-dialog-content','planning-preview-content'])$(id).replaceChildren();accountUI?.update();dialog.close();previewDialog.close();$('accounts-dialog').close();$('help-dialog').close();$('application').hidden=true;$('login').hidden=false;$('auth-loading').hidden=true;$('auth-content').hidden=false;$('login-back').hidden=false;document.body.classList.remove('app-active');accountUI?.showLogin()}
+function showLogin(){drag?.cancel();lastMove=null;++loadSequence;notice.clear();data=null;plan=null;dirty=false;busy=false;for(const id of ['planning-canvas','planning-dialog-content','planning-preview-content'])$(id).replaceChildren();accountUI?.update();dialog.close();previewDialog.close();$('accounts-dialog').close();$('help-dialog').close();$('application').hidden=true;$('login').hidden=false;$('auth-loading').hidden=true;$('auth-content').hidden=false;$('login-back').hidden=false;document.body.classList.remove('app-active');accountUI?.showLogin()}
 function filtered(ignoreState=false){return (plan?.items||[]).filter(i=>(!kind||i.kind===kind)&&(ignoreState||!state||(state==='active'?!['done','cancelled'].includes(i.state):i.state===state))&&(!search||[i.title,i.description,i.note,...i.places.map(p=>p.place_name)].join(' ').toLowerCase().includes(search)))}
 function itemMoments(i){return [i.starts_at,i.ends_at].filter(Boolean).map(at=>localPoint(at,zone))}
 function itemWhen(i){
@@ -114,12 +130,12 @@ function openItem(id){
  $('planning-history').addEventListener('toggle',async e=>{if(!e.target.open)return;try{const result=await api('/api/planning/items/'+id+'/events');const labels={create:'Создано',update:'Изменено',resolve:'Принято решение',reopen:'Решение открыто повторно'};if($('planning-history'))$('planning-history').querySelector('div').innerHTML=result.events.map(x=>`<p>${esc(new Date(x.created_at).toLocaleString('ru',{timeZone:zoneAt(x.created_at,zone).zone}))} · ${esc(x.actor)}<br>${esc(labels[x.action]||x.action)}</p>`).join('')||'История пуста.'}catch(error){toast(error.message)}},{once:true});
 }
 function selectOptions(values,current){return Object.entries(values).map(([id,label])=>`<option value="${id}" ${id===current?'selected':''}>${esc(label)}</option>`).join('')}
-function editItem(id=null){
+function editItem(id=null,day=dayInZone(new Date(),zone)){
  if(!allowed()||!canLeave())return;const old=id?plan.items.find(i=>i.id===id):null;if(id&&!old)return;
- const i=old||{kind:'task',title:'',description:'',note:'',state:'open',priority:'normal',date_start:focusDay,date_end:null,starts_at:null,ends_at:null,event_timezone:initialZone.zone,sort_order:0,fixed_external:false,source_urls:[],options:[],places:[],dependencies:[]};editingId=id;
+ const i=old||{kind:'task',title:'',description:'',note:'',state:'open',priority:'normal',date_start:day,date_end:null,starts_at:null,ends_at:null,event_timezone:initialZone.zone,sort_order:0,fixed_external:false,source_urls:[],options:[],places:[],dependencies:[]};editingId=id;
  let options=i.options.map(o=>({...o})),links=i.places.map(l=>({...l}));
  const dates=itemDateEditor(i,zone,esc);
- showDialog(id?'Изменить запись':'Новая запись',`<form id="planning-form" class="planning-form"><div class="form-columns"><label>Тип<select class="ui-field ui-field--soft" name="kind">${selectOptions(kindLabels,i.kind)}</select></label><label>Приоритет<select class="ui-field ui-field--soft" name="priority">${selectOptions(priorityLabels,i.priority)}</select></label></div><label>Название<input class="ui-field ui-field--soft" name="title" required maxlength="160" value="${esc(i.title)}"></label><label>Описание<textarea class="ui-field ui-field--soft" name="description" maxlength="10000">${esc(i.description)}</textarea></label><label>Заметка участников<textarea class="ui-field ui-field--soft" name="note" maxlength="5000">${esc(i.note)}</textarea></label><div class="form-columns"><label>Состояние<select class="ui-field ui-field--soft" name="state">${selectOptions(statesForKind(i.kind),i.state)}</select></label><label>Ответственный<select class="ui-field ui-field--soft" name="assignee_id"><option value="">Не назначен</option>${plan.users.map(u=>`<option value="${esc(u.id)}" ${i.assignee_id===u.id?'selected':''}>${esc(u.name)}</option>`).join('')}</select></label></div>${dates.html}<label>Порядок внутри дня<input class="ui-field ui-field--soft" name="sort_order" type="number" min="-1000000" max="1000000" value="${i.sort_order}"></label><label>Источники — по одному URL на строку<textarea class="ui-field ui-field--soft" name="source_urls" placeholder="https://…">${esc(i.source_urls.join('\n'))}</textarea></label><section id="planning-options-editor"><h3>Варианты решения</h3><div id="planning-option-rows"></div><button class="ui-button ui-button--quiet ui-button--compact" type="button" id="planning-option-add">＋ Вариант</button></section><details><summary>Связанные места</summary><div id="planning-place-rows"></div><label>Добавить место<select class="ui-field" id="planning-place-select"><option value="">Выберите место</option>${plan.places.map(p=>`<option value="${esc(p.id)}">${esc(p.name)} · ${esc(p.city)}${p.hidden?' · скрыто':''}</option>`).join('')}</select></label><button class="ui-button ui-button--quiet ui-button--compact" type="button" id="planning-place-add">＋ Связать</button></details>${old?relationsHtml(old):''}<p class="muted">Сложные зависимости настраиваем через чат. Смена дат не пересчитывает остальные сроки.</p><div class="planning-form-actions"><button type="submit" class="ui-button ui-button--primary">Сохранить</button><button id="planning-form-cancel" type="button" class="ui-button ui-button--quiet">Отмена</button></div></form>`);
+ showDialog(id?'Изменить запись':'Новая запись',`<form id="planning-form" class="planning-form"><div class="form-columns"><label>Тип<select class="ui-field ui-field--soft" name="kind">${selectOptions(kindLabels,i.kind)}</select></label><label>Приоритет<select class="ui-field ui-field--soft" name="priority">${selectOptions(priorityLabels,i.priority)}</select></label></div><label>Название<input class="ui-field ui-field--soft" name="title" required maxlength="160" value="${esc(i.title)}"></label><label>Описание<textarea class="ui-field ui-field--soft" name="description" maxlength="10000">${esc(i.description)}</textarea></label><label>Заметка участников<textarea class="ui-field ui-field--soft" name="note" maxlength="5000">${esc(i.note)}</textarea></label><div class="form-columns"><label>Состояние<select class="ui-field ui-field--soft" name="state">${selectOptions(statesForKind(i.kind),i.state)}</select></label><label>Ответственный<select class="ui-field ui-field--soft" name="assignee_id"><option value="">Не назначен</option>${plan.users.map(u=>`<option value="${esc(u.id)}" ${i.assignee_id===u.id?'selected':''}>${esc(u.name)}</option>`).join('')}</select></label></div>${dates.html}<label>Порядок внутри дня<input class="ui-field ui-field--soft" name="sort_order" type="number" min="-1000000" max="1000000" value="${i.sort_order}"></label><label>Источники — по одному URL на строку<textarea class="ui-field ui-field--soft" name="source_urls" placeholder="https://…">${esc(i.source_urls.join('\n'))}</textarea></label><section id="planning-options-editor"><h3>Варианты решения</h3><div id="planning-option-rows"></div><button class="ui-button ui-button--quiet ui-button--compact" type="button" id="planning-option-add">＋ Вариант</button></section><details><summary>Связанные места</summary><div id="planning-place-rows"></div><label>Добавить место<select class="ui-field" id="planning-place-select"><option value="">Выберите место</option>${plan.places.map(p=>`<option value="${esc(p.id)}">${esc(p.name)} · ${esc(p.city)}${p.hidden?' · скрыто':''}</option>`).join('')}</select></label><button class="ui-button ui-button--quiet ui-button--compact" type="button" id="planning-place-add">＋ Связать</button></details>${old?relationsHtml(old):''}<p class="muted">Сложные зависимости настраиваем через чат. Смена дат не пересчитывает остальные сроки.</p><div class="planning-form-actions"><button type="submit" class="ui-button ui-button--primary">Сохранить</button><button id="planning-form-cancel" type="button" class="ui-button ui-button--quiet">Отмена</button></div></form>`,{wide:true});
  const form=$('planning-form');dates.mount(form);
  function redrawRelations(){
   $('planning-options-editor').hidden=form.elements.kind.value!=='decision';
@@ -167,7 +183,7 @@ async function persistMove(item,patch,{close=false}={}){
   lastMove={id:item.id,title:item.title,before:dateSnapshot(item),version:result.item.version,previousFocus};applySavedItem(result.item);
   const [day]=itemDates(result.item,zone);if(day)focusDay=day;
   if(close){dirty=false;dialog.close()}
-  $('planning-move-feedback').querySelector('span').textContent='«'+item.title+'» → '+(day?dateLabel(day):'без даты');$('planning-move-feedback').hidden=false;
+  showMoveNotice('«'+item.title+'» → '+(day?dateLabel(day):'без даты'));
  }finally{busy=false;pendingId=null;render()}
 }
 function editMove(id,target=null,anchor=null,reason=''){
@@ -184,22 +200,28 @@ function editMove(id,target=null,anchor=null,reason=''){
 }
 async function moveItem(id,target,anchor){
  if(!allowed()||busy)return;const item=plan.items.find(item=>item.id===id);if(!item)return;
+ const [start,end]=itemDates(item,zone);if(start&&start!==end){toast(periodMoveMessage);return}
  const move=planItemMove(item,target,zone,anchor);if(move.unchanged)return;
  if(move.review){editMove(id,target,anchor,move.review);return}
  try{await persistMove(item,move.patch)}catch(error){toast(error.message);if(error.status===409)await load().catch(()=>{})}
 }
-$('planning-undo-move').onclick=async()=>{
- if(!lastMove||!allowed()||busy)return;const undo=lastMove;busy=true;pendingId=undo.id;++loadSequence;render();$('planning-undo-move').disabled=true;
- try{const result=await saveItem(undo.id,{...undo.before,version:undo.version,timezone_revision:zone.revision});applySavedItem(result.item);focusDay=undo.previousFocus;lastMove=null;$('planning-move-feedback').hidden=true;toast('Перенос отменён.')}
- catch(error){toast(error.status===409?'Запись уже изменена. Отмена не применена, чтобы сохранить новую правку.':error.message);if(error.status===409){lastMove=null;$('planning-move-feedback').hidden=true;await load().catch(()=>{})}}
- finally{busy=false;pendingId=null;$('planning-undo-move').disabled=false;render()}
-};
+function showMoveNotice(message){notice.show(message,{action:{label:'Отменить',run:undoMove}})}
+async function undoMove(){
+ if(!lastMove||!allowed()||busy)return;
+ const undo=lastMove;busy=true;pendingId=undo.id;++loadSequence;render();notice.setActionBusy(true);
+ try{const result=await saveItem(undo.id,{...undo.before,version:undo.version,timezone_revision:zone.revision});applySavedItem(result.item);focusDay=undo.previousFocus;lastMove=null;toast('Перенос отменён.')}
+ catch(error){
+  if(error.status===409){lastMove=null;toast('Запись уже изменена. Отмена не применена, чтобы сохранить новую правку.');await load().catch(()=>{})}
+  else if(lastMove===undo)showMoveNotice(error.message);
+ }
+ finally{busy=false;pendingId=null;notice.setActionBusy(false);render()}
+}
 async function deleteItem(id){const i=plan.items.find(i=>i.id===id);if(!allowed()||busy||!window.confirm('Удалить запись «'+i.title+'»? Связанные места останутся.'))return;busy=true;try{await api('/api/planning/items/'+id,{method:'DELETE',body:JSON.stringify({version:i.version})});dirty=false;dialog.close();history.replaceState(null,'',location.pathname);await load();toast('Запись удалена.')}catch(error){toast(error.message)}finally{busy=false}}
 async function previewDecision(id,optionId=null,mode='resolve',alternatives={}){
  if(!allowed()||busy)return;const sequence=++previewSequence;$('planning-confirm').disabled=true;$('planning-preview-error').textContent='';
  try{const p=await api('/api/planning/items/'+id+'/preview',{method:'POST',body:JSON.stringify({mode,option_id:optionId,alternatives})});if(sequence!==previewSequence)return;currentPreview=p;const item=plan.items.find(i=>i.id===id);
  $('planning-preview-content').innerHTML=`<p>${esc(item.title)}${mode==='resolve'?' → '+esc(item.options.find(o=>o.id===optionId)?.label||''):' · открыть повторно'}</p>${p.next_steps?.length?`<section><h3>Следующие шаги</h3>${p.next_steps.map(i=>`<p><button type="button" class="ui-button ui-button--quiet ui-button--compact" data-related-preview="${esc(i.id)}">${esc(i.title)}</button> · ${esc(stateLabel(i))}</p>`).join('')}</section>`:''}${p.warnings.map(w=>`<p class="planning-warning">${esc(w)}</p>`).join('')}${p.effects.map(e=>{const statusName=id=>data.statuses.find(s=>s.id===id)?.label||'Без статуса';const own=item.places.filter(l=>l.place_id===e.id&&l.affects_visit),losing=mode==='resolve'&&own.length&&!own.some(l=>l.option_id===optionId);return `<section class="planning-preview-place"><strong>${esc(e.name)}</strong><p>Статус: ${esc(statusName(e.before.status_id))}${e.before.status_id!==e.after.status_id?' → '+esc(statusName(e.after.status_id)):' · без изменений'}<br>Видимость: ${e.after.hidden?'скрыто':'на карте'}${e.before.hidden===e.after.hidden?' · без изменений':''}</p>${losing?`<label>Альтернатива<select class="ui-field ui-field--soft" data-alternative="${esc(e.id)}"><option value="keep" ${(alternatives[e.id]||own[0].unselected_action)==='keep'?'selected':''}>Оставить</option><option value="hide" ${(alternatives[e.id]||own[0].unselected_action)==='hide'?'selected':''}>Скрыть</option></select></label>`:''}${(p.related.find(r=>r.place_id===e.id)?.items||[]).filter(r=>r.id!==id).map(r=>`<p class="muted">${esc(kindLabels[r.kind])}: <button type="button" class="ui-button ui-button--quiet ui-button--compact" data-related-preview="${esc(r.id)}">${esc(r.title)}</button> · ${esc(stateLabel(r))}</p>`).join('')}</section>`}).join('')||'<p>Изменений мест нет.</p>'}`;
- $('planning-confirm').disabled=false;$('planning-confirm').textContent=mode==='resolve'?'Подтвердить выбор':'Открыть решение повторно';if(!previewDialog.open)previewDialog.showModal();$('planning-preview-title').focus({preventScroll:true});
+ $('planning-confirm').disabled=false;$('planning-confirm').textContent=mode==='resolve'?'Подтвердить выбор':'Открыть решение повторно';if(!previewDialog.open){previewDialog.showModal();previewBody.scrollTop=0}$('planning-preview-title').focus({preventScroll:true});
  for(const select of $('planning-preview-content').querySelectorAll('[data-alternative]'))select.onchange=()=>previewDecision(id,optionId,mode,{...currentPreview.alternatives,[select.dataset.alternative]:select.value});
  }catch(error){if(previewDialog.open)$('planning-preview-error').textContent=error.message;else toast(error.message)}
 }
@@ -213,13 +235,19 @@ async function load({signal}={}){
  $('application').hidden=false;$('login').hidden=true;document.body.classList.add('app-active');render();
  void accountUI?.notifications.refresh();
 }
-drag=installPlanningDrag({surface:$('planning-canvas'),document,window,enabled:()=>Boolean(allowed())&&!busy&&!document.querySelector('dialog[open]'),onDrop:moveItem,onError:error=>toast(error.message)});
+drag=installPlanningDrag({surface:$('planning-canvas'),document,window,enabled:()=>Boolean(allowed())&&!busy&&!document.querySelector('dialog[open]'),onDrop:moveItem,onBlocked:()=>toast(periodMoveMessage),onError:error=>toast(error.message)});
 $('planning-canvas').onclick=event=>{
  const quick=event.target.closest('[data-quick-complete]');if(quick){void completeItem(quick.dataset.quickComplete,{quick:true});return}
  const item=event.target.closest('[data-item]'),record=event.target.closest('[data-record]');if(item||record){openItem(item?.dataset.item||record.dataset.record);return}
  const day=event.target.closest('button[data-day]'),calendarDay=event.target.closest('[data-calendar-day]'),add=event.target.closest('[data-new-day]');
- if(day||calendarDay){focusDay=(day||calendarDay).dataset[day?'day':'calendarDay'];view='month';render()}
- else if(add){focusDay=add.dataset.newDay;editItem()}
+ if(day||calendarDay){
+  focusDay=(day||calendarDay).dataset[day?'day':'calendarDay'];view='month';render();
+  if(calendarDay){
+   $('planning-navigation').scrollIntoView({block:'start',behavior:'instant'});
+   if(event.detail===0)$('planning-canvas').querySelector('[data-day][aria-pressed=true]')?.focus({preventScroll:true});
+  }
+ }
+ else if(add)editItem(null,add.dataset.newDay);
  else if(event.target.closest('[data-more-days]')){listLimit+=180;render()}
  else if(event.target.closest('[data-clear-filters]'))resetFilters();
 };
