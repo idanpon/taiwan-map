@@ -57,7 +57,10 @@ test('the two views preserve ordering, permissions and completion semantics',()=
 
 test('the list exposes today as an anchor even outside the first page or without matches',()=>{
  const options={view:'list',plan:{users:[],trip:{start_date:'2026-12-29',end_date:'2027-01-09'}},zone:emptyZonePlan,focusDay:'2026-12-29',today:'2027-01-15',allowed:true,listLimit:1};
- const dated=renderPlanningPilot({...options,items:[item(),item({id:'today',title:'Сегодняшняя запись',date_start:options.today})]});
+ const items=[item(),item({id:'today',title:'Сегодняшняя запись',date_start:options.today})];
+ const {groups}=listDayGroups(items,options.zone,options.focusDay,options.listLimit,options.today);
+ assert.ok(groups.some(group=>group.date==='2027-01-16'&&!group.items.length));
+ const dated=renderPlanningPilot({...options,items});
  assert.match(dated,/<section class="planning-day-group" data-drop-day="2027-01-15" data-list-today>[\s\S]*Сегодняшняя запись/);
  const empty=renderPlanningPilot({...options,items:[],hasFilters:true});
  assert.match(empty,/<section class="planning-day-group" data-drop-day="2027-01-15" data-list-today>[\s\S]*Ничего не нашлось/);

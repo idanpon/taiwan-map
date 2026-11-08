@@ -267,7 +267,7 @@ installPlanningNavigation({canvas:$('planning-canvas'),document,navigate,enabled
 $('planning-prev').onclick=()=>navigate(-1);$('planning-next').onclick=()=>navigate(1);
 $('planning-today').onclick=()=>{focusDay=dayInZone(new Date(),zone);render()};
 $('planning-list-today').onclick=event=>{
- render();layout.scrollListToToday(event.detail===0);
+ focusDay=dayInZone(new Date(),zone);render();layout.scrollListToToday(event.detail===0);
 };
 $('planning-top').onclick=event=>{
  layout.scrollListToStart();
