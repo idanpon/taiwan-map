@@ -1,12 +1,12 @@
 # Taiwan Map — продолжение работы
 
-Актуализировано 8 ноября 2026. Новый чат начинает с [AGENTS.md](../AGENTS.md),
+Актуализировано 10 ноября 2026. Новый чат начинает с [AGENTS.md](../AGENTS.md),
 этого файла и документа нужного модуля; полная история переписки не требуется.
 Для новой логики используем [Lightweight SDD](../specs/README.md).
 
 ## Текущее состояние
 
-- Плагин ChatGPT реализован локально в `codex/chatgpt-plugin`, выключен по умолчанию; production не изменён. [Спецификация](../specs/2026-11-08-chatgpt-plugin.md), [устройство и подключение](CHATGPT_PLUGIN.md). Следующий этап после разрешения на выпуск — backup/миграция на VPS, Pages, личный OAuth callback и проверка из настоящего ChatGPT. Telegram не входит в этап.
+- Плагин ChatGPT выпущен. Codex читает [единые правила задач](PLANNING_RULES.md) по `AGENTS.md`, MCP передаёт их при подключении и через `trip_read`. [Устройство и подключение](CHATGPT_PLUGIN.md), [спецификация правил](../specs/2026-11-10-shared-planning-rules.md).
 
 - Аудит и рефакторинг опубликованы через [PR #43](https://github.com/idanpon/taiwan-map/pull/43), backend обновлён отдельно после проверенного SQLite backup. Данные сохранены; итог и ограничения — [AUDIT_REFACTOR.md](AUDIT_REFACTOR.md).
 - GitHub Pages исправлен в [PR #44](https://github.com/idanpon/taiwan-map/pull/44). Новый [выпуск 42283689723](https://github.com/idanpon/taiwan-map/actions/runs/42283689723) прошёл с первой попытки: 165 тестов, сборка, deploy и сверка публичной ревизии/файлов. Это результат конкретного выпуска, не гарантия для будущего кода.
