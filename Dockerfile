@@ -3,6 +3,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts
 COPY --chown=node:node src ./src
+COPY --chown=node:node docs/PLANNING_RULES.md ./docs/PLANNING_RULES.md
 COPY --chown=node:node public ./public
 COPY --chown=node:node server ./server
 COPY --chown=node:node scripts ./scripts

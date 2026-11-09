@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { openDatabase, migrate } from '../server/database.mjs';
 import { seed } from '../src/seed.mjs';
 import { handle } from '../src/core.mjs';
@@ -10,6 +11,7 @@ import { saveProposal, readProposal, listProposals, previewProposal, applyPropos
 import { applyPlanningChange } from '../src/planning.mjs';
 import { applyOperations } from '../src/assistant-changes.mjs';
 import { applyWithRecovery } from '../public/assistant-card.js';
+import { addDays } from '../public/planning-model.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
@@ -153,13 +155,29 @@ test('official MCP client initializes, reads resource, saves, previews and appli
   const f=await fixture(t),g=await f.grant(),client=new Client({name:'integration-test',version:'1'});
   const transport=new StreamableHTTPClientTransport(new URL(f.env.APP_ORIGIN+'/api/assistant/mcp'),{requestInit:{headers:{Authorization:'Bearer '+g.access_token}},fetch:(url,init)=>handle(new Request(url,init),f.env)});
   await client.connect(transport);t.after(()=>client.close());
+  const rules = readFileSync(new URL('../docs/PLANNING_RULES.md', import.meta.url), 'utf8').trim();
+  assert.ok(client.getInstructions().includes(rules));
   const {tools}=await client.listTools();assert.equal(tools.length,8);
+  assert.match(tools.find(t=>t.name==='proposal_save').description,/trip_read.*planning_rules.*planning_today/);
   const ui=tools.find(t=>t.name==='proposal_preview')._meta.ui;assert.ok(ui.resourceUri);assert.deepEqual(ui.visibility,['model','app']);
   const resource=await client.readResource({uri:ui.resourceUri});assert.equal(resource.contents[0].mimeType,'text/html;profile=mcp-app');assert.ok(resource.contents[0].text.includes('Подтвердить изменения'));
+  run(f.DB, 'INSERT INTO trip_timezone_changes(trip_id,at,zone) VALUES(?,?,?)', TRIP, Date.now()-60000, 'Asia/Taipei');
   const context=await client.callTool({name:'trip_read',arguments:{}});assert.equal(context.structuredContent.actor.id,'alice');assert.equal(JSON.stringify(context).includes('password_hash'),false);
+  const trip = context.structuredContent;
+  assert.equal(trip.planning_rules, rules);
+  assert.equal(JSON.parse(context.content[0].text).planning_rules, rules);
+  assert.equal(trip.planning_today.timezone, 'Asia/Taipei');
+  const deadline = addDays(trip.planning_today.date, 1);
   const call=async(name,args)=>{const r=await client.callTool({name,arguments:args});assert.ok(!r.isError,JSON.stringify(r));return r.structuredContent;};
-  const p=await call('proposal_save',input([createPlace()]));const preview=await call('proposal_preview',{id:p.id,version:1});
+  const task = {key:'tickets',kind:'plan.create',reason:'Подготовка поездки',data:{kind:'task',title:'Купить билеты на поезд',date_end:deadline}};
+  const p=await call('proposal_save',input([createPlace(),task]));const preview=await call('proposal_preview',{id:p.id,version:1});
+  const taskPreview = preview.preview.changes.find(change=>change.entity==='plan').after;
+  assert.equal(taskPreview.date_start, null);
+  assert.equal(taskPreview.date_end, deadline);
   const receipt=await call('proposal_apply',accept(preview));assert.equal(receipt.status,'applied');assert.equal((await call('proposal_read',{id:p.id})).result.operation_id,receipt.operation_id);
+  const savedTask = one(f.DB, 'SELECT date_start,date_end FROM planning_items WHERE id=?', p.ids.tickets);
+  assert.equal(savedTask.date_start, null);
+  assert.equal(savedTask.date_end, deadline);
   const extra=await client.callTool({name:'trip_read',arguments:{sql:'DELETE'}});assert.equal(extra.isError,true);
   const unknown=await client.callTool({name:'delete_all',arguments:{}});assert.equal(unknown.isError,true);
 });
