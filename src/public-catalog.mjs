@@ -6,7 +6,11 @@ import {readTags} from '../public/place-tags.js';
 // cannot become public simply by being added to a table or another endpoint.
 export async function publicCatalog(db){
  const [ps,cs,ss,ls]=await db.batch([
-  stmt(db,`SELECT p.id,p.name,p.local_name,p.city,p.category_id,p.lat,p.lon,p.address,p.summary,p.tip,p.hours_json,p.verified_at,p.tags_json,s.status_id FROM places p LEFT JOIN user_place_states s ON s.place_id=p.id AND s.user_id=? WHERE p.trip_id=? AND p.hidden=0 ORDER BY p.city,p.name`,'trip-shared',TRIP),
+  stmt(db,`SELECT p.id,p.name,p.local_name,p.city,p.category_id,p.lat,p.lon,p.address,p.summary,p.tip,
+    p.hours_json,p.verified_at,p.tags_json,s.status_id,average.average_rating
+    FROM places p LEFT JOIN user_place_states s ON s.place_id=p.id AND s.user_id=?
+    LEFT JOIN place_rating_averages average ON average.place_id=p.id
+    WHERE p.trip_id=? AND p.hidden=0 ORDER BY p.city,p.name`,'trip-shared',TRIP),
   db.prepare('SELECT id,label,color,icon,sort_order FROM categories ORDER BY sort_order'),
   stmt(db,'SELECT id,label,color,symbol,dimmed,sort_order FROM statuses WHERE trip_id=? AND archived=0 ORDER BY sort_order,label',TRIP),
   stmt(db,'SELECT l.place_id,l.label,l.url,l.kind FROM place_links l JOIN places p ON p.id=l.place_id WHERE p.trip_id=? AND p.hidden=0',TRIP)

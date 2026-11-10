@@ -9,6 +9,7 @@ import {createHelpUI} from './help.js';
 import {installDialogBackdrop} from './dialogs.js';
 import {installSheetSwipe} from './sheet-swipe.js';
 import {createNotice} from './notice.js';
+import {createPlaceRatings} from './place-ratings.js';
 import {renderPlanningPilot,travelDetails,pilotIcon as kindIcon} from './planning-pilot-view.js';
 import {dateSnapshot,moveDateDraft,planItemMove} from './planning-pilot-model.js';
 import {installPlanningDrag} from './planning-drag.js';
@@ -40,6 +41,7 @@ const viewScroll={month:0,list:0};
 const layout=installPlanningLayout({canvas:$('planning-canvas'),topbar:document.querySelector('.topbar'),topButton:$('planning-top'),window});
 installPlanningZoneDisclosure({container:$('planning-zone-disclosure'),button:$('planning-zone-label'),popup:$('planning-zone-help'),document,window});
 const notice=createNotice($('toast'));
+const placeRatings=createPlaceRatings({api,notice});
 const toast=(message,tone='neutral')=>notice.show(message,{tone});
 const periodMoveMessage='Период переносится целиком. Измените даты в карточке записи.';
 const {storage,legacyStorage}=sessionStores(window);
@@ -205,21 +207,51 @@ function editItem(id=null,day=dayInZone(new Date(),zone)){
    };
   }catch(error){$('planning-dialog-error').textContent=error.message;return}
   busy=true;form.querySelectorAll('button').forEach(b=>b.disabled=true);
-  try{const result=await saveItem(id,payload);dirty=false;editingId=null;await load();busy=false;openItem(result.item.id)}catch(error){$('planning-dialog-error').textContent=error.message;if(error.status===409)toast('Черновик сохранён в открытой форме. Скопируйте важный текст перед обновлением.')}finally{busy=false;form.querySelectorAll('button').forEach(b=>b.disabled=false)}
+  try{
+   const {item}=await saveItem(id,payload);dirty=false;editingId=null;
+   const visited=item.state==='done'&&i.state!=='done'?await markVisitPlaces(item):null;
+   await load();busy=false;openItem(item.id);showVisitRatings(visited);
+  }catch(error){$('planning-dialog-error').textContent=error.message;if(error.status===409)toast('Черновик сохранён в открытой форме. Скопируйте важный текст перед обновлением.')}finally{busy=false;form.querySelectorAll('button').forEach(b=>b.disabled=false)}
  };
 }
 async function saveItem(id,payload){const path='/api/planning/items'+(id?'/'+id:'');try{return await api(path,{method:id?'PUT':'POST',body:JSON.stringify(payload)})}catch(error){if(error.details?.code==='dependencies_open'&&window.confirm(error.message+'\n\n'+error.details.dependencies.map(i=>i.title).join('\n')))return api(path,{method:id?'PUT':'POST',body:JSON.stringify({...payload,ack_dependencies:true})});throw error}}
 function applySavedItem(item){plan.items=plan.items.map(old=>old.id===item.id?item:old)}
+async function markVisitPlaces(item){
+ if(item.kind!=='visit')return null;
+ const ids=new Set(item.places.map(link=>link.place_id).filter(Boolean));
+ if(!ids.size||!window.confirm('Посещение отмечено. Обновить статус связанных мест на «Уже посетили»?'))return null;
+ const places=[];
+ try{
+  const fresh=await api('/api/data');
+  if(!fresh.statuses.some(status=>status.id==='visited'))
+   return {places,warning:'Статус посещения недоступен. Пункт маршрута сохранён.'};
+  for(const id of ids){
+   const place=fresh.places.find(place=>place.id===id);
+   if(!place||place.status_id==='visited')continue;
+   await api('/api/places/'+encodeURIComponent(id)+'/state',{method:'PUT',
+    body:JSON.stringify({version:place.version,status_id:'visited',note:place.note})});
+   places.push(place);
+  }
+  return {places};
+ }catch(error){
+  if(error.status===409)await load().catch(()=>{});
+  return {places,warning:error.message};
+ }
+}
+function showVisitRatings(result){
+ if(!result)return;
+ const {places,warning}=result;
+ if(!placeRatings.offer(places,{warning})&&warning)toast(warning,'warning');
+}
 async function completeItem(id,{quick=false}={}){
  if(!allowed()||busy)return;const item=plan.items.find(item=>item.id===id);if(!item||item.kind==='decision'||item.state==='cancelled')return;
  busy=true;pendingId=id;++loadSequence;render();
  try{
   const next=item.state==='done'?'open':'done',result=await saveItem(id,{version:item.version,state:next});applySavedItem(result.item);render();
   toast(next==='done'?'«'+item.title+'» — готово':'«'+item.title+'» возвращено в план',next==='done'?'success':'neutral');
-  if(next==='done'&&item.kind==='visit'&&item.places.some(link=>link.place_id)&&window.confirm('Посещение отмечено. Обновить статус связанных мест на «Уже посетили»?')){
-   const fresh=await api('/api/data');if(!fresh.statuses.some(status=>status.id==='visited')){toast('Статус посещения недоступен. Пункт маршрута сохранён.')}else for(const placeId of new Set(item.places.map(link=>link.place_id).filter(Boolean))){const place=fresh.places.find(place=>place.id===placeId);if(place&&place.status_id!=='visited')await api('/api/places/'+place.id+'/state',{method:'PUT',body:JSON.stringify({version:place.version,status_id:'visited',note:place.note})})}
-  }
+  const visited=next==='done'?await markVisitPlaces(result.item):null;
   busy=false;if(!quick)openItem(id);
+  showVisitRatings(visited);
  }catch(error){toast(error.message);if(error.status===409)await load().catch(()=>{})}
  finally{busy=false;pendingId=null;render()}
 }

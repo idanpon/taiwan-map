@@ -249,6 +249,19 @@ textarea.ui-field { min-height: 88px; resize: vertical; line-height: 1.6; }
   -webkit-box-orient: vertical;
 }
 .ui-notice .ui-notice-action { flex: none; color: var(--ui-accent); pointer-events: auto; }
+.ui-notice:has(.place-rating-prompt) { flex-direction: column; align-items: stretch; }
+.place-rating-prompt { pointer-events: auto; }
+.place-ratings { display: grid; gap: var(--ui-space-2); margin-block: var(--ui-space-3); }
+.place-rating-summary { font-weight: 600; }
+.place-rating-stars { display: flex; flex-wrap: wrap; gap: var(--ui-space-1); }
+.place-rating-star { color: var(--ui-warning); }
+.place-rating-star svg { width: var(--ui-icon-control); height: var(--ui-icon-control); }
+.place-rating-star[data-filled] svg { fill: currentColor; }
+.place-rating-authors { overflow-wrap: anywhere; }
+.place-rating-authors ul { margin-block: var(--ui-space-1); padding-inline-start: var(--ui-space-4); }
+@media (any-pointer: coarse) {
+  .ui-notice { pointer-events: auto; touch-action: pan-y pinch-zoom; }
+}
 
 .ui-overlay {
   --ui-overlay-padding: var(--ui-space-5);

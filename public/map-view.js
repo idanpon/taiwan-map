@@ -4,6 +4,8 @@ import {createBasemapController} from './basemap.js';
 import {categoryIcon} from './categories.js';
 import {createCompassControl} from './map-compass.js';
 
+const statusMarkerPriority=new Map([['visited',0],['maybe',2],['want',3]]);
+
 export function accuracyPolygon(lng,lat,meters){
  const radius=Math.max(0,meters)/6371008.8,phi=lat*Math.PI/180,lambda=lng*Math.PI/180,ring=[];
  for(let i=0;i<=64;i++){
@@ -63,7 +65,9 @@ export function createMapView({container,statusElement,retryButton,statusText,li
   }
   for(const p of places){
    const c=p.category,s=p.status,label=p.name+(s?' · '+s.label:'')+(p.has_stay?' · Есть проживание':'');
-   const element=markerButton(label,p.has_stay?'map-pin-button has-stay':'map-pin-button');element.style.zIndex=p.id===selected?'500':'0';
+   const element=markerButton(label,p.has_stay?'map-pin-button has-stay':'map-pin-button');
+   const priority=p.has_stay?4:(statusMarkerPriority.get(p.status_id)??1);
+   element.style.zIndex=p.id===selected?'500':String(priority);
    const pin=document.createElement('span');pin.className='pin';pin.style.setProperty('--category',c.color);pin.style.setProperty('--status',s?.color||c.color);pin.style.setProperty('--status-opacity',s?.opacity??1);pin.style.setProperty('--status-symbol',s?.symbolColor||'#fff');pin.setAttribute('aria-hidden','true');pin.innerHTML=categoryIcon(c.icon);
    if(s){const badge=document.createElement('i');badge.className='pin-state';badge.textContent=s.symbol;pin.append(badge)}
    element.append(pin);element.addEventListener('click',event=>{event.stopPropagation();onSelect(p.id)});
