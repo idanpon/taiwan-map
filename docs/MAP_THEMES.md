@@ -53,9 +53,10 @@ across, compared with 40 px for individual place markers. Both use a 2 px border
 
 The private catalog returns `has_stay` for places linked as lodging to a
 non-cancelled stay. The lodging category uses a muted rose-red (`#b66d7b`) with its existing bed icon.
-The map adds one theme-aware rose ring (2 px) separated by a transparent
-3 px gap around the existing marker; the map remains visible in the gap. The status badge and category icon
-use their usual appearance, including dimmed status markers. City clusters
+The map adds a 1 px coral ring with a soft static halo and a 3 px gap around
+the existing marker. The ring is `#c8505a` in light and `#e36a74` in dark.
+The status badge and category icon use their usual appearance, including
+dimmed status markers. City clusters
 continue to show place counts. The anonymous projection omits `has_stay`.
 [Planning rules](PLANNING.md#проживание).
 

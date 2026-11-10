@@ -53,7 +53,13 @@
 .planning-month-grid { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); }
 .planning-weekday { text-align: center; font-size: var(--ui-text-caption); color: var(--ui-text-muted); padding: var(--ui-space-3) 0; }
 .planning-calendar-day { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; min-height: 62px; padding: 7px; border-radius: 0; border: 0; border-top: 1px solid var(--ui-border-panel); color: var(--ui-text); background: transparent; }
-.planning-calendar-day.other-month:not(.is-trip):not([aria-pressed=true]) .planning-day-number { color: var(--ui-text-muted); }
+.planning-calendar-day.other-month:not(.is-trip,[aria-pressed=true]) .planning-day-number {
+ color: var(--planning-other-month-ink,var(--ui-calendar-other-month));
+}
+.planning-calendar-day:active { --planning-other-month-ink: var(--ui-text-muted); }
+@media (hover: hover) and (pointer: fine) {
+ :where(:root:not([data-ui-touch])) .planning-calendar-day:hover { --planning-other-month-ink: var(--ui-text-muted); }
+}
 .planning-calendar-day.is-trip { --ui-action-fill: color-mix(in srgb,var(--ui-surface-selected) 55%,var(--ui-surface-panel)); }
 .planning-calendar-day[aria-pressed=true] { --ui-action-fill: var(--ui-surface-selected); }
 .planning-calendar-day { align-items: center; justify-content: center; border-inline-start: 1px solid var(--ui-border-panel); }
@@ -383,23 +389,49 @@ label.time-choice, .time-choice-custom > label { display: flex; align-items: fle
 .planning-card.kind-stay,.planning-stay-transfer { --planning-travel-tint: var(--ui-lodging); }
 .planning-card.kind-transport { --planning-travel-tint: var(--ui-accent); }
 .planning-card:is(.kind-stay,.kind-transport),.planning-stay-transfer {
- --ui-depth-panel: linear-gradient(90deg,color-mix(in srgb,var(--planning-travel-tint) 8%,var(--ui-surface-panel)),color-mix(in srgb,var(--planning-travel-tint) 4%,var(--ui-surface-panel)));
+ --ui-depth-panel: linear-gradient(90deg,
+  color-mix(in srgb,var(--planning-travel-tint) 6%,var(--ui-depth-start)),
+  color-mix(in srgb,var(--planning-travel-tint) 6%,var(--ui-depth-middle)) 38%,
+  color-mix(in srgb,var(--planning-travel-tint) 6%,var(--ui-depth-end)));
  --ui-depth-panel-hover: linear-gradient(var(--ui-hover-layer),var(--ui-hover-layer)),var(--ui-depth-panel);
  --ui-depth-panel-press: linear-gradient(var(--ui-press-layer),var(--ui-press-layer)),var(--ui-depth-panel);
 }
 .planning-card.kind-stay .planning-card-icon { background: var(--ui-lodging-surface); color: var(--ui-lodging); }
 .planning-stay-transfer {
+ position: relative;
  display: grid;
- gap: 0;
+ grid-template-columns: minmax(0,1fr);
  min-width: 0;
  border: 1px solid var(--ui-border);
  border-radius: var(--ui-radius-panel);
  background: var(--ui-depth-panel);
  overflow: hidden;
 }
-.planning-stay-transfer > .planning-card { border: 0; border-radius: 0; background: transparent; padding-inline: var(--ui-space-2); }
-.planning-stay-direction { display: flex; justify-content: center; height: 16px; color: var(--ui-lodging); }
-.planning-stay-direction svg { width: 16px; height: 16px; }
+.planning-stay-transfer > .planning-card { border: 0; border-radius: 0; background: transparent; padding: 0; }
+.planning-stay-transfer .planning-card-open {
+ align-items: center;
+ padding: calc(var(--ui-space-2) + var(--ui-space-1));
+ border-radius: 0;
+}
+.planning-stay-direction {
+ position: absolute;
+ grid-area: 2 / 1 / 3 / 2;
+ inset: 0 var(--ui-space-3) auto;
+ z-index: 1;
+ display: flex;
+ align-items: center;
+ gap: var(--ui-space-2);
+ height: 0;
+ color: var(--ui-lodging);
+ pointer-events: none;
+}
+.planning-stay-direction::before,.planning-stay-direction::after {
+ content: "";
+ flex: 1;
+ height: 1px;
+ background: color-mix(in srgb,var(--ui-border) 65%,transparent);
+}
+.planning-stay-direction svg { width: 16px; height: 16px; flex: none; stroke-width: 2.5; }
 .planning-transport-route { margin-top: var(--ui-space-1); }
 .planning-transport-route { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ui-space-1); font-size: var(--ui-text-caption); }
 .planning-transport-route > svg { align-self: center; width: 13px; height: 13px; color: var(--ui-text-muted); }

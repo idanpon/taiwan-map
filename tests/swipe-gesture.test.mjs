@@ -43,8 +43,8 @@ test('large isolated wheel steps restart while dense or decaying events remain o
   [[[0,1536],[60,900],[120,600],[180,300],[240,100]],[1]]
  ]){const wheel=createMonthWheelGesture();assert.deepEqual(events.map(([timeStamp,deltaX])=>wheel({timeStamp,deltaX,deltaY:0}).direction).filter(Boolean),expected)}
 });
-function touch(surface,type,x,y,time,{count=1,node=target}={}){
- const point={identifier:1,clientX:x,clientY:y},event={target:node,timeStamp:time,cancelable:true,touches:type==='touchend'?[]:Array.from({length:count},(_,i)=>({...point,identifier:i+1})),changedTouches:[point],preventDefault(){this.prevented=true}};
+function touch(surface,type,x,y,time,{count=1,node=target,defaultPrevented=false}={}){
+ const point={identifier:1,clientX:x,clientY:y},event={target:node,timeStamp:time,cancelable:true,defaultPrevented,touches:type==='touchend'?[]:Array.from({length:count},(_,i)=>({...point,identifier:i+1})),changedTouches:[point],preventDefault(){this.defaultPrevented=this.prevented=true}};
  surface.handlers[type](event);return event;
 }
 test('calendar claims a slightly diagonal touch before native scrolling, survives pointercancel and keeps its initial axis',()=>{
@@ -54,6 +54,47 @@ test('calendar claims a slightly diagonal touch before native scrolling, survive
  canvas.handlers.pointercancel({pointerType:'touch'});
  assert.equal(touch(canvas,'touchmove',100,220,200).prevented,true);
  touch(canvas,'touchend',100,220,220);assert.deepEqual(moves,[1]);
+});
+test('compact agenda swipes switch one day while swipes on the grid switch months',()=>{
+ const canvas=surface(),document=surface(),moves=[];
+ let compact=true;
+ installPlanningNavigation({
+  canvas,document,enabled:()=>true,dayEnabled:()=>compact,
+  navigate:n=>moves.push(['month',n]),navigateDay:n=>moves.push(['day',n])
+ });
+ const card={closest:selector=>selector.includes('.planning-selected-day')||selector.includes('.planning-card')?{}:null};
+ const swipe=(node,dx,dy=0)=>{
+  touch(canvas,'touchstart',200,100,0,{node});
+  const move=touch(canvas,'touchmove',200+dx,100+dy,100,{node});
+  touch(canvas,'touchend',200+dx,100+dy,120,{node});
+  return move.prevented;
+ };
+ assert.equal(swipe(card,-80),true);
+ assert.equal(swipe(card,80),true);
+ assert.equal(swipe(card,0,80),undefined);
+ assert.equal(swipe(target,-80),true);
+ compact=false;
+ assert.equal(swipe(card,-80),undefined);
+ assert.deepEqual(moves,[['day',1],['day',-1],['month',1]]);
+});
+test('an agenda swipe yields to a card drag or a blocked long press',()=>{
+ const canvas=surface(),document=surface(),moves=[];
+ let claimed=false;
+ installPlanningNavigation({
+  canvas,document,enabled:()=>true,dayEnabled:()=>!claimed,
+  navigate:n=>moves.push(n),navigateDay:n=>moves.push(n)
+ });
+ const node={closest:selector=>selector.includes('.planning-selected-day')||selector.includes('.planning-card')?{}:null};
+ touch(canvas,'touchstart',200,100,0,{node});
+ touch(canvas,'touchmove',193,100,20,{node});
+ claimed=true;
+ assert.equal(touch(canvas,'touchmove',120,100,500,{node}).prevented,undefined);
+ claimed=false;
+ touch(canvas,'touchend',120,100,600,{node,defaultPrevented:true});
+ touch(canvas,'touchstart',200,100,800,{node});
+ touch(canvas,'touchmove',193,100,820,{node});
+ touch(canvas,'touchend',120,100,1300,{node,defaultPrevented:true});
+ assert.deepEqual(moves,[]);
 });
 test('an initially vertical gesture stays native even if the finger later travels sideways',()=>{
  const canvas=surface(),finished=[];installSwipeGesture({surface:canvas,axis:'x',onFinish:d=>finished.push(d)});

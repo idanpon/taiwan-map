@@ -102,5 +102,5 @@ export function installPlanningDrag({surface,document,window,enabled,onDrop,onDr
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&session){event.preventDefault();suppressUntil=Date.now()+500;cancel()}});
  window.addEventListener('blur',cancel);
  document.addEventListener('visibilitychange',()=>{if(document.hidden)cancel()});
- return {cancel,get active(){return !!session}};
+ return {cancel,get active(){return Boolean(session)},get claimed(){return Boolean(session?.preview||session?.blocked)}};
 }

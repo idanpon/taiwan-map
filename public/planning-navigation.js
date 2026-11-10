@@ -6,7 +6,11 @@ export function swipeDirection(start,end,locked=false){
 }
 export function editableTarget(target){return Boolean(target?.closest?.('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="textbox"],[role="slider"]'))}
 function nativeScrollTarget(target){const area=target?.closest?.('[data-planning-scroll]');return Boolean(area&&area.scrollWidth>area.clientWidth)}
-function monthGestureTarget(target){return !editableTarget(target)&&!nativeScrollTarget(target)&&!target?.closest?.('.planning-card,.planning-day-panel')}
+function monthGestureTarget(target){return !editableTarget(target)&&!nativeScrollTarget(target)&&!target?.closest?.('.planning-card,.planning-day-panel,.planning-agenda')}
+function dayGestureTarget(target){
+ return Boolean(target?.closest?.('.planning-agenda-heading,.planning-selected-day'))&&
+  !editableTarget(target)&&!nativeScrollTarget(target)&&!target.closest('a,button:not([data-item])');
+}
 
 // WheelEvent has no portable gesture-end marker. A new stroke can overlap the
 // previous inertial tail: detect renewed acceleration, not only an idle gap.
@@ -30,10 +34,17 @@ export function createMonthWheelGesture(){
   return {claimed,direction};
  };
 }
-export function installPlanningNavigation({canvas,document,navigate,enabled}){
- installSwipeGesture({surface:canvas,axis:'x',enabled,canStart:event=>monthGestureTarget(event.target),
-  // Once horizontal intent is locked, later vertical drift must not cancel it.
-  onFinish:({dx,dy,duration})=>{const direction=swipeDirection({x:0,y:0,time:0},{x:dx,y:dy,time:duration},true);if(direction)navigate(direction)}
+export function installPlanningNavigation({canvas,document,navigate,enabled,navigateDay,dayEnabled=()=>false}){
+ installSwipeGesture({surface:canvas,axis:'x',
+  enabled:target=>dayGestureTarget(target)?dayEnabled():enabled(),
+  canStart:event=>monthGestureTarget(event.target)||('touches' in event&&dayGestureTarget(event.target)),
+  onFinish:({dx,dy,duration,target})=>{
+   // Once horizontal intent is locked, later vertical drift must not cancel it.
+   const direction=swipeDirection({x:0,y:0,time:0},{x:dx,y:dy,time:duration},true);
+   if(!direction)return;
+   if(dayGestureTarget(target))navigateDay(direction);
+   else navigate(direction);
+  }
  });
  const wheel=createMonthWheelGesture();
  canvas.addEventListener('wheel',event=>{

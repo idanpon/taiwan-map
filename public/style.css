@@ -240,8 +240,15 @@ input:is(:autofill, :-webkit-autofill) { -webkit-text-fill-color: var(--ui-text)
 input[type=checkbox] { accent-color: var(--ui-accent); }
 .tip { white-space: pre-line; }
 .map-pin-button { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; background: none; }
-/* One ring with a genuinely transparent gap; category and status are untouched. */
-.map-pin-button.has-stay::before { content: ""; position: absolute; inset: -5px; border: 2px solid var(--ui-lodging-ring); border-radius: 50%; pointer-events: none; }
+.map-pin-button.has-stay::before {
+ content: "";
+ position: absolute;
+ inset: -4px;
+ border: 1px solid var(--ui-lodging-ring);
+ border-radius: 50%;
+ box-shadow: 0 0 7px 1px color-mix(in srgb,var(--ui-lodging-ring) 48%,transparent);
+ pointer-events: none;
+}
 .map-pin-button.city-cluster { width: 45px; height: 45px; background: #456b53; color: white; display: grid; place-items: center; border: var(--map-pin-border-width) solid #f5f4e8; box-shadow: 0 2px 12px #273a3240; font-size: 17px; }
 .map-pin-button::after { content: attr(data-label); pointer-events: none; position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); width: max-content; max-width: 240px; padding: 6px 10px; border: 1px solid var(--ui-border); border-radius: 6px; background: var(--ui-surface-panel); color: var(--ui-text); box-shadow: var(--ui-shadow-panel); font: 12px/1.4 Inter, -apple-system, sans-serif; opacity: 0; visibility: hidden; white-space: normal; }
 :where(:root:not([data-ui-touch])) .map-pin-button:focus-visible::after { opacity: 1; visibility: visible; }
