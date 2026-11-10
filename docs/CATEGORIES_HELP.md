@@ -102,3 +102,7 @@ patch) and `tags_version`. A stale note or tag version aborts the whole batch
 before COMMIT. Legacy requests without tags remain supported. Only this route
 allows up to 32 KiB for the combined note and schedule; other request limits
 remain at 8 KiB. Field length limits are unchanged.
+
+Категория «Жильё» использует спокойный розово-красный `#b66d7b`; название, ID и
+иконка кровати сохранены. Отдельное более выразительное кольцо означает
+связанное проживание, а не статус места. [Оформление карты](MAP_THEMES.md#lodging-on-the-map).

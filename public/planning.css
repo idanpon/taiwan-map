@@ -53,7 +53,7 @@
 .planning-month-grid { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); }
 .planning-weekday { text-align: center; font-size: var(--ui-text-caption); color: var(--ui-text-muted); padding: var(--ui-space-3) 0; }
 .planning-calendar-day { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; min-height: 62px; padding: 7px; border-radius: 0; border: 0; border-top: 1px solid var(--ui-border-panel); color: var(--ui-text); background: transparent; }
-.planning-calendar-day.other-month { color: var(--ui-text-muted); }
+.planning-calendar-day.other-month:not(.is-trip):not([aria-pressed=true]) .planning-day-number { color: var(--ui-text-muted); }
 .planning-calendar-day.is-trip { --ui-action-fill: color-mix(in srgb,var(--ui-surface-selected) 55%,var(--ui-surface-panel)); }
 .planning-calendar-day[aria-pressed=true] { --ui-action-fill: var(--ui-surface-selected); }
 .planning-calendar-day { align-items: center; justify-content: center; border-inline-start: 1px solid var(--ui-border-panel); }
@@ -372,43 +372,35 @@ label.time-choice, .time-choice-custom > label { display: flex; align-items: fle
 .planning-day-indicators { display: inline-flex; align-items: center; justify-content: center; gap: 3px; min-width: 0; }
 .planning-day-stay { display: inline-flex; color: var(--ui-accent); }
 .planning-day-stay svg { width: 12px; height: 12px; }
-.planning-day-indicators:has(.planning-day-stay) .planning-day-dots { width: auto; gap: 2px; }
+.planning-day-stay .planning-day-house-small { display: none; }
+@media(max-width:720px) {
+ .planning-day-indicators { display: grid; grid-template-rows: 5px 7px; justify-items: center; gap: 2px; height: 14px; }
+ .planning-day-stay > svg { display: none; }
+ .planning-day-stay .planning-day-house-small { display: block; width: 7px; height: 7px; }
+}
 
-.planning-stays {
- display: grid;
- gap: var(--ui-space-1);
- margin-bottom: var(--ui-space-2);
+.planning-stays { display: grid; gap: var(--ui-space-2); margin-bottom: var(--ui-space-2); }
+.planning-card.kind-stay,.planning-stay-transfer { --planning-travel-tint: var(--ui-lodging); }
+.planning-card.kind-transport { --planning-travel-tint: var(--ui-accent); }
+.planning-card:is(.kind-stay,.kind-transport),.planning-stay-transfer {
+ --ui-depth-panel: linear-gradient(90deg,color-mix(in srgb,var(--planning-travel-tint) 8%,var(--ui-surface-panel)),color-mix(in srgb,var(--planning-travel-tint) 4%,var(--ui-surface-panel)));
+ --ui-depth-panel-hover: linear-gradient(var(--ui-hover-layer),var(--ui-hover-layer)),var(--ui-depth-panel);
+ --ui-depth-panel-press: linear-gradient(var(--ui-press-layer),var(--ui-press-layer)),var(--ui-depth-panel);
 }
-.planning-stay-transfer,.planning-stay-row {
- border: 1px solid var(--ui-border-panel);
- border-radius: var(--ui-radius-control);
- background: var(--ui-surface-selected);
-}
+.planning-card.kind-stay .planning-card-icon { background: var(--ui-lodging-surface); color: var(--ui-lodging); }
 .planning-stay-transfer {
  display: grid;
- grid-template-columns: minmax(0,1fr) auto minmax(0,1fr);
- align-items: center;
- gap: var(--ui-space-1);
-}
-.planning-stay-row {
- display: flex;
- align-items: center;
- gap: var(--ui-space-2);
- min-height: var(--ui-control);
- padding: var(--ui-space-1) var(--ui-space-2);
+ gap: 0;
  min-width: 0;
- text-align: start;
- color: var(--ui-text);
- overflow-wrap: anywhere;
+ border: 1px solid var(--ui-border);
+ border-radius: var(--ui-radius-panel);
+ background: var(--ui-depth-panel);
+ overflow: hidden;
 }
-.planning-stay-row small,.planning-stay-row strong { display: block; }
-.planning-stay-row small,.planning-transport-route small { color: var(--ui-text-muted); }
-.planning-stay-row strong { font-size: var(--ui-text-caption); }
-.planning-stay-row svg,.planning-stay-transfer > svg { color: var(--ui-accent); }
-.planning-stay-transfer > .planning-stay-row { border-color: transparent; background: transparent; }
-.planning-transport { padding: var(--ui-space-1) var(--ui-space-2); border-inline-start: 2px solid var(--ui-accent); }
-.planning-transport .planning-card-open { align-items: center; }
-.planning-transport .planning-card-open > svg { color: var(--ui-accent); }
+.planning-stay-transfer > .planning-card { border: 0; border-radius: 0; background: transparent; padding-inline: var(--ui-space-2); }
+.planning-stay-direction { display: flex; justify-content: center; height: 16px; color: var(--ui-lodging); }
+.planning-stay-direction svg { width: 16px; height: 16px; }
+.planning-transport-route { margin-top: var(--ui-space-1); }
 .planning-transport-route { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ui-space-1); font-size: var(--ui-text-caption); }
 .planning-transport-route > svg { align-self: center; width: 13px; height: 13px; color: var(--ui-text-muted); }
 .planning-transport-route small { white-space: nowrap; }

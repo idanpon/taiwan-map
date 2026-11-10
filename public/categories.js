@@ -59,7 +59,7 @@ export const categoryDefinitions=Object.freeze([
  {
   "id": "lodging",
   "label": "Жильё",
-  "color": "#6d72b4",
+  "color": "#b66d7b",
   "icon": "bed-double",
   "description": "Отели, апартаменты и другие места проживания.",
   "sort_order": 7

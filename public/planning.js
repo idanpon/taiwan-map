@@ -242,12 +242,30 @@ function editMove(id,target=null,anchor=null,reason=''){
   try{await persistMove(item,patch,{close:true})}catch(error){dialogError.textContent=error.message}finally{form.querySelectorAll('button').forEach(button=>button.disabled=false)}
  };
 }
+function showDateWarning(id,message){
+ notice.show(message,{tone:'warning',action:allowed()&&plan.items.some(item=>item.id===id)?{label:'Изменить даты',run:()=>{
+  if(!allowed()||!canLeave())return;
+  const item=plan.items.find(item=>item.id===id);if(!item){notice.clear();return}
+  notice.clear();
+  if(isTravel(item.kind)){
+   activeItemId=id;editItem(id);
+   const field=dialogContent.querySelector('[name="departure_date"]');
+   field?.scrollIntoView({block:'center'});field?.focus({preventScroll:true});
+  }else editMove(id);
+ }}:undefined});
+}
+function blockedMove(id){
+ const item=plan.items.find(item=>item.id===id);if(!item)return;
+ const message=item.kind==='stay'?'Даты проживания меняются в карточке. Проверьте заселение и выезд.':
+  item.kind==='transport'?'Даты транспорта меняются в карточке. Проверьте отправление и прибытие.':periodMoveMessage;
+ showDateWarning(id,message);
+}
 async function moveItem(id,target,anchor){
  if(!allowed()||busy)return;const item=plan.items.find(item=>item.id===id);if(!item)return;
- const [start,end]=itemDates(item,zone);if(start&&start!==end){toast(periodMoveMessage,'warning');return}
+ const [start,end]=itemDates(item,zone);if(isTravel(item.kind)||(start&&start!==end)){blockedMove(id);return}
  const move=planItemMove(item,target,zone,anchor);if(move.unchanged)return;
  if(move.review){editMove(id,target,anchor,move.review);return}
- try{await persistMove(item,move.patch)}catch(error){toast(error.message,'warning');if(error.status===409)await load().catch(()=>{})}
+ try{await persistMove(item,move.patch)}catch(error){if(error.status===409)await load().catch(()=>{});showDateWarning(id,error.message)}
 }
 function showMoveNotice(message,tone='neutral'){notice.show(message,{tone,action:{label:'Отменить',run:undoMove}})}
 async function undoMove(){
@@ -255,7 +273,7 @@ async function undoMove(){
  const undo=lastMove;busy=true;pendingId=undo.id;++loadSequence;render();notice.setActionBusy(true);
  try{const result=await saveItem(undo.id,{...undo.before,version:undo.version,timezone_revision:zone.revision});applySavedItem(result.item);focusDay=undo.previousFocus;lastMove=null;toast('Перенос отменён.')}
  catch(error){
-  if(error.status===409){lastMove=null;toast('Запись уже изменена. Отмена не применена, чтобы сохранить новую правку.','warning');await load().catch(()=>{})}
+  if(error.status===409){lastMove=null;await load().catch(()=>{});showDateWarning(undo.id,'Запись уже изменена. Отмена не применена, чтобы сохранить новую правку.')}
   else if(lastMove===undo)showMoveNotice(error.message,'warning');
  }
  finally{busy=false;pendingId=null;notice.setActionBusy(false);render()}
@@ -284,7 +302,7 @@ async function load({signal}={}){
  $('application').hidden=false;$('login').hidden=true;document.body.classList.add('app-active');render();
  void accountUI?.notifications.refresh();
 }
-drag=installPlanningDrag({surface:$('planning-canvas'),document,window,enabled:()=>Boolean(allowed())&&!busy&&!document.querySelector('dialog[open]'),onDrop:moveItem,onDragEnd:layout.resetScrollTracking,onBlocked:()=>toast(periodMoveMessage,'warning'),onError:error=>toast(error.message,'warning')});
+drag=installPlanningDrag({surface:$('planning-canvas'),document,window,enabled:()=>Boolean(allowed())&&!busy&&!document.querySelector('dialog[open]'),onDrop:moveItem,onDragEnd:layout.resetScrollTracking,onBlocked:blockedMove,onError:error=>toast(error.message,'warning')});
 $('planning-canvas').onclick=event=>{
  const quick=event.target.closest('[data-quick-complete]');if(quick){void completeItem(quick.dataset.quickComplete,{quick:true});return}
  const item=event.target.closest('[data-item]'),record=event.target.closest('[data-record]');if(item||record){openItem(item?.dataset.item||record.dataset.record);return}

@@ -37,6 +37,9 @@
   --ui-warning: #6d4d20;
   --ui-warning-surface: #fff4de;
   --ui-warning-marker: #bc8424;
+  --ui-lodging: #a34e64;
+  --ui-lodging-surface: #f4e6ea;
+  --ui-lodging-ring: #b74665;
   --ui-decision: #715489;
   --ui-decision-surface: #f0ebf6;
   --ui-scroll: #b5ad9f;
@@ -85,6 +88,9 @@
   --ui-border-panel: #3b4a54;
   --ui-border-control: transparent;
   --ui-accent: #9dcedc;
+  --ui-lodging: #e1a5b4;
+  --ui-lodging-surface: #49343e;
+  --ui-lodging-ring: #ed94ad;
   --ui-on-accent: #16323c;
   --ui-focus: #94cee8;
   --ui-danger: #ffaea1;

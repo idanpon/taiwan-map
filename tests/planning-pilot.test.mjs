@@ -97,10 +97,10 @@ test('stays cover nights across months, keep the checkout row and group a hotel 
  const nights=html=>[...html.matchAll(/data-day="([^"]+)"[^>]*есть проживание на ночь[^>]*>/g)].map(match=>match[1]);
  assert.deepEqual(nights(render('2026-12-31')),['2026-12-30','2026-12-31','2027-01-01','2027-01-02']);
  assert.deepEqual(nights(render('2027-01-03','month',[])),['2026-12-30','2026-12-31','2027-01-01','2027-01-02']);
- assert.match(render('2027-01-03'),/Выезд<[^>]*><strong>Отель B/);
+ assert.match(render('2027-01-03'),/Отель B<[^]*?Выезд/);
  for(const view of ['month','list']){
   const html=render('2027-01-02',view);
-  assert.match(html,/planning-stay-transfer[^]*?data-item="A"[^]*?Выезд[^]*?data-item="B"[^]*?Заселение/);
+  assert.match(html,/planning-stay-transfer[^]*?data-item="A"[^]*?Выезд[^]*?planning-stay-direction[^]*?data-item="B"[^]*?Заселение/);
   assert.ok(html.indexOf('planning-stay-transfer')<html.indexOf('data-item="task"'));
  }
 });
@@ -119,4 +119,20 @@ test('transport card uses endpoint-local clocks and interleaves timed visits chr
  assert.deepEqual([...html.matchAll(/data-record="([^"]+)"/g)].map(match=>match[1]),['before','ride','after']);
  assert.match(html,/Поезд · Alishan Forest Railway · AL-1/);
  assert.match(html,/Цзяи[^]*?10:00[^]*?Алишань[^]*?14:56/);
+});
+
+
+test('travel cards block quick moves for editors and expose no drag actions to viewers',()=>{
+ const day='2027-01-08';
+ const items=[item({id:'stay',kind:'stay',date_start:day,date_end:'2027-01-09',places:[{role:'lodging',place_id:'hotel',place_name:'Hotel'}]}),
+  item({id:'flight',kind:'transport',date_start:day,date_end:day,transport:{mode:'plane',arrival_timezone:'Asia/Taipei'},places:[{role:'departure',place_name:'A'},{role:'arrival',place_name:'B'}]})];
+ const plan={items,users:[],trip:{start_date:day,end_date:'2027-01-09'}};
+ for(const view of ['month','list'])for(const allowed of [true,false]){
+  const html=renderPlanningPilot({view,items,plan,zone:emptyZonePlan,focusDay:day,today:day,allowed});
+  for(const id of ['stay','flight']){
+   const card=html.match(new RegExp('<article[^>]*data-record="'+id+'"[^>]*>'))[0];
+   assert.equal(card.includes('data-drag-item'),allowed);
+   assert.equal(card.includes('data-drag-blocked'),allowed);
+  }
+ }
 });
