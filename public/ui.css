@@ -253,7 +253,8 @@ textarea.ui-field { min-height: 88px; resize: vertical; line-height: 1.6; }
 .place-rating-prompt { pointer-events: auto; }
 .place-ratings { display: grid; gap: var(--ui-space-2); margin-block: var(--ui-space-3); }
 .place-rating-summary { font-weight: 600; }
-.place-rating-stars { display: flex; flex-wrap: wrap; gap: var(--ui-space-1); }
+.place-rating-stars { display: flex; flex-wrap: wrap; }
+.place-rating-prompt .place-rating-stars { justify-content: center; }
 .place-rating-star { color: var(--ui-warning); }
 .place-rating-star svg { width: var(--ui-icon-control); height: var(--ui-icon-control); }
 .place-rating-star[data-filled] svg { fill: currentColor; }
