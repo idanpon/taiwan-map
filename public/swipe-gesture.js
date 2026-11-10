@@ -10,12 +10,12 @@ export function installSwipeGesture({surface,axis,direction=0,enabled=()=>true,c
  let gesture=null,suppressUntil=0,ignoreMouseUntil=0;
  const cancel=()=>{gesture=null;onCancel()};
  function begin(event,point,kind){
-  cancel();suppressUntil=0;if(!enabled()||!canStart(event))return;
+  cancel();suppressUntil=0;if(!enabled(event.target)||!canStart(event))return;
   gesture={x:point.clientX,y:point.clientY,id:kind==='touch'?point.identifier:event.pointerId,time:event.timeStamp,target:event.target,kind,locked:null};
  }
  function motion(event,point){
   const start=gesture;if(!start)return null;
-  if(!enabled()){cancel();return null}
+  if(!enabled(start.target)){cancel();return null}
   const dx=point.clientX-start.x,dy=point.clientY-start.y;
   if(!start.locked){
    start.locked=gestureAxis(dx,dy);
@@ -46,6 +46,7 @@ export function installSwipeGesture({surface,axis,direction=0,enabled=()=>true,c
  },{passive:false});
  surface.addEventListener('touchend',event=>{
   if(gesture?.kind!=='touch')return;
+  if(event.defaultPrevented){cancel();return}
   const point=Array.from(event.changedTouches).find(t=>t.identifier===gesture.id);if(point)finish(event,point);
  },{passive:true});
  surface.addEventListener('touchcancel',()=>{if(gesture?.kind==='touch')cancel()},{passive:true});

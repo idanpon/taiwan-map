@@ -15,7 +15,7 @@ import {installPlanningDrag} from './planning-drag.js';
 import {renderPlanningCanvas,installPlanningLayout} from './planning-viewport.js';
 import {installPlanningZoneDisclosure} from './planning-zone-disclosure.js';
 import {installPlanningNavigation} from './planning-navigation.js';
-import {kindLabels,stateLabels,priorityLabels,dayInZone,itemDates,urgency,dateLabel} from './planning-model.js';
+import {kindLabels,stateLabels,priorityLabels,addDays,dayInZone,itemDates,urgency,dateLabel} from './planning-model.js';
 import {initialZone,emptyZonePlan,localPoint,offsetLabel,zoneAt} from './trip-timezones.js';
 import {createTimeReview,editTripTime,itemDateEditor,timezoneExplanation,zoneBadge,pointText} from './planning-time-ui.js';
 import {reminderCard} from './planning-reminders-ui.js';
@@ -98,12 +98,14 @@ function recordDateHtml(item){
 }
 const statesForKind=kind=>kind==='visit'?{open:'Запланировано',in_progress:'В пути / идёт',done:'Состоялось',cancelled:'Пропустили'}:kind==='decision'?{open:'Открыто',in_progress:'В работе',done:'Принято',cancelled:'Отменено'}:stateLabels;
 function stateLabel(i){return statesForKind(i.kind)[i.state]}
-function render(){
+function render({keepAgenda=false}={}){
  syncFilterDisplays();if(!plan)return;const items=filtered(),today=dayInZone(new Date(),zone);
  const canvas=$('planning-canvas'),previous=canvas.querySelector('[data-planning-scroller]');
  const previousView=previous?.dataset.planningScroller;
  const openingList=view==='list'&&previousView!==view;
  const pageTop=openingList?0:window.scrollY;
+ const agenda=keepAgenda?canvas.querySelector('.planning-agenda'):null;
+ const agendaTop=agenda?agenda.getBoundingClientRect().top+pageTop:0;
  if(previous)viewScroll[previousView]=previous.scrollTop;
  if(canvas.dataset.day!==focusDay)viewScroll.month=0;
  $('planning-trip').textContent='Вылет '+dateLabel(plan.trip.departure_date)+' · '+dateLabel(plan.trip.start_date)+' — '+dateLabel(plan.trip.end_date);
@@ -117,7 +119,8 @@ function render(){
  $('planning-canvas').dataset.view=view;canvas.dataset.day=focusDay;
  renderPlanningCanvas(canvas,renderPlanningPilot({view,items,plan,zone,focusDay,today,allowed:allowed(),pendingId,listLimit,hasFilters:Boolean(kind||search||state!=='active'||plan.items.length&&!items.length)}));
  $('planning-prev').hidden=$('planning-next').hidden=view==='list';
- layout.refresh({scrollTop:openingList?0:viewScroll[view],pageTop});
+ const agendaShift=agenda?agenda.getBoundingClientRect().top+window.scrollY-agendaTop:0;
+ layout.refresh({scrollTop:openingList?0:viewScroll[view],pageTop:pageTop+agendaShift});
  // Start the selection animation after layout and scroll have been updated.
  if(previousView!==view){
   for(const button of $('planning-views').querySelectorAll('[data-view]'))button.setAttribute('aria-pressed',String(button.dataset.view===view));
@@ -243,7 +246,7 @@ function editMove(id,target=null,anchor=null,reason=''){
  };
 }
 function showDateWarning(id,message){
- notice.show(message,{tone:'warning',action:allowed()&&plan.items.some(item=>item.id===id)?{label:'Изменить даты',run:()=>{
+ notice.show(message,{tone:'warning',timeout:8000,action:allowed()&&plan.items.some(item=>item.id===id)?{label:'Изменить даты',run:()=>{
   if(!allowed()||!canLeave())return;
   const item=plan.items.find(item=>item.id===id);if(!item){notice.clear();return}
   notice.clear();
@@ -326,7 +329,18 @@ $('planning-views').onclick=event=>{
  drag.cancel();view=button.dataset.view;render();
 };
 function navigate(direction){if(view!=='month')return;drag.cancel();const date=new Date(focusDay.slice(0,7)+'-01T12:00:00Z');date.setUTCMonth(date.getUTCMonth()+direction);focusDay=date.toISOString().slice(0,10);render()}
-installPlanningNavigation({canvas:$('planning-canvas'),document,navigate,enabled:()=>Boolean(plan)&&view==='month'&&!busy&&!drag.active&&!document.querySelector('dialog[open]')&&!$('application').hidden});
+const compactPlanning=window.matchMedia('(max-width:720px)');
+const canNavigatePlan=()=>Boolean(plan)&&view==='month'&&!busy&&!document.querySelector('dialog[open]')&&!$('application').hidden;
+installPlanningNavigation({
+ canvas:$('planning-canvas'),document,navigate,
+ enabled:()=>canNavigatePlan()&&!drag.active,
+ dayEnabled:()=>compactPlanning.matches&&canNavigatePlan()&&!drag.claimed,
+ navigateDay(direction){
+  drag.cancel();
+  focusDay=addDays(focusDay,direction);
+  render({keepAgenda:true});
+ }
+});
 $('planning-prev').onclick=()=>navigate(-1);$('planning-next').onclick=()=>navigate(1);
 $('planning-today').onclick=()=>{focusDay=dayInZone(new Date(),zone);render()};
 $('planning-list-today').onclick=event=>{

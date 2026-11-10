@@ -82,7 +82,7 @@ function stayBlock(records,day,allowed){
  const arriving=records.filter(item=>item.date_start===day&&item.state!=='cancelled');
  const [from]=leaving,[to]=arriving;
  const transfer=leaving.length===1&&arriving.length===1&&place(from).place_id&&place(to).place_id&&place(from).place_id!==place(to).place_id;
- const html=transfer?`<div class="planning-stay-transfer">${row(from)}<span class="planning-stay-direction" aria-label="Переселение">${pilotIcon('down')}</span>${row(to)}</div>`:'';
+ const html=transfer?`<div class="planning-stay-transfer" role="group" aria-label="Переселение">${row(from)}<span class="planning-stay-direction" aria-hidden="true">${pilotIcon('down')}</span>${row(to)}</div>`:'';
  const rest=transfer?records.filter(item=>item!==from&&item!==to):records;
  return `<section class="planning-stays" aria-label="Проживание">${html}${rest.map(row).join('')}</section>`;
 }
