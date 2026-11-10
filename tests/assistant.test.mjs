@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { openDatabase, migrate } from '../server/database.mjs';
 import { seed } from '../src/seed.mjs';
 import { handle } from '../src/core.mjs';
@@ -10,6 +11,7 @@ import { saveProposal, readProposal, listProposals, previewProposal, applyPropos
 import { applyPlanningChange } from '../src/planning.mjs';
 import { applyOperations } from '../src/assistant-changes.mjs';
 import { applyWithRecovery } from '../public/assistant-card.js';
+import { addDays } from '../public/planning-model.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
@@ -153,13 +155,73 @@ test('official MCP client initializes, reads resource, saves, previews and appli
   const f=await fixture(t),g=await f.grant(),client=new Client({name:'integration-test',version:'1'});
   const transport=new StreamableHTTPClientTransport(new URL(f.env.APP_ORIGIN+'/api/assistant/mcp'),{requestInit:{headers:{Authorization:'Bearer '+g.access_token}},fetch:(url,init)=>handle(new Request(url,init),f.env)});
   await client.connect(transport);t.after(()=>client.close());
+  const rules = readFileSync(new URL('../docs/PLANNING_RULES.md', import.meta.url), 'utf8').trim();
+  assert.ok(client.getInstructions().includes(rules));
   const {tools}=await client.listTools();assert.equal(tools.length,8);
+  assert.match(tools.find(t=>t.name==='proposal_save').description,/trip_read.*planning_rules.*planning_today/);
   const ui=tools.find(t=>t.name==='proposal_preview')._meta.ui;assert.ok(ui.resourceUri);assert.deepEqual(ui.visibility,['model','app']);
   const resource=await client.readResource({uri:ui.resourceUri});assert.equal(resource.contents[0].mimeType,'text/html;profile=mcp-app');assert.ok(resource.contents[0].text.includes('Подтвердить изменения'));
+  run(f.DB, 'INSERT INTO trip_timezone_changes(trip_id,at,zone) VALUES(?,?,?)', TRIP, Date.now()-60000, 'Asia/Taipei');
   const context=await client.callTool({name:'trip_read',arguments:{}});assert.equal(context.structuredContent.actor.id,'alice');assert.equal(JSON.stringify(context).includes('password_hash'),false);
+  const trip = context.structuredContent;
+  assert.equal(trip.planning_rules, rules);
+  assert.equal(JSON.parse(context.content[0].text).planning_rules, rules);
+  assert.equal(trip.planning_today.timezone, 'Asia/Taipei');
+  const deadline = addDays(trip.planning_today.date, 1);
   const call=async(name,args)=>{const r=await client.callTool({name,arguments:args});assert.ok(!r.isError,JSON.stringify(r));return r.structuredContent;};
-  const p=await call('proposal_save',input([createPlace()]));const preview=await call('proposal_preview',{id:p.id,version:1});
+  const task = {key:'tickets',kind:'plan.create',reason:'Подготовка поездки',data:{kind:'task',title:'Купить билеты на поезд',date_end:deadline}};
+  const p=await call('proposal_save',input([createPlace(),task]));const preview=await call('proposal_preview',{id:p.id,version:1});
+  const taskPreview = preview.preview.changes.find(change=>change.entity==='plan').after;
+  assert.equal(taskPreview.date_start, null);
+  assert.equal(taskPreview.date_end, deadline);
   const receipt=await call('proposal_apply',accept(preview));assert.equal(receipt.status,'applied');assert.equal((await call('proposal_read',{id:p.id})).result.operation_id,receipt.operation_id);
+  const savedTask = one(f.DB, 'SELECT date_start,date_end FROM planning_items WHERE id=?', p.ids.tickets);
+  assert.equal(savedTask.date_start, null);
+  assert.equal(savedTask.date_end, deadline);
+  const travelDraft=await call('proposal_save',input([
+    {key:'hotel',kind:'plan.create',reason:'Бронь подтверждена',data:{
+      kind:'stay',date_start:'2027-01-07',date_end:'2027-01-08',event_timezone:'Asia/Taipei',
+      places:[{role:'lodging',place_id:p.ids.museum}],note:'Сохранить заметку',
+    }},
+    {key:'train',kind:'plan.create',reason:'Переезд к месту проживания',data:{
+      kind:'transport',date_start:'2027-01-07',date_end:'2027-01-07',event_timezone:'Asia/Taipei',
+      places:[{role:'departure',place_name:'Цзяи'},{role:'arrival',place_name:'Алишань',place_id:p.ids.museum}],
+      transport:{mode:'train',arrival_timezone:'Asia/Taipei',stops:['Фэньциху']},
+      dependencies:[p.ids.tickets],
+    }},
+  ]));
+  const travelPreview=await call('proposal_preview',{id:travelDraft.id,version:1});
+  assert.deepEqual(travelPreview.preview.changes.map(c=>c.after.kind).sort(),['stay','transport']);
+  assert.equal(one(f.DB,'SELECT id FROM planning_items WHERE id=?',travelDraft.ids.train),undefined);
+  const appliedTravel=await call('proposal_apply',accept(travelPreview));
+  assert.deepEqual(await call('proposal_apply',accept(travelPreview)),appliedTravel);
+  const getPlan=async()=> (await call('trip_read',{})).planning.items;
+  const train=(await getPlan()).find(item=>item.id===travelDraft.ids.train);
+  const hotel=(await getPlan()).find(item=>item.id===travelDraft.ids.hotel);
+  assert.deepEqual(train.transport.stops,['Фэньциху']);
+  assert.deepEqual(train.dependencies,[p.ids.tickets]);
+  assert.equal(hotel.places[0].role,'lodging');
+  const change=await call('proposal_save',input([
+    {key:'hotel',kind:'plan.update',reason:'Уточнено время выезда',id:hotel.id,version:hotel.version,
+     data:{ends_at:'2027-01-08T03:00:00Z',dependencies:[train.id]}},
+  ]));
+  const changePreview=await call('proposal_preview',{id:change.id,version:1});
+  await call('proposal_apply',accept(changePreview));
+  const remove=await call('proposal_save',input([
+    {key:'train',kind:'plan.delete',reason:'Переезд отменён',id:train.id,version:train.version},
+  ]));
+  const removal=await call('proposal_preview',{id:remove.id,version:1});
+  assert.ok(removal.preview.changes.some(c=>c.id===train.id&&c.action==='delete'&&c.after===null));
+  assert.ok(removal.preview.changes.some(c=>c.id===hotel.id&&c.fields.includes('dependencies')));
+  await f.call('/api/planning/items/'+hotel.id,'PUT',{version:hotel.version+1,note:'Свежая правка'});
+  const stale=await client.callTool({name:'proposal_apply',arguments:accept(removal)});
+  assert.equal(stale.structuredContent.status,409);
+  const fresh=await call('proposal_preview',{id:remove.id,version:1});
+  await call('proposal_apply',accept(fresh));
+  const remaining=await getPlan();
+  assert.ok(!remaining.some(item=>item.id===train.id));
+  assert.equal(remaining.find(item=>item.id===hotel.id).note,'Свежая правка');
+  assert.deepEqual(remaining.find(item=>item.id===hotel.id).dependencies,[]);
   const extra=await client.callTool({name:'trip_read',arguments:{sql:'DELETE'}});assert.equal(extra.isError,true);
   const unknown=await client.callTool({name:'delete_all',arguments:{}});assert.equal(unknown.isError,true);
 });

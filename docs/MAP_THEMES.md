@@ -49,6 +49,15 @@ available; mobile keeps the map view with an explicit action to open the list.
 Below zoom 10 the map shows city groups with a count. Their circles are 45 px
 across, compared with 40 px for individual place markers. Both use a 2 px border.
 
+## Lodging on the map
+
+The private catalog returns `has_stay` for places linked as lodging to a
+non-cancelled stay. The map adds a thin accent outline with a surface
+gap around the existing category marker. The status badge and category icon
+use their usual appearance, including dimmed status markers. City clusters
+continue to show place counts. The anonymous projection omits `has_stay`.
+[Planning rules](PLANNING.md#проживание).
+
 ## Desktop places panel
 
 Drag the right edge to resize the panel to 80–150% of its standard width at

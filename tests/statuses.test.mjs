@@ -35,7 +35,7 @@ test('status symbols allow one text character or blank, excluding emoji, whitesp
 });
 
 test('saved colors and symbols override no built-in names and use legible foreground colors',()=>{
- for(const id of ['want','maybe','visited','custom']){
+ for(const id of ['want','maybe','visited']){
   const value=statusAppearance({id,label:'Хайп!',color:'#00ff00',symbol:'+'});
   assert.equal(value.color,'#00ff00');assert.equal(value.symbol,'+');assert.equal(value.symbolColor,'#000000');
  }
@@ -57,7 +57,7 @@ test('status migration preserves assignments and custom fields while persisting 
   for(const [id,label,color] of [['want','Хочу посетить','#b97639'],['visited','Уже посетил','#517c61'],['maybe','Под вопросом','#8c7ba0'],['hype','Хайп!','#0056d6'],['custom','Другой','#123456']])DB.sqlite.prepare('INSERT INTO statuses(id,trip_id,label,color,sort_order,created_by) VALUES(?,?,?,?,?,?)').run(id,'taiwan-2026',label,color,1,'trip-shared');
   migrate(DB,'drizzle');
   const get=id=>DB.sqlite.prepare('SELECT color,symbol,version FROM statuses WHERE id=?').get(id);
-  assert.deepEqual({...get('want')},{color:'#1456e0',symbol:'!',version:1});
+  assert.deepEqual({...get('want')},{color:'#1456e0',symbol:'!',version:2});
   assert.equal(get('visited').symbol,'✓');assert.equal(get('maybe').symbol,'?');assert.equal(get('hype').color,'#dc2626');
   assert.equal(get('custom').color,'#123456');assert.equal(get('custom').symbol,'');
   assert.equal(DB.sqlite.prepare('SELECT dimmed FROM statuses WHERE id=?').get('visited').dimmed,1);
@@ -68,67 +68,28 @@ test('status migration preserves assignments and custom fields while persisting 
  }finally{DB.close()}
 });
 
-test('admin and editor edit built-in and custom statuses without changing assignments, notes or place versions',async()=>{
- const f=await fixture();try{
-  assert.equal((await f.call('/api/places/taipei-101/state','PUT',{version:0,status_id:'want',note:'Preserve this note'},f.editor)).status,200);
-  const initialEvents=f.DB.sqlite.prepare('SELECT * FROM state_events').all();
-  const payload={label:'Новое название',color:'#00aa77',symbol:'★',dimmed:true,version:1};
-  let r=await f.call('/api/statuses/want','PUT',payload,f.editor);assert.equal(r.status,200);assert.equal((await r.json()).version,2);
-  r=await f.call('/api/statuses','POST',{label:'Созданный',color:'#112233',symbol:'<'},f.admin);assert.equal(r.status,201);const created=await r.json();assert.equal(created.symbol,'<');
-  r=await f.call('/api/statuses/'+created.id,'PUT',{label:'Переименованный',color:'#ffffff',symbol:'',version:created.version},f.admin);assert.equal(r.status,200);
-  const data=await(await f.call('/api/data','GET',undefined,f.viewer)).json(),status=data.statuses.find(s=>s.id==='want'),place=data.places.find(p=>p.id==='taipei-101');
-  assert.equal(status.label,payload.label);assert.equal(status.symbol,'★');assert.equal(status.color,payload.color);assert.equal(status.dimmed,true);
-  assert.equal(place.status_id,'want');assert.equal(place.note,'Preserve this note');assert.equal(place.version,1);
-  assert.deepEqual(f.DB.sqlite.prepare('SELECT * FROM state_events').all(),initialEvents);
-  const exported=await(await f.call('/api/export','GET',undefined,f.admin)).json();assert.equal(exported.statuses.find(s=>s.id===created.id).symbol,'');
- }finally{f.DB.close()}
-});
-
-test('status API rejects emoji and malformed inputs and normalizes composed text symbols',async()=>{
- const f=await fixture();try{
-  const payload={label:'Новый',color:'#112233',symbol:'+'};
-  for(const invalid of [{symbol:'🔥'},{symbol:'1️⃣'},{symbol:'ab'},{symbol:'\u200b'},{symbol:1},{label:'  '},{label:'x'.repeat(41)},{color:'red;script'},{color:['#112233']},{dimmed:1},{dimmed:'true'},{dimmed:null}]){
-   assert.equal((await f.call('/api/statuses','POST',{...payload,...invalid},f.editor)).status,400);
-   assert.equal((await f.call('/api/statuses/want','PUT',{...payload,version:1,...invalid},f.editor)).status,400);
-  }
-  const response=await f.call('/api/statuses','POST',{...payload,symbol:'e\u0301'},f.editor);assert.equal(response.status,201);assert.equal((await response.json()).symbol,'é');
-  assert.equal((await f.call('/api/statuses/want','PUT',{...payload,version:0},f.editor)).status,400);
-  assert.equal((await f.call('/api/statuses/missing','PUT',{...payload,version:1},f.editor)).status,404);
-  assert.equal((await f.call('/api/statuses/want','PUT',{...payload,version:1},f.viewer)).status,403);
-  assert.equal((await f.call('/api/statuses','POST',payload,f.viewer)).status,403);
-  assert.equal((await f.call('/api/statuses/want','PUT',{...payload,version:1})).status,401);
-  f.DB.sqlite.prepare('UPDATE statuses SET archived=1 WHERE id=?').run('maybe');
-  assert.equal((await f.call('/api/statuses/maybe','PUT',{...payload,version:1},f.editor)).status,404);
- }finally{f.DB.close()}
-});
-
-test('status edits reject duplicate names and concurrent stale versions',async()=>{
- const f=await fixture();try{
-  const payload={label:'Обновлённый',color:'#112233',symbol:'?',version:1};
-  const results=await Promise.all([f.call('/api/statuses/want','PUT',payload,f.editor),f.call('/api/statuses/want','PUT',{...payload,color:'#445566'},f.admin)]);
-  assert.equal(results.filter(r=>r.status===200).length,1);assert.equal(results.filter(r=>r.status===409).length,1);
-  assert.equal((await f.call('/api/statuses/maybe','PUT',payload,f.editor)).status,409);
-  assert.equal((await f.call('/api/statuses','POST',payload,f.editor)).status,409);
-  assert.equal(f.DB.sqlite.prepare('SELECT version FROM statuses WHERE id=?').get('want').version,2);
- }finally{f.DB.close()}
-});
-
-
-test('status transparency defaults, explicit toggles and older clients preserve the setting',async()=>{
- const f=await fixture();try{
-  let data=await(await f.call('/api/data','GET',undefined,f.viewer)).json();
-  assert.equal(data.statuses.find(s=>s.id==='visited').dimmed,true);
-  assert.equal(data.statuses.find(s=>s.id==='want').dimmed,false);
-  const payload={label:'Приглушённый',color:'#123456',symbol:'+'};
-  let response=await f.call('/api/statuses','POST',payload,f.editor);assert.equal(response.status,201);
-  let saved=await response.json();assert.equal(saved.dimmed,false);
-  response=await f.call('/api/statuses/'+saved.id,'PUT',{...payload,version:saved.version,dimmed:true},f.editor);
-  assert.equal(response.status,200);saved=await response.json();assert.equal(saved.dimmed,true);
-  response=await f.call('/api/statuses/'+saved.id,'PUT',{...payload,version:saved.version},f.admin);
-  assert.equal(response.status,200);saved=await response.json();assert.equal(saved.dimmed,true);
-  assert.equal((await f.call('/api/statuses/'+saved.id,'PUT',{...payload,version:saved.version,dimmed:false},f.viewer)).status,403);
-  response=await f.call('/api/statuses/'+saved.id,'PUT',{...payload,version:saved.version,dimmed:false},f.admin);
-  assert.equal(response.status,200);saved=await response.json();assert.equal(saved.dimmed,false);
-  data=await(await f.call('/api/data','GET',undefined,f.viewer)).json();assert.equal(data.statuses.find(s=>s.id===saved.id).dimmed,false);
- }finally{f.DB.close()}
+test('catalog exposes fixed definitions and place state accepts exactly those IDs and null',async t=>{
+ const f=await fixture();t.after(()=>f.DB.close());
+ const get=async(path,token)=>(await f.call(path,'GET',undefined,token)).json();
+ const data=await get('/api/data',f.viewer), publicData=await get('/api/public/data');
+ const expected=['maybe','visited','want'];
+ for(const catalog of [data,publicData,await get('/api/export',f.admin)])
+  assert.deepEqual(catalog.statuses.map(status=>status.id).sort(),expected);
+ assert.equal(data.statuses.find(status=>status.id==='visited').dimmed,true);
+ const place=data.places.find(p=>p.id==='taipei-101');
+ let version=place.version;
+ for(const status_id of [...expected,null]){
+  const result=await f.call('/api/places/taipei-101/state','PUT',{version,status_id,note:'Shared note'},f.editor);
+  assert.equal(result.status,200);
+  version=(await result.json()).version;
+  const saved=(await get('/api/data',f.viewer)).places.find(p=>p.id===place.id);
+  assert.equal(saved.status_id,status_id);assert.equal(saved.note,'Shared note');
+ }
+ f.DB.sqlite.prepare("INSERT INTO statuses(id,trip_id,label,color,sort_order,archived) VALUES('legacy','taiwan-2026','Legacy','#123456',10,1)").run();
+ assert.equal((await f.call('/api/places/taipei-101/state','PUT',{version,status_id:'legacy',note:'Invalid'},f.editor)).status,400);
+ for(const [path,method] of [['/api/statuses','POST'],['/api/statuses/want','PUT'],['/api/statuses/legacy','DELETE']]){
+  assert.equal((await f.call(path,method,{},f.editor)).status,405);
+  assert.equal((await f.call(path,method,{},f.viewer)).status,403);
+ }
+ assert.equal((await f.call('/api/statuses','POST',{})).status,401);
 });

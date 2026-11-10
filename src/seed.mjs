@@ -1,5 +1,6 @@
 import { TRIP, SHARED_USER as USER, stmt } from './auth.mjs';
 import { categories, places, verifiedAt } from './places.mjs';
+import { defaultPlaceStatuses } from '../public/place-statuses.js';
 
 export async function seed(db) {
   if (await stmt(db, 'SELECT value FROM app_meta WHERE key=?', 'seed_v1').first()) return;
@@ -39,23 +40,19 @@ export async function seed(db) {
         c.sort_order,
       ),
     );
-  for (const [i, s] of [
-    ['want', 'Хочу посетить', '#1456e0', '!', 0],
-    ['visited', 'Уже посетил', '#6b7280', '✓', 1],
-    ['maybe', 'Под вопросом', '#facc15', '?', 0],
-  ].entries())
+  for (const [i, status] of defaultPlaceStatuses.entries())
     q.push(
       stmt(
         db,
         'INSERT OR IGNORE INTO statuses(id,trip_id,label,color,sort_order,created_by,symbol,dimmed) VALUES(?,?,?,?,?,?,?,?)',
-        s[0],
+        status.id,
         TRIP,
-        s[1],
-        s[2],
+        status.label,
+        status.color,
         i,
         USER,
-        s[3],
-        s[4],
+        status.symbol,
+        Number(status.dimmed),
       ),
     );
   for (const p of places) {

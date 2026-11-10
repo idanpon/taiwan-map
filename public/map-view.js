@@ -62,8 +62,8 @@ export function createMapView({container,statusElement,retryButton,statusText,li
    }return;
   }
   for(const p of places){
-   const c=p.category,s=p.status,label=p.name+(s?' · '+s.label:'');
-   const element=markerButton(label,'map-pin-button');element.style.zIndex=p.id===selected?'500':'0';
+   const c=p.category,s=p.status,label=p.name+(s?' · '+s.label:'')+(p.has_stay?' · Есть проживание':'');
+   const element=markerButton(label,p.has_stay?'map-pin-button has-stay':'map-pin-button');element.style.zIndex=p.id===selected?'500':'0';
    const pin=document.createElement('span');pin.className='pin';pin.style.setProperty('--category',c.color);pin.style.setProperty('--status',s?.color||c.color);pin.style.setProperty('--status-opacity',s?.opacity??1);pin.style.setProperty('--status-symbol',s?.symbolColor||'#fff');pin.setAttribute('aria-hidden','true');pin.innerHTML=categoryIcon(c.icon);
    if(s){const badge=document.createElement('i');badge.className='pin-state';badge.textContent=s.symbol;pin.append(badge)}
    element.append(pin);element.addEventListener('click',event=>{event.stopPropagation();onSelect(p.id)});

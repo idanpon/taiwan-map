@@ -9,7 +9,10 @@ export async function handleCatalog(request, db, user, stateUser, scope) {
     const [ps, cs, ss, ls] = await db.batch([
       stmt(
         db,
-        `SELECT p.*,s.status_id,s.note,COALESCE(s.version,0) version FROM places p LEFT JOIN user_place_states s ON s.place_id=p.id AND s.user_id=? WHERE p.trip_id=? ${path === '/api/data' ? 'AND p.hidden=0' : ''} ORDER BY p.city,p.name`,
+        `SELECT p.*,s.status_id,s.note,COALESCE(s.version,0) version,
+          EXISTS(SELECT 1 FROM planning_item_places l JOIN planning_items i ON i.id=l.item_id
+                 WHERE l.place_id=p.id AND l.role='lodging' AND i.kind='stay' AND i.state<>'cancelled') has_stay
+          FROM places p LEFT JOIN user_place_states s ON s.place_id=p.id AND s.user_id=? WHERE p.trip_id=? ${path === '/api/data' ? 'AND p.hidden=0' : ''} ORDER BY p.city,p.name`,
         stateUser,
         TRIP,
       ),
@@ -47,6 +50,7 @@ export async function handleCatalog(request, db, user, stateUser, scope) {
       places: ps.results.map((p) => ({
         ...p,
         hidden: Boolean(p.hidden),
+        has_stay: Boolean(p.has_stay),
         tags: readTags(p.tags_json),
         tags_json: undefined,
         hours: JSON.parse(p.hours_json),

@@ -368,3 +368,55 @@ label.time-choice, .time-choice-custom > label { display: flex; align-items: fle
 @media(max-width:360px) {
  .time-field-grid, .trip-zone-change .form-columns, .planning-item-dates .form-columns { grid-template-columns: 1fr; }
 }
+
+.planning-day-indicators { display: inline-flex; align-items: center; justify-content: center; gap: 3px; min-width: 0; }
+.planning-day-stay { display: inline-flex; color: var(--ui-accent); }
+.planning-day-stay svg { width: 12px; height: 12px; }
+.planning-day-indicators:has(.planning-day-stay) .planning-day-dots { width: auto; gap: 2px; }
+
+.planning-stays {
+ display: grid;
+ gap: var(--ui-space-1);
+ margin-bottom: var(--ui-space-2);
+}
+.planning-stay-transfer,.planning-stay-row {
+ border: 1px solid var(--ui-border-panel);
+ border-radius: var(--ui-radius-control);
+ background: var(--ui-surface-selected);
+}
+.planning-stay-transfer {
+ display: grid;
+ grid-template-columns: minmax(0,1fr) auto minmax(0,1fr);
+ align-items: center;
+ gap: var(--ui-space-1);
+}
+.planning-stay-row {
+ display: flex;
+ align-items: center;
+ gap: var(--ui-space-2);
+ min-height: var(--ui-control);
+ padding: var(--ui-space-1) var(--ui-space-2);
+ min-width: 0;
+ text-align: start;
+ color: var(--ui-text);
+ overflow-wrap: anywhere;
+}
+.planning-stay-row small,.planning-stay-row strong { display: block; }
+.planning-stay-row small,.planning-transport-route small { color: var(--ui-text-muted); }
+.planning-stay-row strong { font-size: var(--ui-text-caption); }
+.planning-stay-row svg,.planning-stay-transfer > svg { color: var(--ui-accent); }
+.planning-stay-transfer > .planning-stay-row { border-color: transparent; background: transparent; }
+.planning-transport { padding: var(--ui-space-1) var(--ui-space-2); border-inline-start: 2px solid var(--ui-accent); }
+.planning-transport .planning-card-open { align-items: center; }
+.planning-transport .planning-card-open > svg { color: var(--ui-accent); }
+.planning-transport-route { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ui-space-1); font-size: var(--ui-text-caption); }
+.planning-transport-route > svg { align-self: center; width: 13px; height: 13px; color: var(--ui-text-muted); }
+.planning-transport-route small { white-space: nowrap; }
+.planning-travel-details { display: grid; gap: var(--ui-space-2); overflow-wrap: anywhere; }
+.planning-travel-details dt { font-size: var(--ui-text-caption); color: var(--ui-text-muted); }
+.planning-travel-details dd { margin: 0; }
+.planning-travel-editor { display: grid; gap: var(--ui-space-3); }
+.travel-editor-endpoint { display: grid; gap: var(--ui-space-2); min-width: 0; padding-block-start: var(--ui-space-2); border-top: 1px solid var(--ui-border-panel); }
+.travel-editor-endpoint h3 { margin: 0; }
+.travel-editor-places { display: grid; gap: var(--ui-space-2); min-width: 0; border: 0; padding: 0; margin: 0; }
+.travel-dependency-row { display: flex; align-items: center; justify-content: space-between; gap: var(--ui-space-2); overflow-wrap: anywhere; }

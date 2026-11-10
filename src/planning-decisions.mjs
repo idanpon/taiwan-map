@@ -1,3 +1,4 @@
+import { placeStatusIds } from '../public/place-statuses.js';
 import { createHash } from 'node:crypto';
 import { TRIP, fail, Problem } from './auth.mjs';
 import { all, one } from './sqlite.mjs';
@@ -71,8 +72,11 @@ export function computePreview(db, id, input) {
           if (
             p.state_version === effect.after.state_version &&
             p.status_id === effect.after.status_id
-          )
-            targetStatus = effect.before.status_id;
+          ) {
+            if (effect.before.status_id === null || placeStatusIds.includes(effect.before.status_id))
+              targetStatus = effect.before.status_id;
+            else warnings.push(p.name + ': прежний статус архивирован; сохранён текущий.');
+          }
           else warnings.push(p.name + ': статус менялся позднее; сохранён текущий.');
         }
         if (effect.after.hidden !== effect.before.hidden) {
@@ -146,7 +150,7 @@ export function computePreview(db, id, input) {
             warnings.push(
               p.name + ': статус «Хотим посетить» недоступен; текущий статус сохранён.',
             );
-        } else warnings.push(p.name + ': сохранён текущий пользовательский статус.');
+        } else warnings.push(p.name + ': сохранён статус «Уже посетили».');
         if (p.hidden)
           warnings.push(p.name + ': место уже скрыто; вернуть его можно в скрытых местах.');
       } else if (own.length && !chosen && !opinions.includes(true))

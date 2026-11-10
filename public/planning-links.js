@@ -10,6 +10,6 @@ export function planningConflictContent(details,esc){return `<p class="planning-
 // Optional calendar enrichment must never hold up map/authentication startup.
 // Ignore a late response after logout or a newer data load.
 export async function hydratePlanningLinks({api,current,getCurrent,onReady,onError,signal}){
- try{const plan=await api('/api/planning',{signal});if(getCurrent()===current)onReady(plan)}
+ try{const plan=await api('/api/planning?model=2',{signal});if(getCurrent()===current)onReady(plan)}
  catch(error){if(getCurrent()===current&&error.status!==404&&error.name!=='AbortError')onError(error)}
 }

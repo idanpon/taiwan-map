@@ -1,4 +1,5 @@
 import { TRIP, stmt, body, fail, json } from './auth.mjs';
+import { placeStatusIds } from '../public/place-statuses.js';
 import { readTags, mergeTags } from '../public/place-tags.js';
 import { guardPlanningStatus } from './planning.mjs';
 
@@ -26,7 +27,7 @@ export async function handlePlaceState(request, db, user, stateUser) {
       fail(400, 'Некорректная версия или заметка (до 2000 символов).');
     if (
       b.status_id !== null &&
-      (typeof b.status_id !== 'string' ||
+      (!placeStatusIds.includes(b.status_id) ||
         !(await stmt(
           db,
           'SELECT id FROM statuses WHERE id=? AND trip_id=? AND archived=0',

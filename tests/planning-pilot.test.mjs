@@ -82,3 +82,41 @@ test('the list exposes today as an anchor even outside the first page or without
  const empty=renderPlanningPilot({...options,items:[],hasFilters:true});
  assert.match(empty,/<section class="planning-day-group" data-drop-day="2027-01-15" data-list-today>[\s\S]*Ничего не нашлось/);
 });
+
+test('stays cover nights across months, keep the checkout row and group a hotel change',()=>{
+ const stay=(id,start,end,extra={})=>item({id,kind:'stay',date_start:start,date_end:end,
+  places:[{role:'lodging',place_id:id,place_name:'Отель '+id}],...extra});
+ const hotelA=stay('A','2026-12-30','2027-01-02');
+ const hotelB=stay('B','2027-01-02','2027-01-03');
+ const overlapping=stay('C','2026-12-31','2027-01-01');
+ const cancelled=stay('D','2027-01-03','2027-01-04',{state:'cancelled'});
+ const items=[item({id:'task',date_start:'2027-01-02'}),hotelA,hotelB,overlapping,cancelled];
+ const plan={items,users:[],trip:{start_date:'2026-12-29',end_date:'2027-01-04'}};
+ const render=(focusDay,view='month',visible=items)=>renderPlanningPilot({view,items:visible,plan,zone:emptyZonePlan,
+  focusDay,today:'2027-01-02',allowed:true});
+ const nights=html=>[...html.matchAll(/data-day="([^"]+)"[^>]*есть проживание на ночь[^>]*>/g)].map(match=>match[1]);
+ assert.deepEqual(nights(render('2026-12-31')),['2026-12-30','2026-12-31','2027-01-01','2027-01-02']);
+ assert.deepEqual(nights(render('2027-01-03','month',[])),['2026-12-30','2026-12-31','2027-01-01','2027-01-02']);
+ assert.match(render('2027-01-03'),/Выезд<[^>]*><strong>Отель B/);
+ for(const view of ['month','list']){
+  const html=render('2027-01-02',view);
+  assert.match(html,/planning-stay-transfer[^]*?data-item="A"[^]*?Выезд[^]*?data-item="B"[^]*?Заселение/);
+  assert.ok(html.indexOf('planning-stay-transfer')<html.indexOf('data-item="task"'));
+ }
+});
+
+test('transport card uses endpoint-local clocks and interleaves timed visits chronologically',()=>{
+ const date='2027-01-02',zone={revision:1,changes:[{at:Date.parse('2027-01-01T00:00:00Z'),zone:'Asia/Taipei',region:''}]};
+ const ride=item({kind:'transport',id:'ride',title:'Alishan Forest Railway',date_start:date,date_end:date,
+  event_timezone:'Asia/Taipei',starts_at:'2027-01-02T02:00:00Z',ends_at:'2027-01-02T06:56:00Z',
+  transport:{mode:'train',arrival_timezone:'Asia/Taipei',service_number:'AL-1'},
+  places:[{role:'departure',place_name:'Цзяи'},{role:'arrival',place_name:'Алишань'}]});
+ const before=item({kind:'visit',id:'before',date_start:date,starts_at:'2027-01-02T01:00:00Z',sort_order:10});
+ const after=item({kind:'visit',id:'after',date_start:date,starts_at:'2027-01-02T08:00:00Z',sort_order:-10});
+ const items=[after,before,ride];
+ const html=renderPlanningPilot({view:'month',items,plan:{items,users:[],trip:{start_date:date,end_date:date}},
+  focusDay:date,today:date,zone,allowed:true});
+ assert.deepEqual([...html.matchAll(/data-record="([^"]+)"/g)].map(match=>match[1]),['before','ride','after']);
+ assert.match(html,/Поезд · Alishan Forest Railway · AL-1/);
+ assert.match(html,/Цзяи[^]*?10:00[^]*?Алишань[^]*?14:56/);
+});

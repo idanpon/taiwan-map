@@ -1,3 +1,4 @@
+import { isTravel } from '../public/planning-travel.js';
 import {createHash} from 'node:crypto';
 import {TRIP,body,fail,json,Problem} from './auth.mjs';
 import {all,one,run,transaction} from './sqlite.mjs';
@@ -16,7 +17,7 @@ export function readZonePlan(db){
  return {revision,changes:all(db,'SELECT at,zone,region FROM trip_timezone_changes WHERE trip_id=? ORDER BY at',TRIP)};
 }
 export function reminderAnchor(item){
- if(!item||item.ends_at&&!item.starts_at)return null;
+ if(!item||!isTravel(item.kind)&&item.ends_at&&!item.starts_at)return null;
  if(item.starts_at)return {mode:'offset',at:Date.parse(item.starts_at)};
  const day=item.date_start||item.date_end;
  return day?{mode:'day',day}:null;

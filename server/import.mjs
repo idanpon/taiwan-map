@@ -1,12 +1,15 @@
 import {mergeTags} from '../public/place-tags.js';
 // Import an authenticated /api/export download into an EMPTY database only.
 import {categoryDefinitions,categoryId} from '../public/categories.js';
+import {defaultPlaceStatuses,placeStatusIds} from '../public/place-statuses.js';
 import {validStatusSymbol} from '../public/map-model.js';
 import {readFileSync} from 'node:fs';import {resolve} from 'node:path';import {fileURLToPath} from 'node:url';import {openDatabase,migrate} from './database.mjs';
 export function importExport(db,data){
  if(!data||data.schema_version!==1||data.trip?.id!=='taiwan-2026'||data.user?.id!=='trip-shared'||!Array.isArray(data.places)||!Array.isArray(data.statuses)||!Array.isArray(data.categories))throw new Error('Unsupported export: expected shared-profile schema v1');
  for(const table of ['places','users','trips','statuses','categories','sessions'])if(db.sqlite.prepare(`SELECT 1 FROM ${table} LIMIT 1`).get())throw new Error('Target database is not empty; import aborted');
  if(data.planning?.items?.length||data.planning?.timezone_plan?.changes?.length)throw new Error('This export contains calendar data. Restore the full SQLite backup; legacy map-only import would lose planning records or time zones.');
+ if(data.places.some(p=>p.status_id&&!placeStatusIds.includes(p.status_id)))throw new Error('Resolve assigned custom statuses before importing.');
+ const statuses=[...data.statuses,...defaultPlaceStatuses.filter(s=>!data.statuses.some(old=>old.id===s.id))];
  const TRIP=data.trip.id,USER=data.user.id,now=Date.now();db.sqlite.exec('BEGIN IMMEDIATE');
  try{
   db.sqlite.prepare('INSERT INTO trips(id,name,timezone,departure_date,start_date,end_date) VALUES(?,?,?,?,?,?)').run(TRIP,data.trip.name||'Тайвань',data.trip.timezone||'Asia/Taipei',data.planning?.trip?.departure_date||data.trip.departure_date||'2026-12-28',data.planning?.trip?.start_date||data.trip.start_date||'2026-12-29',data.planning?.trip?.end_date||data.trip.end_date||'2027-01-09');
@@ -18,9 +21,9 @@ export function importExport(db,data){
    const color=/^#[0-9a-f]{6}$/i.test(imported?.color||'')?imported.color:category.color;
    db.sqlite.prepare('INSERT INTO categories VALUES(?,?,?,?,?)').run(category.id,category.label,color,category.icon,category.sort_order);
   }
-  for(const [i,s] of data.statuses.entries()){
+  for(const [i,s] of statuses.entries()){
    const symbol=s.symbol??'';if(s.dimmed!==undefined&&typeof s.dimmed!=='boolean')throw new Error('Invalid status transparency in export');if(!validStatusSymbol(symbol))throw new Error('Invalid status symbol in export');
-   db.sqlite.prepare('INSERT INTO statuses(id,trip_id,label,color,sort_order,archived,created_by,symbol,version,dimmed) VALUES(?,?,?,?,?,0,?,?,?,?)').run(s.id,TRIP,s.label,s.color,s.sort_order??i,USER,symbol,Number.isSafeInteger(s.version)&&s.version>0?s.version:1,Number(s.dimmed??(s.id==='visited')));
+   db.sqlite.prepare('INSERT INTO statuses(id,trip_id,label,color,sort_order,archived,created_by,symbol,version,dimmed) VALUES(?,?,?,?,?,?,?,?,?,?)').run(s.id,TRIP,defaultPlaceStatuses.find(fixed=>fixed.id===s.id)?.label??s.label,s.color,s.sort_order??i,Number(!placeStatusIds.includes(s.id)),USER,symbol,Number.isSafeInteger(s.version)&&s.version>0?s.version:1,Number(s.dimmed??(s.id==='visited')));
   }
   for(const p of data.places){
    if(!p.hours||!Array.isArray(p.links)||!Number.isFinite(p.lat)||p.lat < -90||p.lat>90||!Number.isFinite(p.lon)||p.lon < -180||p.lon>180||!Number.isSafeInteger(p.version)||p.version<0)throw new Error('Invalid place in export');
@@ -32,7 +35,7 @@ export function importExport(db,data){
   }
   db.sqlite.prepare('INSERT INTO app_meta VALUES(?,?)').run('seed_v1',data.verified_at||'2026-10-18');db.sqlite.exec('COMMIT');
  }catch(e){db.sqlite.exec('ROLLBACK');throw e}
- return {places:data.places.length,statuses:data.statuses.length};
+ return {places:data.places.length,statuses:statuses.length};
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  if(!process.argv[2])throw new Error('Usage: DATABASE_PATH=... node server/import.mjs /private/export.json');

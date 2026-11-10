@@ -4,6 +4,7 @@ import { computePreview } from './planning-decisions.mjs';
 export { planningData, guardPlanningStatus, unresolvedForPlace } from './planning-store.mjs';
 import { TRIP, SHARED_USER, body, fail, json, Problem } from './auth.mjs';
 import { validDate } from '../public/planning-model.js';
+import { isTravel } from '../public/planning-travel.js';
 import { all, one, run, transaction } from './sqlite.mjs';
 import { refreshItemReminders, readZonePlan } from './reminders.mjs';
 const editable = (u) => ['owner', 'admin', 'editor'].includes(u.role);
@@ -41,7 +42,7 @@ function writeRelations(db, id, value) {
   for (const l of value.places)
     run(
       db,
-      'INSERT INTO planning_item_places VALUES(?,?,?,?,?,?,?)',
+      'INSERT INTO planning_item_places(id,item_id,option_id,place_id,place_name,affects_visit,unselected_action,role) VALUES(?,?,?,?,?,?,?,?)',
       crypto.randomUUID(),
       id,
       l.option_id,
@@ -49,6 +50,7 @@ function writeRelations(db, id, value) {
       l.place_name,
       Number(l.affects_visit),
       l.unselected_action,
+      l.role,
     );
   for (const dep of value.dependencies)
     run(db, 'INSERT INTO planning_dependencies VALUES(?,?)', id, dep);
@@ -83,7 +85,8 @@ export async function handlePlanning(request, db, user, { creationId = null } = 
     path = url.pathname,
     method = request.method;
   if (!path.startsWith('/api/planning')) return null;
-  if (path === '/api/planning' && method === 'GET') return json(planningData(db));
+  if (path === '/api/planning' && method === 'GET')
+    return json(planningData(db, { legacy: url.searchParams.get('model') !== '2' }));
   const history = path.match(/^\/api\/planning\/items\/([a-zA-Z0-9-]+)\/events$/);
   if (history && method === 'GET') {
     itemById(db, history[1]);
@@ -206,6 +209,14 @@ export function applyPlanningChange(db, user, { path, method, body: b, creationI
     if (method === 'DELETE') {
       if (old.kind === 'decision' && old.state === 'done')
         conflict('Сначала пересмотрите решение, чтобы проверить последствия.');
+      if (isTravel(old.kind)) {
+        const dependants = all(db, 'SELECT item_id FROM planning_dependencies WHERE depends_on_id=?', old.id);
+        for (const { item_id } of dependants) {
+          run(db, 'UPDATE planning_items SET version=version+1,updated_by=?,updated_at=? WHERE id=?',
+            user.id, Date.now(), item_id);
+          event(db, user, item_id, 'dependency_deleted', { dependency: old.id });
+        }
+      }
       event(db, user, old.id, 'delete', { before: old });
       run(db, 'DELETE FROM planning_items WHERE id=?', old.id);
       return json({ ok: true });
@@ -269,7 +280,8 @@ export function applyPlanningChange(db, user, { path, method, body: b, creationI
         now,
         value.state === 'done' ? now : null,
       );
-    writeRelations(db, id, value);
+    if (!old || ['options', 'places', 'dependencies'].some(key => Object.hasOwn(b, key)))
+      writeRelations(db, id, value);
     if (value.kind === 'decision' && ['open', 'in_progress'].includes(value.state)) {
       const existing = new Set(
         old && old.kind === 'decision' && ['open', 'in_progress'].includes(old.state)

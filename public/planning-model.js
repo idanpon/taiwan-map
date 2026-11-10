@@ -1,6 +1,7 @@
 import {civil,zoneAt,localInstants} from './trip-timezones.js';
+import {isTravel} from './planning-travel.js';
 export const planningConfig=Object.freeze({soonDays:7,monthPreview:3,maxItems:1000});
-export const kindLabels={task:'Задача',decision:'Решение',visit:'Пункт маршрута'};
+export const kindLabels={task:'Задача',decision:'Решение',visit:'Пункт маршрута',stay:'Проживание',transport:'Транспорт'};
 export const stateLabels={open:'Открыта',in_progress:'В работе',done:'Выполнена',cancelled:'Отменена'};
 export const priorityLabels={low:'Низкий',normal:'Обычный',high:'Высокий',critical:'Критичный'};
 const priorityRank=new Map(Object.keys(priorityLabels).map((priority,rank)=>[priority,rank]));
@@ -12,12 +13,12 @@ export function dayInZone(value=new Date(),zone='Asia/Taipei'){return civil(valu
 export function addDays(day,number){const d=new Date(day+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+number);return d.toISOString().slice(0,10)}
 export function monday(day){const weekday=new Date(day+'T12:00:00Z').getUTCDay();return addDays(day,-((weekday+6)%7))}
 export function monthDays(day){const first=monday(day.slice(0,7)+'-01');return Array.from({length:42},(_,i)=>addDays(first,i))}
-export function itemDates(item,zone){if(item.kind==='visit'&&typeof zone==='string'||!item.starts_at&&!item.ends_at)return [item.date_start||item.date_end,item.date_end||item.date_start];return [dayInZone(item.starts_at||item.ends_at,zone),dayInZone(item.ends_at||item.starts_at,zone)].sort()}
+export function itemDates(item,zone){if(isTravel(item.kind))return [item.date_start,item.date_end].sort();if(item.kind==='visit'&&typeof zone==='string'||!item.starts_at&&!item.ends_at)return [item.date_start||item.date_end,item.date_end||item.date_start];return [dayInZone(item.starts_at||item.ends_at,zone),dayInZone(item.ends_at||item.starts_at,zone)].sort()}
 export function onDay(item,day,zone){const [start,end]=itemDates(item,zone);return Boolean(start&&start<=day&&end>=day)}
 export function urgency(item,{now=new Date(),zone='Asia/Taipei'}={}){
  if(['done','cancelled'].includes(item.state))return {kind:'quiet',label:item.kind==='visit'?(item.state==='done'?'Состоялось':'Пропустили'):stateLabels[item.state]};
  const today=dayInZone(now,zone),[start,end]=itemDates(item,zone);if(!start)return {kind:'quiet',label:'Без срока'};
- const instant=item.ends_at||item.starts_at,exactEnd=instant?new Date(instant):null;
+ const instant=item.ends_at||(!isTravel(item.kind)?item.starts_at:null),exactEnd=instant?new Date(instant):null;
  if(exactEnd?exactEnd<now:end<today){const days=Math.max(0,Math.round((new Date(today)-new Date(end))/86400000));return {kind:'overdue',label:days?'Просрочено на '+days+' дн.':'Срок прошёл'}}
  if(end===today)return {kind:'current',label:start<today?'До сегодня':'Сегодня'};
  if(start<=today&&end>=today)return {kind:'current',label:'Период идёт'};

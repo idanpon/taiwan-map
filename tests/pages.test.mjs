@@ -23,8 +23,7 @@ test('Pages build supports repository subpaths and publishes no server code or c
    }
   }
   assert.ok((await readFile(join(output,'accounts.js'),'utf8')).includes("from './password-fields.js?v="+version+"'"));await readFile(join(output,'password-fields.js'));
-  for(const module of ['map-model.js','statuses.js','categories.js','help.js','copy-text.js','place-tags.js','place-tag-controls.js']){await readFile(join(output,module));assert.ok((await readFile(join(output,'app.js'),'utf8')).includes("from './"+module+"?v="+version+"'"));}
-  assert.ok((await readFile(join(output,'statuses.js'),'utf8')).includes("from './map-model.js?v="+version+"'"));
+  for(const module of ['map-model.js','place-statuses.js','categories.js','help.js','copy-text.js','place-tags.js','place-tag-controls.js']){await readFile(join(output,module));assert.ok((await readFile(join(output,'app.js'),'utf8')).includes("from './"+module+"?v="+version+"'"));}
   assert.ok((await readFile(join(output,'help.js'),'utf8')).includes("from './categories.js?v="+version+"'"));
   assert.ok((await readFile(join(output,'help.js'),'utf8')).includes("from './dialogs.js?v="+version+"'"));
   await readFile(join(output,'vendor/lucide-LICENSE.txt'));
