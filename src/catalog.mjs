@@ -2,18 +2,25 @@ import { TRIP, stmt, json } from './auth.mjs';
 import { categories, verifiedAt } from './places.mjs';
 import { readTags } from '../public/place-tags.js';
 import { planningData } from './planning.mjs';
+import { canRatePlaces } from './place-ratings.mjs';
 
 export async function handleCatalog(request, db, user, stateUser, scope) {
   const path = new URL(request.url).pathname;
   if ((path === '/api/data' || path === '/api/export') && request.method === 'GET') {
+    const ownRating = path === '/api/data' && canRatePlaces(user);
     const [ps, cs, ss, ls] = await db.batch([
       stmt(
         db,
-        `SELECT p.*,s.status_id,s.note,COALESCE(s.version,0) version,
+        `SELECT p.*,s.status_id,s.note,COALESCE(s.version,0) version,average.average_rating
+          ${ownRating ? ',own.rating AS my_rating' : ''},
           EXISTS(SELECT 1 FROM planning_item_places l JOIN planning_items i ON i.id=l.item_id
                  WHERE l.place_id=p.id AND l.role='lodging' AND i.kind='stay' AND i.state<>'cancelled') has_stay
-          FROM places p LEFT JOIN user_place_states s ON s.place_id=p.id AND s.user_id=? WHERE p.trip_id=? ${path === '/api/data' ? 'AND p.hidden=0' : ''} ORDER BY p.city,p.name`,
+          FROM places p LEFT JOIN user_place_states s ON s.place_id=p.id AND s.user_id=?
+          LEFT JOIN place_rating_averages average ON average.place_id=p.id
+          ${ownRating ? 'LEFT JOIN place_ratings own ON own.place_id=p.id AND own.user_id=?' : ''}
+          WHERE p.trip_id=? ${path === '/api/data' ? 'AND p.hidden=0' : ''} ORDER BY p.city,p.name`,
         stateUser,
+        ...(ownRating ? [user.id] : []),
         TRIP,
       ),
       db.prepare('SELECT * FROM categories ORDER BY sort_order'),

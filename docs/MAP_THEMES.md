@@ -60,6 +60,15 @@ dimmed status markers. City clusters
 continue to show place counts. The anonymous projection omits `has_stay`.
 [Planning rules](PLANNING.md#проживание).
 
+## Marker overlap
+
+When individual markers overlap, the map stacks them from highest to lowest:
+confirmed lodging, want to visit, undecided, no status, and already visited.
+Lodging without a linked non-cancelled stay uses its usual status priority.
+Markers of equal priority keep catalog order. Selection, hover, and keyboard
+focus still raise a marker above the default layers. The public map stacks
+markers by status using the fields available in the anonymous catalog.
+
 ## Desktop places panel
 
 Drag the right edge to resize the panel to 80–150% of its standard width at

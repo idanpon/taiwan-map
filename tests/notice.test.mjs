@@ -6,13 +6,26 @@ function fixture(t){
  t.mock.timers.enable({apis:['setTimeout','Date']});
  const handlers={},message={},styles=new Map();
  let focused=false;
- const button={matches:()=>focused,addEventListener:(name,fn)=>{handlers[name]=fn}};
- const element={hidden:true,dataset:{},style:{setProperty:(key,value)=>styles.set(key,value)},querySelector:selector=>selector==='.ui-notice-action'?button:message};
+ const button={};
+ const element={
+  hidden:true,dataset:{},style:{setProperty:(key,value)=>styles.set(key,value)},
+  querySelector:selector=>selector==='.ui-notice-action'?button:message,
+  matches:selector=>selector===':focus-within'&&focused,
+  addEventListener:(name,fn)=>{handlers[name]=fn},
+  append(){},
+ };
  const notice=createNotice(element);
  return {
   notice,element,button,message,styles,
-  focus(){focused=true;handlers.focus()},
-  blur(){focused=false;handlers.blur()},
+  focus(){focused=true;handlers.focusin()},
+  blur(){focused=false;handlers.focusout()},
+  swipe(dx,dy=0){
+   const start={identifier:0,clientX:100,clientY:100};
+   const end={...start,clientX:100+dx,clientY:100+dy};
+   handlers.touchstart({touches:[start],timeStamp:0});
+   handlers.touchmove({touches:[end],timeStamp:100});
+   handlers.touchend({changedTouches:[end],timeStamp:110});
+  },
   fading:()=>Object.hasOwn(element.dataset,'fading')
  };
 }
@@ -39,6 +52,42 @@ test('plain, warning and undo notices all fade at six seconds and close at 6.5 s
   button.onclick();
   assert.equal(clicks,before+(label?1:0));
  }
+});
+
+test('horizontal swipes dismiss in both directions and retire a pending rating notice',t=>{
+ const {notice,element,swipe}=fixture(t);
+ for(const dx of [-72,72]){
+  const content={remove(){this.removed=true}};
+  const shown=notice.show('1 из 2 · Оценить место',{content});
+  shown.setWaiting(true);
+  t.mock.timers.tick(7000);
+  assert.equal(shown.active,true);
+  swipe(3,75);
+  assert.equal(element.hidden,false);
+  swipe(dx);
+  assert.equal(shown.active,false);
+  assert.equal(content.removed,true);
+  assert.equal(element.hidden,true);
+  shown.setWaiting(false);
+  t.mock.timers.tick(7000);
+  assert.equal(element.hidden,true);
+ }
+});
+
+test('a replacement after a pending rating gets the full notice duration',t=>{
+ const {notice,element}=fixture(t);
+ const first=notice.show('1 из 2');
+ t.mock.timers.tick(6300);
+ first.setWaiting(true);
+ t.mock.timers.tick(1000);
+ const second=notice.show('2 из 2');
+ first.dismiss();
+ first.setWaiting(false);
+ t.mock.timers.tick(6499);
+ assert.equal(second.active,true);
+ t.mock.timers.tick(1);
+ assert.equal(second.active,false);
+ assert.equal(element.hidden,true);
 });
 
 test('focusing a fading action restores visibility and pauses the remaining time',t=>{

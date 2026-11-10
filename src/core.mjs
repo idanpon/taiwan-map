@@ -2,6 +2,7 @@ import { seed } from './seed.mjs';
 import { handleCatalog } from './catalog.mjs';
 import { handleStatuses } from './statuses.mjs';
 import { handlePlaceState } from './place-state.mjs';
+import { handlePlaceRatings } from './place-ratings.mjs';
 import { handlePlanning } from './planning.mjs';
 import { handlePlaceTags } from './place-tags.mjs';
 import {
@@ -87,6 +88,8 @@ async function handleApi(request, env, context = {}) {
     if (statusResponse) return statusResponse;
     const stateResponse = await handlePlaceState(request, db, user, stateUser);
     if (stateResponse) return stateResponse;
+    const ratingResponse = await handlePlaceRatings(request, db, user, stateUser);
+    if (ratingResponse) return ratingResponse;
 
     fail(404, 'Маршрут не найден.');
   } catch (error) {
