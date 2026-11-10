@@ -246,7 +246,7 @@ function editMove(id,target=null,anchor=null,reason=''){
  };
 }
 function showDateWarning(id,message){
- notice.show(message,{tone:'warning',timeout:8000,action:allowed()&&plan.items.some(item=>item.id===id)?{label:'Изменить даты',run:()=>{
+ notice.show(message,{tone:'warning',action:allowed()&&plan.items.some(item=>item.id===id)?{label:'Изменить даты',run:()=>{
   if(!allowed()||!canLeave())return;
   const item=plan.items.find(item=>item.id===id);if(!item){notice.clear();return}
   notice.clear();
