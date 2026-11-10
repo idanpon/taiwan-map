@@ -255,7 +255,7 @@ textarea.ui-field { min-height: 88px; resize: vertical; line-height: 1.6; }
 .place-rating-summary { font-weight: 600; }
 .place-rating-stars { display: flex; flex-wrap: wrap; }
 .place-rating-prompt .place-rating-stars { justify-content: center; }
-.place-rating-star { color: var(--ui-warning); }
+.place-rating-star { width: calc(var(--ui-control) - var(--ui-space-1)); color: var(--ui-warning); }
 .place-rating-star svg { width: var(--ui-icon-control); height: var(--ui-icon-control); }
 .place-rating-star[data-filled] svg { fill: currentColor; }
 .place-rating-authors { overflow-wrap: anywhere; }
