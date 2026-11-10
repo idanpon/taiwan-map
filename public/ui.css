@@ -233,6 +233,12 @@ textarea.ui-field { min-height: 88px; resize: vertical; line-height: 1.6; }
 }
 .ui-notice[data-tone=success] { background: var(--ui-success-surface); color: var(--ui-success); }
 .ui-notice[data-tone=warning] { background: var(--ui-warning-surface); color: var(--ui-warning); }
+@media (prefers-reduced-motion: no-preference) {
+  .ui-notice[data-fading] {
+    opacity: 0;
+    transition: opacity var(--ui-notice-fade-duration) linear;
+  }
+}
 .ui-notice-message {
   display: -webkit-box;
   min-width: 0;

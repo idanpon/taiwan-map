@@ -25,7 +25,7 @@ let planning=null,loadSequence=0;
 let data,map,selected=null,city='',types=new Set(),status='',query='',tags=new Set(),dirty=false,busy=false,stateDirty=false,tagDirty=false,tagControls;
 function resetDirty(){dirty=false;stateDirty=false;tagDirty=false}
 const themeUI=createThemeUI({document,window,onChange:value=>{map?.setTheme(value);if(data)render()}});
-const notice=createNotice($('toast'),{duration:5500});
+const notice=createNotice($('toast'));
 const toast=(message,tone='neutral')=>notice.show(message,{tone});
 const {storage,legacyStorage}=sessionStores(window);
 const transport=createApiClient({apiBase,authMode,storage,legacyStorage,onUnauthorized:()=>{if(!startup?.running)void load().then(()=>toast('Вход завершился. Карта доступна для просмотра.')).catch(e=>toast(e.message))}});
