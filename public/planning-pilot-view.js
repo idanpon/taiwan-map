@@ -11,6 +11,7 @@ paths.pencil='<path d="m16 3 5 5M4 15 16 3a3.5 3.5 0 0 1 5 5L9 20l-6 1 1-6Z"/>';
 // Lucide outline paths. License: vendor/lucide-LICENSE.txt.
 Object.assign(paths,{
  stay:'<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+ down:'<path d="M12 5v14m-7-7 7 7 7-7"/>',
  transport:'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
  plane:'<path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>',
  train:'<path d="M8 3.1V7a4 4 0 0 0 8 0V3.1"/><path d="m9 15-1-1"/><path d="m15 15 1-1"/><path d="M9 19c-2.8 0-5-2.2-5-5v-4a8 8 0 0 1 16 0v4c0 2.8-2.2 5-5 5Z"/><path d="m8 19-2 3"/><path d="m16 19 2 3"/>',
@@ -67,32 +68,33 @@ function dayOrder(records,day,zone){
  return ordered.map(item=>instant(item)?timed.shift():item);
 }
 
-function stayBlock(records,day){
+function stayBlock(records,day,allowed){
  if(!records.length)return '';
  const place=item=>travelPlace(item,'lodging');
  const row=item=>{
   const phase=stayPhase(item,day);
   const at=phase==='Заселение'?item.starts_at:phase==='Выезд'?item.ends_at:null;
   const context=[phase,at?timeInZone(at,item.event_timezone):'',item.state==='cancelled'?'Отменено':''].filter(Boolean).join(' · ');
-  return `<button type="button" class="planning-stay-row ui-button-feedback" data-item="${esc(item.id)}">${pilotIcon('stay')}<span><small>${esc(context)}</small><strong>${esc(place(item).place_name)}</strong></span></button>`;
+  return `<article class="planning-card kind-stay" data-record="${esc(item.id)}" ${allowed?`data-drag-item="${esc(item.id)}" data-drag-blocked`:''}>
+   <button type="button" class="planning-card-open" data-item="${esc(item.id)}"><span class="planning-card-icon">${pilotIcon('stay')}</span><span class="planning-card-body"><strong class="planning-card-title">${esc(place(item).place_name)}</strong><span class="planning-card-meta">${esc(context)}</span></span></button></article>`;
  };
  const leaving=records.filter(item=>item.date_end===day&&item.state!=='cancelled');
  const arriving=records.filter(item=>item.date_start===day&&item.state!=='cancelled');
  const [from]=leaving,[to]=arriving;
  const transfer=leaving.length===1&&arriving.length===1&&place(from).place_id&&place(to).place_id&&place(from).place_id!==place(to).place_id;
- const html=transfer?`<div class="planning-stay-transfer">${row(from)}${pilotIcon('transport')}${row(to)}</div>`:'';
+ const html=transfer?`<div class="planning-stay-transfer">${row(from)}<span class="planning-stay-direction" aria-label="Переселение">${pilotIcon('down')}</span>${row(to)}</div>`:'';
  const rest=transfer?records.filter(item=>item!==from&&item!==to):records;
  return `<section class="planning-stays" aria-label="Проживание">${html}${rest.map(row).join('')}</section>`;
 }
 
-function transportCard(item){
+function transportCard(item,allowed){
  const from=transportPoint(item,'departure'),to=transportPoint(item,'arrival');
  const differentDates=from.day!==to.day,{mode,service_number}=item.transport;
  const point=({name,day,time,zone})=>`<span>${esc(name)} <small title="${esc(zone)}">${esc([differentDates?dayLabel(day,{day:'numeric',month:'short'}):'',time].filter(Boolean).join(' · '))}</small></span>`;
  const routeTitle=item.title.includes('→')?'':item.title;
  const caption=[transportModes[mode],routeTitle,service_number&&!routeTitle.includes(service_number)?service_number:''].filter(Boolean).join(' · ');
- return `<article class="planning-card planning-transport kind-transport${item.state==='done'?' is-done':''}" data-record="${esc(item.id)}">
-  <button type="button" class="planning-card-open" data-item="${esc(item.id)}">${pilotIcon(mode)}<span class="planning-card-body">
+ return `<article class="planning-card planning-transport kind-transport${item.state==='done'?' is-done':''}" data-record="${esc(item.id)}" ${allowed?`data-drag-item="${esc(item.id)}" data-drag-blocked`:''}>
+  <button type="button" class="planning-card-open" data-item="${esc(item.id)}"><span class="planning-card-icon">${pilotIcon(mode)}</span><span class="planning-card-body">
    <strong class="planning-card-title">${esc(caption)}</strong>
    <span class="planning-transport-route">${point(from)}${pilotIcon('transport')}${point(to)}</span>
    ${item.state==='cancelled'?'<span class="planning-card-meta">Отменено</span>':''}
@@ -118,7 +120,7 @@ export function renderPlanningPilot({view,items,plan,zone,focusDay,today,allowed
  }
  const cards=(records,day,quick=false)=>{
   const stays=records.filter(item=>item.kind==='stay'),others=dayOrder(records.filter(item=>item.kind!=='stay'),day,zone);
-  return stayBlock(stays,day)+(others.length?`<div class="planning-items">${others.map(item=>item.kind==='transport'?transportCard(item):card(item,day,quick)).join('')}</div>`:'');
+  return stayBlock(stays,day,allowed)+(others.length?`<div class="planning-items">${others.map(item=>item.kind==='transport'?transportCard(item,allowed):card(item,day,quick)).join('')}</div>`:'');
  };
  function empty(whole=false){
   const showMark = !hasFilters && (!whole || items.length === 0);
@@ -134,7 +136,7 @@ export function renderPlanningPilot({view,items,plan,zone,focusDay,today,allowed
  if(view==='month'){
   const days=calendarDays(focusDay,items,zone),selected=days.find(day=>day.date===focusDay)?.items||[];
   const stays=(plan.items||items).filter(item=>item.kind==='stay');
-  return `<div class="planning-month-layout" style="--planning-week-count:${days.length/7}"><section class="planning-month-panel" aria-label="Календарь месяца"><div class="planning-month-grid">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(day=>`<span class="planning-weekday">${day}</span>`).join('')}${Array.from({length:42},(_,index)=>days[index]||{date:'',items:[]}).map(({date,items:records})=>{const night=date&&stays.some(item=>coversNight(item,date));return `<button type="button" class="planning-calendar-day ui-button-feedback ${date.slice(0,7)!==focusDay.slice(0,7)?'other-month':''} ${date>=plan.trip.start_date&&date<=plan.trip.end_date?'is-trip':''}" ${date?'':'hidden'} data-day="${date}" data-drop-day="${date}" aria-pressed="${date===focusDay}" ${date===today?'aria-current="date"':''} aria-label="${date?esc(dayLabel(date)):''}, ${recordCount(records.length)}${date===today?', сегодня':''}${night?', есть проживание на ночь':''}"><span class="planning-day-number">${Number(date.slice(-2))}</span><span class="planning-day-indicators"><span class="planning-day-count" data-empty="${!records.length}" data-count="${records.length}" aria-hidden="true">${recordCount(records.length)}</span><span class="planning-day-dots" aria-hidden="true">${[0,1,2].map(n=>`<span ${n<records.length?'':'hidden'}></span>`).join('')}</span>${night?`<span class="planning-day-stay" aria-hidden="true">${pilotIcon('stay')}</span>`:''}</span></button>`}).join('')}</div><p class="planning-month-legend">Дни поездки · ${esc(dayLabel(plan.trip.start_date))} — ${esc(dayLabel(plan.trip.end_date))}</p></section>
+  return `<div class="planning-month-layout" style="--planning-week-count:${days.length/7}"><section class="planning-month-panel" aria-label="Календарь месяца"><div class="planning-month-grid">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(day=>`<span class="planning-weekday">${day}</span>`).join('')}${Array.from({length:42},(_,index)=>days[index]||{date:'',items:[]}).map(({date,items:records})=>{const night=date&&stays.some(item=>coversNight(item,date));return `<button type="button" class="planning-calendar-day ui-button-feedback ${date.slice(0,7)!==focusDay.slice(0,7)?'other-month':''} ${date>=plan.trip.start_date&&date<=plan.trip.end_date?'is-trip':''}" ${date?'':'hidden'} data-day="${date}" data-drop-day="${date}" aria-pressed="${date===focusDay}" ${date===today?'aria-current="date"':''} aria-label="${date?esc(dayLabel(date)):''}, ${recordCount(records.length)}${date===today?', сегодня':''}${night?', есть проживание на ночь':''}"><span class="planning-day-number">${Number(date.slice(-2))}</span><span class="planning-day-indicators"><span class="planning-day-count" data-empty="${!records.length}" data-count="${records.length}" aria-hidden="true">${recordCount(records.length)}</span><span class="planning-day-dots" aria-hidden="true">${[0,1,2].map(n=>`<span ${n<records.length?'':'hidden'}></span>`).join('')}</span>${night?`<span class="planning-day-stay" aria-hidden="true">${pilotIcon('stay')}<svg class="planning-day-house-small" viewBox="0 0 7 7" aria-hidden="true"><path d="M0 3.5 3.5 0 7 3.5H6V7H1V3.5Z" fill="currentColor" stroke="none"/></svg></span>`:''}</span></button>`}).join('')}</div><p class="planning-month-legend">Дни поездки · ${esc(dayLabel(plan.trip.start_date))} — ${esc(dayLabel(plan.trip.end_date))}</p></section>
   <div class="planning-agenda"><div class="planning-agenda-heading"><h2>${esc(dayLabel(focusDay))}</h2></div><div class="planning-day-panel" data-planning-scroller="month" tabindex="0" aria-label="Записи выбранного дня и без даты"><section class="planning-selected-day" data-drop-day="${focusDay}">${selected.length?cards(selected,focusDay):empty()}</section>${undatedHtml(false)}</div></div></div>`;
  }
  const {groups,hasMore}=listDayGroups(items,zone,focusDay,listLimit,today);

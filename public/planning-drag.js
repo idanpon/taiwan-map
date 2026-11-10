@@ -44,7 +44,7 @@ export function installPlanningDrag({surface,document,window,enabled,onDrop,onDr
  }
  function activate(){
   const d=session;if(!d||!enabled())return cancel();
-  if('dragBlocked' in d.source.dataset){d.blocked=true;onBlocked();return}
+  if('dragBlocked' in d.source.dataset){d.blocked=true;onBlocked(d.id);return}
   const before=d.source.getBoundingClientRect();
   d.preview=d.source.cloneNode(true);d.preview.classList.add('planning-drag-preview');d.preview.removeAttribute('data-drag-item');d.preview.setAttribute('aria-hidden','true');d.preview.inert=true;
   d.preview.style.width=before.width+'px';d.preview.style.height=before.height+'px';

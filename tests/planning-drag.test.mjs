@@ -7,7 +7,7 @@ const events=()=>({handlers:{},addEventListener(name,fn){this.handlers[name]=fn}
 function fixture({overGrid=false}={}){
  const body={classList:classes(),append(node){this.preview=node}},surface=events(),document=events(),window=events();
  const area={scrollTop:30,getBoundingClientRect:()=>({top:200,bottom:500})};
- let preview,frame,hold,blocked=0,drops=[],captures=false,pageScroll=0;
+ let preview,frame,hold,blocked=0,blockedIds=[],drops=[],captures=false,pageScroll=0;
  const source={dataset:{dragItem:'task',anchorDay:'2026-11-07'},classList:classes(),isConnected:true,
   closest:()=>area,getBoundingClientRect:()=>({left:100,top:230-area.scrollTop,width:612,height:96}),
   cloneNode:()=>preview={style:{},classList:classes(),removeAttribute(){},setAttribute(){},remove(){this.removed=true},get offsetWidth(){return parseFloat(this.style.width)},get offsetHeight(){return parseFloat(this.style.height)}},
@@ -18,14 +18,14 @@ function fixture({overGrid=false}={}){
  Object.assign(surface,{contains:()=>true,getBoundingClientRect:()=>({left:0,right:1000})});
  Object.assign(document,{body,hidden:false,elementFromPoint:()=>hit});
  Object.assign(window,{innerWidth:1000,innerHeight:700,getComputedStyle:()=>({overflowY:'auto'}),requestAnimationFrame:fn=>(frame=fn,1),cancelAnimationFrame(){},setTimeout(fn){hold=fn;return 1},clearTimeout(){hold=null},scrollBy(x,y){pageScroll+=y}});
- const drag=installPlanningDrag({surface,document,window,enabled:()=>true,onDrop:(...args)=>drops.push(args),onBlocked:()=>blocked++,onError:error=>{throw error}});
+ const drag=installPlanningDrag({surface,document,window,enabled:()=>true,onDrop:(...args)=>drops.push(args),onBlocked:id=>{blocked++;blockedIds.push(id)},onError:error=>{throw error}});
  const event=(x,y,extra={})=>({target:node,clientX:x,clientY:y,pointerId:1,pointerType:'mouse',button:0,preventDefault(){},...extra});
  const touch=(name,x,y)=>{
   const point={identifier:1,clientX:x,clientY:y};
   const e={target:node,touches:name==='touchend'?[]:[point],changedTouches:[point],cancelable:true,preventDefault(){this.prevented=true}};
   surface.handlers[name](e);return e;
  };
- return {surface,document,window,body,area,source,destination,drag,event,drops,touch,longPress:()=>hold?.(),get blocked(){return blocked},get preview(){return preview},tick:()=>frame(),pageScroll:()=>pageScroll};
+ return {surface,document,window,body,area,source,destination,drag,event,drops,blockedIds,touch,longPress:()=>hold?.(),get blocked(){return blocked},get preview(){return preview},tick:()=>frame(),pageScroll:()=>pageScroll};
 }
 test('drag preserves card dimensions, scrolls its pane and saves only after release',()=>{
  const f=fixture();f.surface.handlers.pointerdown(f.event(200,230));f.surface.handlers.pointermove(f.event(203,230));assert.equal(f.preview,undefined);
@@ -59,5 +59,5 @@ test('multiday records respond only to a drag attempt and never start a move',()
  f.touch('touchstart',200,230);f.longPress();assert.equal(f.blocked,1);
  assert.equal(f.preview,undefined);assert.equal(f.touch('touchend',200,230).prevented,true);
  f.surface.handlers.pointerdown(f.event(200,230));f.surface.handlers.pointermove(f.event(240,260));f.surface.handlers.pointermove(f.event(300,300));
- assert.equal(f.blocked,2);f.surface.handlers.pointerup(f.event(300,300));assert.deepEqual(f.drops,[]);
+ assert.equal(f.blocked,2);assert.deepEqual(f.blockedIds,['task','task']);f.surface.handlers.pointerup(f.event(300,300));assert.deepEqual(f.drops,[]);
 });
