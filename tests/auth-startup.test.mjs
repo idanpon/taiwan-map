@@ -21,7 +21,8 @@ test('config failure or timeout shows a retryable loading error, never legacy lo
 test('initial HTML gates the form, uses a neutral loading state and provides focus targets and theme action buttons',()=>{
  assert.match(page,/<div id="auth-content" hidden>/);assert.match(page,/id="auth-loading"[^>]*role="status"/);assert.ok(!page.includes('Пароль к поездке'));
  assert.ok(page.includes('<title>Тайвань · Карта поездки</title>'));assert.equal((page.match(/data-theme-toggle/g)||[]).length,2);assert.ok(!page.includes('data-theme-select'));
- for(const id of ['help-title','account-title','statuses-title','hidden-places-title'])assert.match(page,new RegExp('id="'+id+'"[^>]*tabindex="-1"[^>]*autofocus'));
+ assert.doesNotMatch(page,/id="(?:manage-statuses|status-dialog)"/);
+ for(const id of ['help-title','account-title','hidden-places-title'])assert.match(page,new RegExp('id="'+id+'"[^>]*tabindex="-1"[^>]*autofocus'));
 });
 
 test('an unauthorized config response cannot reveal an unconfigured login form',async()=>{

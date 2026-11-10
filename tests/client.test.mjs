@@ -21,7 +21,9 @@ test('a late unauthorized response cannot revoke a newer login',async()=>{
  await assert.rejects(stale,e=>e.status===401);
  assert.equal(api.hasSession(),true);
  assert.equal(notified,0);
- await api('/api/planning');
+ await api('/api/planning?model=2');
+ assert.equal(calls.at(-1).path,'/api/planning?model=2');
+ await assert.rejects(api('/api/planning?model=2#fragment'),/Некорректный путь/);
  assert.equal(calls.at(-1).options.headers.get('authorization'),'Bearer '+issued);
 });
 test('Pages client uses supplied storage and Authorization, restores after reload, and clears on logout or expiry',async()=>{

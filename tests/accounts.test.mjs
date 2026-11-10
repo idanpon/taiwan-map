@@ -7,7 +7,7 @@ import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {issueSession} from '../src/auth.mjs';
 
-test('additive migration preserves a populated legacy database and accepts the previous 100000-iteration hash',async()=>{
+test('migration preserves a populated legacy database and accepts the previous 100000-iteration hash',async()=>{
  const DB=openDatabase();try{
   const sql=readFileSync('drizzle/0000_absurd_penance.sql','utf8');DB.sqlite.exec(sql);
   DB.sqlite.exec('CREATE TABLE _app_migrations(name TEXT PRIMARY KEY,hash TEXT NOT NULL,applied_at INTEGER NOT NULL)');
@@ -17,8 +17,9 @@ test('additive migration preserves a populated legacy database and accepts the p
   DB.sqlite.prepare('INSERT INTO memberships VALUES(?,?,?)').run('taiwan-2026','trip-shared','owner');
   DB.sqlite.prepare('INSERT INTO categories VALUES(?,?,?,?,?)').run('custom','Existing category','#123456','landmark',1);
   DB.sqlite.prepare('INSERT INTO statuses VALUES(?,?,?,?,?,?,?)').run('custom','taiwan-2026','🔥 Хайп!','#123456',1,0,'trip-shared');
+  DB.sqlite.prepare('INSERT INTO statuses VALUES(?,?,?,?,?,?,?)').run('want','taiwan-2026','Хочу посетить','#123456',0,0,'trip-shared');
   DB.sqlite.prepare('INSERT INTO places VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run('existing-place','taiwan-2026','Existing place','','Тайбэй','custom',25,121,'Address','Summary','Tip','{}','2026-10-18',1);
-  DB.sqlite.prepare('INSERT INTO user_place_states VALUES(?,?,?,?,?,?)').run('trip-shared','existing-place','custom','Existing note',7,1);
+  DB.sqlite.prepare('INSERT INTO user_place_states VALUES(?,?,?,?,?,?)').run('trip-shared','existing-place','want','Existing note',7,1);
   DB.sqlite.prepare('INSERT INTO state_events VALUES(?,?,?,?,?,?,?)').run('old-event','trip-shared','existing-place','custom','Existing note',7,1);
   DB.sqlite.prepare('INSERT INTO app_meta VALUES(?,?)').run('seed_v1','2026-10-18');
   migrate(DB,'drizzle');migrate(DB,'drizzle');
@@ -26,7 +27,8 @@ test('additive migration preserves a populated legacy database and accepts the p
   const login=await handle(new Request(env.APP_ORIGIN+'/api/login',{method:'POST',headers:{Origin:env.APP_ORIGIN,'Content-Type':'application/json'},body:JSON.stringify({password:'legacy-password'})}),env);
   assert.equal(login.status,200);const {token}=await login.json();
   const data=await(await handle(new Request(env.APP_ORIGIN+'/api/data',{headers:{Authorization:'Bearer '+token}}),env)).json();
-  assert.equal(data.places.length,1);assert.equal(data.places[0].note,'Existing note');assert.equal(data.places[0].version,7);assert.equal(data.statuses[0].label,'🔥 Хайп!');
+  assert.equal(data.places.length,1);assert.equal(data.places[0].note,'Existing note');assert.equal(data.places[0].version,7);assert.deepEqual(data.statuses.map(s=>s.id).sort(),['maybe','visited','want']);assert.equal(data.places[0].status_id,'want');
+  assert.equal(DB.sqlite.prepare("SELECT archived FROM statuses WHERE id='custom'").get().archived,1);
   assert.equal(DB.sqlite.prepare('SELECT COUNT(*) n FROM state_events').get().n,1);
   assert.equal(DB.sqlite.prepare('PRAGMA integrity_check').get().integrity_check,'ok');
  }finally{DB.close()}
@@ -117,7 +119,7 @@ test('viewer cannot mutate; editors share states with conflict detection and ide
    ['/api/admin/users','POST',{username:'hacker',name:'Hacker',password:'hacker-password',role:'admin'}]
   ])assert.equal((await f.call(path,method,payload,viewer.token)).status,403);
   assert.equal((await f.call('/api/admin/users','GET',undefined,editor.token)).status,403);
-  assert.equal((await f.call('/api/statuses','POST',{label:'From editor',color:'#123456'},editor.token)).status,201);
+  assert.equal((await f.call('/api/statuses','POST',{label:'From editor',color:'#123456'},editor.token)).status,405);
   const update={version:1,status_id:'want',note:'Shared edit'};
   assert.equal((await f.call('/api/places/taipei-101/state','PUT',update,editor.token)).status,200);
   assert.equal((await f.call('/api/places/taipei-101/state','PUT',update,f.admin)).status,409);
@@ -252,7 +254,6 @@ test('deletion revokes access and credentials, frees the login and preserves map
  const f=await fixture();try{
   const writer=await f.add('writer','editor');
   assert.equal((await f.call('/api/places/taipei-101/state','PUT',{version:1,status_id:'want',note:'Keep this note'},writer.token)).status,200);
-  assert.equal((await f.call('/api/statuses','POST',{label:'Keep this status',color:'#123456'},writer.token)).status,201);
   const subject='telegram:deleted-writer';
   f.DB.sqlite.prepare('UPDATE users SET auth_subject=? WHERE id=?').run(subject,writer.id);
   f.DB.sqlite.prepare('INSERT INTO auth_challenges VALUES(?,?,?,?)').run('a'.repeat(64),'link',writer.id,Date.now()+300000);
@@ -265,7 +266,7 @@ test('deletion revokes access and credentials, frees the login and preserves map
   assert.equal(f.DB.sqlite.prepare('SELECT COUNT(*) n FROM sessions WHERE user_id=?').get(writer.id).n,0);
   assert.equal(f.DB.sqlite.prepare('SELECT COUNT(*) n FROM auth_challenges WHERE user_id=?').get(writer.id).n,0);
   const data=await(await f.call('/api/data','GET',undefined,f.admin)).json();const place=data.places.find(p=>p.id==='taipei-101');
-  assert.equal(place.note,'Keep this note');assert.equal(place.version,2);assert.ok(data.statuses.some(s=>s.label==='Keep this status'));
+  assert.equal(place.note,'Keep this note');assert.equal(place.version,2);assert.equal(place.status_id,'want');
   assert.equal(f.DB.sqlite.prepare('SELECT user_id FROM state_events WHERE version=2').get().user_id,writer.id);
   assert.equal((await f.call('/api/admin/users/'+writer.id,'DELETE',undefined,f.admin)).status,404);
   const replacement=await f.add('writer');assert.notEqual(replacement.id,writer.id);

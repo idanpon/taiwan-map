@@ -80,8 +80,6 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .chips { display: flex; flex-wrap: wrap; gap: var(--ui-space-2); }
 .status-row { display: grid; gap: var(--ui-space-2); margin-top: var(--ui-space-4); }
 .status-row > .filter-label { margin: 0; }
-.status-controls { display: flex; align-items: center; gap: var(--ui-space-2); }
-.status-controls select { flex: 1; }
 .list-heading { position: relative; padding: 12px 20px; flex: 0 0 auto; border-top: 1px solid var(--ui-border); border-bottom: 1px solid var(--ui-border); font-size: 12px; color: var(--ui-text-muted); }
 .place-list { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding-inline: 10px; }
 .sidebar-divider { display: none; }
@@ -216,37 +214,6 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
 .account-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 20px; }
 #accounts-dialog button:disabled, #accounts-dialog .checkbox-label:has(input:disabled) { opacity: .5; cursor: not-allowed; }
 
-#status-dialog { --ui-dialog-width: 720px; }
-.status-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
-@media (min-width: 701px) { .status-editor-open .status-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); } }
-.status-layout h3 { margin-top: 0; font-size: 16px; }
-#status-list { display: grid; gap: var(--ui-space-1); padding-block: var(--ui-space-2); max-height: 360px; overflow-y: auto; border-block: 1px solid var(--ui-border); }
-#status-list > .status-option {
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--ui-space-3);
-  width: 100%;
-  min-height: 48px;
-  padding: var(--ui-space-2) var(--ui-space-3);
-  text-align: left;
-}
-#status-list > .status-option::after { content: none; }
-.status-option > span { overflow-wrap: anywhere; }
-.status-preview-circle { flex: none; width: 28px; height: 28px; display: inline-grid; place-items: center; border-radius: 50%; font: 700 16px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI Symbol', sans-serif; }
-.status-option .status-preview-circle { width: 100%; height: auto; aspect-ratio: 1; font-size: 14px; }
-.status-edit-label { font-size: var(--ui-text-caption); color: var(--ui-accent); }
-.status-fields { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; }
-.status-preview { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--ui-border); border-radius: 8px; overflow-wrap: anywhere; }
-#status-new { color: var(--ui-accent); margin-top: 8px; }
-
-@media (max-width: 700px) {
- .status-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
- #status-list { max-height: min(224px, 36dvh); }
-}
-
-#status-dialog .status-dimmed-label input { width: 20px; height: 20px; flex: none; margin: 0; padding: 0; }
-
 #help-dialog { --ui-dialog-width: 760px; }
 #help-content { font-size: 14px; line-height: 1.6; }
 #help-content h3 { font-size: 17px; line-height: 1.4; margin: 28px 0 14px; }
@@ -273,6 +240,8 @@ input:is(:autofill, :-webkit-autofill) { -webkit-text-fill-color: var(--ui-text)
 input[type=checkbox] { accent-color: var(--ui-accent); }
 .tip { white-space: pre-line; }
 .map-pin-button { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; background: none; }
+/* Provisional lodging outline, kept outside the status and category marker. */
+.map-pin-button.has-stay { box-shadow: 0 0 0 2px var(--ui-surface-panel), 0 0 0 4px var(--ui-accent); }
 .map-pin-button.city-cluster { width: 45px; height: 45px; background: #456b53; color: white; display: grid; place-items: center; border: var(--map-pin-border-width) solid #f5f4e8; box-shadow: 0 2px 12px #273a3240; font-size: 17px; }
 .map-pin-button::after { content: attr(data-label); pointer-events: none; position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); width: max-content; max-width: 240px; padding: 6px 10px; border: 1px solid var(--ui-border); border-radius: 6px; background: var(--ui-surface-panel); color: var(--ui-text); box-shadow: var(--ui-shadow-panel); font: 12px/1.4 Inter, -apple-system, sans-serif; opacity: 0; visibility: hidden; white-space: normal; }
 :where(:root:not([data-ui-touch])) .map-pin-button:focus-visible::after { opacity: 1; visibility: visible; }
@@ -486,7 +455,8 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
  .topbar .top-actions>.planning-nav, .topbar .top-actions>.help-entry, .topbar .top-actions .theme-control button { width: 36px; min-width: 36px; padding: 0; }
 }
 @media(max-width:359px) {
- .topbar .top-actions { gap: 2px; font-size: 12px; }
+ .topbar .top-actions { flex-shrink: 1; min-width: 0; gap: 2px; font-size: 12px; }
+ .topbar .top-actions>#accounts-open { white-space: normal; }
  .topbar .top-actions>.planning-nav, .topbar .top-actions>.help-entry, .topbar .top-actions .theme-control button { width: 32px; min-width: 32px; }
 }
 

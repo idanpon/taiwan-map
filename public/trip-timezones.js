@@ -35,7 +35,11 @@ export function offsetLabel(offset){
  return 'UTC'+(offset<0?'−':'+')+h+(m?':'+String(m).padStart(2,'0'):'');
 }
 export function localPoint(value,plan){
- const at=millis(value),{zone,region}=zoneAt(at,plan),offset=offsetAt(at,zone);
+ const at=millis(value),{zone,region}=zoneAt(at,plan);
+ return pointInZone(at,zone,region);
+}
+export function pointInZone(value,zone,region=''){
+ const at=millis(value),offset=offsetAt(at,zone);
  return {at,zone,region,offset,...civil(at,zone),badge:(region||zone)+' · '+offsetLabel(offset)};
 }
 export function localInstants(day,time,zone){
@@ -47,6 +51,20 @@ export function localInstants(day,time,zone){
  const offsets=new Set();
  for(let step=-2*dayMs;step<=2*dayMs;step+=6*3600000)offsets.add(offsetAt(target+step,zone));
  return [...offsets].map(offset=>target-offset*minute).filter(at=>{const back=civil(at,zone);return back.day===day&&back.time===time}).sort((a,b)=>a-b);
+}
+// First UTC instant at or after the local date boundary. A date skipped by
+// an offset change has the same boundary as the following date.
+export function civilDayStart(day, zone) {
+ const midnight=localInstants(day,'00:00',zone)[0];
+ if(midnight!==undefined)return midnight;
+ const target=wallMillis(day,'00:00');
+ let low=target-2*dayMs,high=target+2*dayMs;
+ while(low<high){
+  const mid=Math.floor((low+high)/2);
+  if(civil(mid,zone).day<day)low=mid+1;
+  else high=mid;
+ }
+ return low;
 }
 function planZones(plan){return [...new Set([initialZone.zone,...(plan?.changes||[]).map(row=>row.zone)])]}
 export function tripLocalInstants(day,time,plan){

@@ -8,7 +8,7 @@ import { proposalSchema, parse } from './assistant-schema.mjs';
 const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const event=(db,user,id,action,payload)=>run(db,'INSERT INTO assistant_events VALUES(?,?,?,?,?,?)',crypto.randomUUID(),id,user.id,action,JSON.stringify(payload),Date.now());
 function snapshot(db){
-  return {places:readPlaces(db),planning:planningData(db),categories:all(db,'SELECT * FROM categories ORDER BY id'),statuses:all(db,'SELECT id,label,color,symbol,dimmed,version,archived FROM statuses WHERE trip_id=? ORDER BY id',TRIP)};
+  return {places:readPlaces(db),planning:planningData(db),categories:all(db,'SELECT * FROM categories ORDER BY id'),statuses:all(db,'SELECT id,label,color,symbol,dimmed,version,archived FROM statuses WHERE trip_id=? AND archived=0 ORDER BY id',TRIP)};
 }
 export function assistantContext(db,user){
   const actor=assertActor(db,user),data=snapshot(db);
@@ -66,9 +66,13 @@ function display(value){
 function difference(before,after){
   const changes=[];
   for(const [entity,a,b] of [['place',before.places,after.places],['plan',before.planning.items,after.planning.items]]){
-    const previous=new Map(a.map(p=>[p.id,p]));
-    for(const row of b){const old=previous.get(row.id),left=old?display(old):null,right=display(row);const fields=Object.keys(right).filter(k=>JSON.stringify(left?.[k])!==JSON.stringify(right[k]));
-      if(!old||fields.length)changes.push({entity,id:row.id,name:row.name||row.title,action:old?'update':'create',fields,before:left,after:right});
+    const previous=new Map(a.map(row=>[row.id,row])),next=new Map(b.map(row=>[row.id,row]));
+    for(const id of new Set([...next.keys(),...previous.keys()])){
+      const old=previous.get(id),row=next.get(id),left=old?display(old):null,right=row?display(row):null;
+      const fields=[...new Set([...Object.keys(right||{}),...Object.keys(left||{})])]
+        .filter(key=>JSON.stringify(left?.[key])!==JSON.stringify(right?.[key]));
+      if(fields.length)changes.push({entity,id,name:(row||old).name||(row||old).title,
+        action:!row?'delete':old?'update':'create',fields,before:left,after:right});
     }
   }
   return changes;
@@ -86,7 +90,7 @@ export function previewProposal(db,user,id,version){
     try{transaction(db,()=>{warnings=applyOperations(db,user,payload);after=snapshot(db);throw rollback;});}
     catch(error){if(error!==rollback)throw error;}
     const confirmation_token=randomBytes(24).toString('hex');
-    const labels=Object.fromEntries([...after.places,...after.planning.items,...after.categories,...after.statuses,...after.planning.users,...after.planning.items.flatMap(i=>i.options||[])].map(v=>[v.id,v.name||v.title||v.label||v.display_name||v.id]));
+    const labels=Object.fromEntries([...before.planning.items,...after.places,...after.planning.items,...after.categories,...after.statuses,...after.planning.users,...after.planning.items.flatMap(i=>i.options||[])].map(v=>[v.id,v.name||v.title||v.label||v.display_name||v.id]));
     const preview={proposal_id:id,version,confirmation_token,changes:difference(before,after),labels,warnings,uncertainties:payload.uncertainties,reasons:payload.operations.map(o=>({key:o.key,reason:o.reason})),visibility:'Места публичны, если не скрыты. План и заметки доступны участникам.',prepared_at:Date.now()};
     run(db,"UPDATE assistant_proposals SET status='ready',preview=?,snapshot_hash=?,confirmation_token=?,updated_at=? WHERE id=?",JSON.stringify(preview),fingerprint,confirmation_token,Date.now(),id);
     return readProposal(db,user,id);

@@ -175,3 +175,86 @@ test('optional calendar enrichment ignores old sessions and contains calendar fe
  await hydratePlanningLinks({api:async()=>{throw new Error('provider unavailable')},current,getCurrent:()=>current,onReady:()=>shown++,onError:()=>errors++});assert.equal(errors,1);assert.equal(shown,0);
  await hydratePlanningLinks({api:async()=>({items:[]}),current,getCurrent:()=>current,onReady:()=>shown++,onError:()=>errors++});assert.equal(shown,1);
 });
+
+test('stay uses one linked place and preserves the shared booking workflow',async t=>{
+ const f=await fixture();t.after(()=>f.DB.close());
+ const booking=await f.create({title:'Подтвердить бронь',state:'done'});
+ const beforePlace=f.place();
+ const fields={kind:'stay',title:null,date_start:'2026-12-31',date_end:'2027-01-03',ends_at:'2027-01-03T03:00:00Z',
+  places:[{role:'lodging',place_id:'taipei-101'}],note:'Keep booking details',source_urls:['https://example.test/confirmation'],dependencies:[booking.id]};
+ const invalid=patch=>f.call('/api/planning/items','POST',{...fields,...patch});
+ assert.equal((await invalid({places:[]})).status,400);
+ assert.equal((await invalid({places:[{role:'lodging',place_name:'Text only'}]})).status,400);
+ assert.equal((await invalid({date_start:fields.date_end})).status,400);
+ assert.equal((await invalid({date_end:'2027-01-04'})).status,400);
+ const stay=await f.create(fields),path='/api/planning/items/'+stay.id;
+ assert.equal(stay.title,stay.places[0].place_name);
+ assert.equal(stay.starts_at,null);
+ assert.equal(stay.ends_at,'2027-01-03T03:00:00.000Z');
+ assert.deepEqual(stay.dependencies,[booking.id]);
+ assert.deepEqual(f.place(),beforePlace);
+ const data=async(path='/api/data',role='viewer')=>(await f.call(path,'GET',undefined,role)).json();
+ const accent=async()=> (await data()).places.find(p=>p.id==='taipei-101').has_stay;
+ assert.equal(await accent(),true);
+ assert.ok((await data('/api/public/data','')).places.every(p=>!Object.hasOwn(p,'has_stay')));
+ assert.deepEqual((await f.get()).items.map(i=>i.id),[booking.id]);
+ assert.ok((await data('/api/planning?model=2')).items.some(i=>i.id===stay.id));
+ assert.ok((await data('/api/export')).planning.items.some(i=>i.id===stay.id));
+ const cancel={version:stay.version,state:'cancelled'};
+ assert.equal((await f.call(path,'PUT',cancel,'viewer')).status,403);
+ const cancelled=(await (await f.call(path,'PUT',cancel)).json()).item;
+ assert.equal(await accent(),false);
+ assert.equal(cancelled.note,fields.note);
+ assert.deepEqual(cancelled.source_urls,fields.source_urls);
+ assert.equal((await f.call(path,'PUT',cancel)).status,409);
+ const checkout=await f.create({title:'Уточнить выезд',dependencies:[stay.id]});
+ const place= (await data()).places.find(p=>p.id==='taipei-101');
+ assert.equal((await f.call('/api/places/taipei-101','DELETE',{version:place.visibility_version})).status,200);
+ const edited=await f.call(path,'PUT',{version:cancelled.version,note:'Preserve after place deletion'});
+ assert.equal(edited.status,200);
+ const {item:orphan}=await edited.json();
+ assert.deepEqual(orphan.places.map(p=>[p.role,p.place_name,p.deleted]),[['lodging',stay.title,true]]);
+ assert.equal((await f.call(path,'DELETE',{version:orphan.version})).status,200);
+ const after=(await f.get()).items.find(item=>item.id===checkout.id);
+ assert.equal(after.version,checkout.version+1);
+ assert.deepEqual(after.dependencies,[]);
+});
+
+test('transport stores endpoint zones and optional exact times, validates chronology and round-trips stops',async t=>{
+ const f=await fixture();t.after(()=>f.DB.close());
+ const fields={
+  kind:'transport',title:'CZ8028',event_timezone:'Europe/Moscow',
+  date_start:'2026-12-28',date_end:'2026-12-29',
+  starts_at:'2026-12-28T11:50:00Z',ends_at:'2026-12-28T21:10:00Z',
+  places:[{role:'departure',place_name:'Москва SVO'},{role:'arrival',place_name:'Гуанчжоу CAN'}],
+  transport:{mode:'plane',arrival_timezone:'Asia/Shanghai',service_number:'CZ8028',
+   departure_details:'Терминал C',arrival_details:'Терминал 2',stops:['Первая','Вторая']},
+ };
+ const check=patch=>f.call('/api/planning/items','POST',{...fields,...patch});
+ for(const patch of [
+  {date_end:'2026-12-28'},
+  {ends_at:'2026-12-28T03:10:00Z',date_end:null},
+  {transport:{...fields.transport,mode:'metro'}},
+  {transport:{...fields.transport,arrival_timezone:'+08:00'}},
+  {places:fields.places.slice(0,1)},
+  {places:[...fields.places,fields.places[0]]},
+  {starts_at:null,date_start:'2026-12-30'},
+ ]) assert.equal((await check(patch)).status,400);
+ const flight=await f.create(fields),path='/api/planning/items/'+flight.id;
+ assert.deepEqual(flight.transport,fields.transport);
+ assert.deepEqual(flight.places.map(p=>[p.role,p.place_name,p.place_id,p.deleted]),[
+  ['arrival','Гуанчжоу CAN',null,false],['departure','Москва SVO',null,false]]);
+ assert.deepEqual(itemDates(flight,'America/New_York'),['2026-12-28','2026-12-29']);
+ assert.equal((await f.call(path,'PUT',{version:0,note:'Stale'})).status,409);
+ const {item:partial}=await (await f.call(path,'PUT',{version:flight.version,starts_at:null})).json();
+ assert.equal(partial.starts_at,null);assert.equal(partial.date_start,fields.date_start);
+ assert.equal(partial.ends_at,flight.ends_at);
+ const {item:dateOnly}=await (await f.call(path,'PUT',{version:partial.version,ends_at:null})).json();
+ assert.equal(dateOnly.ends_at,null);assert.equal(dateOnly.date_end,fields.date_end);
+ const dateLine=await f.create({...fields,event_timezone:'Asia/Tokyo',date_start:'2027-01-02',date_end:'2027-01-01',
+  starts_at:'2027-01-01T15:20:00Z',ends_at:'2027-01-01T22:20:00Z',
+  transport:{mode:'plane',arrival_timezone:'Pacific/Honolulu'}});
+ assert.deepEqual(itemDates(dateLine,'Asia/Taipei'),['2027-01-01','2027-01-02']);
+ assert.equal((await f.call(path,'DELETE',{version:dateOnly.version})).status,200);
+ assert.equal((await f.call(path,'DELETE',{version:dateOnly.version})).status,404);
+});

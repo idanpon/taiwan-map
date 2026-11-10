@@ -3,7 +3,9 @@ import { all, one, run } from './sqlite.mjs';
 import { readTags, mergeTags } from '../public/place-tags.js';
 import { validDate, validZone } from '../public/planning-model.js';
 import { applyPlanningChange } from './planning.mjs';
-import { guardPlanningStatus } from './planning-store.mjs';
+import { placeStatusIds } from '../public/place-statuses.js';
+import { isTravel } from '../public/planning-travel.js';
+import { itemById, guardPlanningStatus } from './planning-store.mjs';
 import { computePreview } from './planning-decisions.mjs';
 
 export function assertActor(db,user,write=false){
@@ -69,7 +71,7 @@ export function applyOperations(db,user,payload){
         checkVersion(p.state_version,op.version);
         const status=Object.hasOwn(op.data,'status_id')?op.data.status_id:p.status_id;
         const note=op.data.note??p.note;
-        if(status!==null&&!one(db,'SELECT 1 FROM statuses WHERE id=? AND trip_id=? AND archived=0',status,TRIP))fail(400,'Статус недоступен.');
+        if(status!==null&&(!placeStatusIds.includes(status)||!one(db,'SELECT 1 FROM statuses WHERE id=? AND trip_id=? AND archived=0',status,TRIP)))fail(400,'Статус недоступен.');
         guardPlanningStatus(db,id,status,SHARED_USER);
         run(db,'INSERT INTO user_place_states(user_id,place_id,status_id,note,version,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(user_id,place_id) DO UPDATE SET status_id=excluded.status_id,note=excluded.note,version=excluded.version,updated_at=excluded.updated_at',SHARED_USER,id,status,note,p.state_version+1,Date.now());
         run(db,'INSERT INTO state_events VALUES(?,?,?,?,?,?,?)',crypto.randomUUID(),user.id,id,status,note,p.state_version+1,Date.now());
@@ -86,6 +88,9 @@ export function applyOperations(db,user,payload){
       checkVersion(preview.version,op.version);
       warnings.push(...preview.warnings);
       applyPlanningChange(db,user,{path:`/api/planning/items/${id}/resolve`,method:'POST',body:preview});
+    }else if(op.kind==='plan.delete'){
+      if(!isTravel(itemById(db,id).kind))fail(400,'Через предложение можно удалить проживание или переезд.');
+      applyPlanningChange(db,user,{path:'/api/planning/items/'+id,method:'DELETE',body:{version:op.version}});
     }else{
       const data=structuredClone(op.data);
       if(data.places)data.places=data.places.map(l=>({...l,place_id:resolve(l.place_id)}));

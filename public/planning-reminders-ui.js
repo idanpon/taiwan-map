@@ -1,3 +1,4 @@
+import { isTravel } from './planning-travel.js';
 import {pushIcon} from './notifications.js';
 import {pointText,zoneBadge} from './planning-time-ui.js';
 import {localPoint,tripLocalInstants,validClock,minute} from './trip-timezones.js';
@@ -15,7 +16,7 @@ export function reminderCard({mount,item,plan,notifications,api,esc,review,setDi
  const path='/api/planning/items/'+encodeURIComponent(item.id)+'/reminder';
  const day=item.date_start||item.date_end,exact=item.starts_at?Date.parse(item.starts_at):null;
  let rule=null,loading=true,error='';
- const eligible=Boolean((day||exact!==null)&&active(item)&&!(item.ends_at&&!item.starts_at));
+ const eligible=Boolean((day||exact!==null)&&active(item)&&(isTravel(item.kind)||!(item.ends_at&&!item.starts_at)));
  const section=mount;
  function deviceInfo(){
   const s=notifications.status();

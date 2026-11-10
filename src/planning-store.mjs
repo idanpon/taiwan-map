@@ -12,11 +12,12 @@ export function itemById(db, id) {
   if (!item) fail(404, 'Запись календаря не найдена.');
   return item;
 }
-export function readItem(db, row) {
+export function readItem(db, { transport_json, ...row }) {
   return {
     ...row,
     fixed_external: Boolean(row.fixed_external),
     source_urls: JSON.parse(row.source_urls),
+    ...(transport_json ? { transport: JSON.parse(transport_json) } : {}),
     options: all(
       db,
       'SELECT * FROM planning_options WHERE item_id=? ORDER BY sort_order,id',
@@ -24,14 +25,18 @@ export function readItem(db, row) {
     ),
     places: all(
       db,
-      'SELECT l.*,p.name current_name,p.hidden FROM planning_item_places l LEFT JOIN places p ON p.id=l.place_id WHERE l.item_id=? ORDER BY l.id',
+      'SELECT l.*,p.name current_name,p.hidden FROM planning_item_places l LEFT JOIN places p ON p.id=l.place_id WHERE l.item_id=? ORDER BY l.role,l.option_id,l.place_id,l.place_name,l.id',
       row.id,
-    ).map((l) => ({
-      ...l,
-      affects_visit: Boolean(l.affects_visit),
-      place_name: l.current_name || l.place_name,
-      deleted: !l.place_id,
-    })),
+    ).map(({ role, ...l }) => {
+      const endpoint = role === 'departure' || role === 'arrival';
+      return {
+        ...l,
+        ...(role ? { role } : {}),
+        affects_visit: Boolean(l.affects_visit),
+        place_name: endpoint ? l.place_name : l.current_name || l.place_name,
+        deleted: !l.place_id && !endpoint,
+      };
+    }),
     dependencies: all(
       db,
       'SELECT depends_on_id FROM planning_dependencies WHERE item_id=?',
@@ -39,7 +44,7 @@ export function readItem(db, row) {
     ).map((r) => r.depends_on_id),
   };
 }
-export function planningData(db) {
+export function planningData(db, { legacy = false } = {}) {
   return {
     trip: one(
       db,
@@ -49,7 +54,7 @@ export function planningData(db) {
     timezone_plan: readZonePlan(db),
     items: all(
       db,
-      'SELECT * FROM planning_items WHERE trip_id=? ORDER BY date_start,sort_order,title',
+      'SELECT * FROM planning_items WHERE trip_id=?' + (legacy ? " AND kind IN ('task','decision','visit')" : '') + ' ORDER BY date_start,sort_order,title',
       TRIP,
     ).map((row) => readItem(db, row)),
     users: all(

@@ -64,9 +64,21 @@ export function migrate(db, directory) {
       if (previous.hash !== hash) throw new Error('Applied migration was changed: ' + name);
       continue;
     }
-    transaction(db, () => {
-      db.sqlite.exec(sql);
-      db.sqlite.prepare('INSERT INTO _app_migrations VALUES(?,?,?)').run(name, hash, Date.now());
-    });
+    // A table rebuild must bypass the old parent's ON DELETE actions. Check
+    // every FK before committing and restore enforcement even after a failure.
+    const rebuild = sql.startsWith('-- rebuild-foreign-keys\n');
+    if (rebuild && db.sqlite.isTransaction)
+      throw new Error('Cannot rebuild foreign keys inside another transaction');
+    if (rebuild) db.sqlite.exec('PRAGMA foreign_keys=OFF');
+    try {
+      transaction(db, () => {
+        db.sqlite.exec(sql);
+        if (rebuild && db.sqlite.prepare('PRAGMA foreign_key_check').get())
+          throw new Error('Foreign key check failed in ' + name);
+        db.sqlite.prepare('INSERT INTO _app_migrations VALUES(?,?,?)').run(name, hash, Date.now());
+      });
+    } finally {
+      if (rebuild) db.sqlite.exec('PRAGMA foreign_keys=ON');
+    }
   }
 }

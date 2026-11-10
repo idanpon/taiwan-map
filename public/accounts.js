@@ -53,12 +53,11 @@ export function createAccountUI({api,$,esc,load,toast,getData,canOpen=()=>true,s
   $('login-open').hidden=Boolean(user);$('accounts-open').hidden=!user;$('logout').hidden=!user;document.querySelector('.profile-summary').hidden=!user;
   const calendar=document.querySelector('.planning-nav');if(calendar)calendar.hidden=!user;
   if($('export-data'))$('export-data').hidden=!user;
-  $('manage-statuses').hidden=!user||user.role==='viewer';$('hidden-places-open').hidden=!user;
+  $('hidden-places-open').hidden=!user;
   if(!user){$('profile-name').textContent='';$('profile-description').textContent='';for(const id of ['account-users','telegram-requests','passkey-list'])$(id).replaceChildren();resetPasswordFields($('accounts-dialog'));return}
   if(!refreshed&&authConfig.mode==='accounts'){refreshed=true;void api('/api/auth/session/refresh',{method:'POST',body:'{}',allowAnonymous:true}).catch(()=>{})}
   $('profile-name').textContent=user.name;
   $('accounts-open').textContent=user.can_setup?'Настроить аккаунты':user.role==='admin'?'Пользователи':'Профиль';
-  $('manage-statuses').hidden=user.role==='viewer';
   $('hidden-places-open').hidden=false;
  }
  async function refreshUsers(){

@@ -47,7 +47,8 @@ export function createApiClient({
     return token;
   }
   async function api(path, options = {}) {
-    if (!/^\/api\/[a-zA-Z0-9/_-]+$/.test(path)) throw new Error('Некорректный путь API.');
+    if (path !== '/api/planning?model=2' && !/^\/api\/[a-zA-Z0-9/_-]+$/.test(path))
+      throw new Error('Некорректный путь API.');
     // Re-read persisted credentials so logout in another tab revokes local access.
     const requestToken = currentToken(),
       requestSession = sessionVersion;

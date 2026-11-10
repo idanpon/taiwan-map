@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import { Problem } from './auth.mjs';
+import { placeStatusIds } from '../public/place-statuses.js';
+import { kindLabels } from '../public/planning-model.js';
+import { transportModes } from '../public/planning-travel.js';
 
 export const id = z.string().regex(/^[a-zA-Z0-9-]{1,80}$/);
 const reference = z.string().regex(/^\$?[a-zA-Z0-9-]{1,80}$/);
@@ -29,9 +32,17 @@ const tags = z.object({
   reservation:z.object({enabled:z.boolean().optional(),url:z.string().max(1024).optional()}).strict().optional(),
 }).strict();
 const option = z.object({id:id.optional(),label:z.string().min(1).max(160),description:z.string().max(5000).optional()}).strict();
-const placeLink = z.object({place_id:reference.nullable().optional(),place_name:z.string().max(200).optional(),option_id:id.nullable().optional(),affects_visit:z.boolean().optional(),unselected_action:z.enum(['keep','hide']).optional()}).strict();
+const placeLink = z.object({place_id:reference.nullable().optional(),place_name:z.string().max(200).optional(),role:z.enum(['lodging','departure','arrival']).nullable().optional(),option_id:id.nullable().optional(),affects_visit:z.boolean().optional(),unselected_action:z.enum(['keep','hide']).optional()}).strict();
+const transport = z.object({
+  mode:z.enum(Object.keys(transportModes)),
+  arrival_timezone:z.string().max(80),
+  service_number:z.string().max(100).optional(),
+  departure_details:z.string().max(300).optional(),
+  arrival_details:z.string().max(300).optional(),
+  stops:z.array(z.string().trim().min(1).max(200)).max(30).optional(),
+}).strict();
 export const planFields = z.object({
-  kind:z.enum(['task','visit','decision']),title:z.string().trim().min(1).max(160),description:z.string().max(10000),note:z.string().max(5000),
+  kind:z.enum(Object.keys(kindLabels)),transport,title:z.string().trim().min(1).max(160).nullable(),description:z.string().max(10000),note:z.string().max(5000),
   state:z.enum(['open','in_progress','done','cancelled']),priority:z.enum(['low','normal','high','critical']),
   assignee_id:id.nullable(),date_start:date.nullable(),date_end:date.nullable(),starts_at:z.string().max(40).nullable(),ends_at:z.string().max(40).nullable(),
   event_timezone:z.string().max(100),sort_order:z.number().int(),fixed_external:z.boolean(),source_urls:z.array(url).max(20),
@@ -41,11 +52,12 @@ const base={key:id, reason:z.string().trim().min(1).max(1000)};
 export const operationSchema=z.discriminatedUnion('kind',[
   z.object({...base,kind:z.literal('place.create'),data:placeFields,hidden:z.boolean().default(false)}).strict(),
   z.object({...base,kind:z.literal('place.update'),id,version:z.number().int().min(1),data:placeFields}).strict(),
-  z.object({...base,kind:z.literal('place.state'),id:reference,version:z.number().int().min(0),data:z.object({status_id:id.nullable().optional(),note:z.string().max(2000).optional()}).strict()}).strict(),
+  z.object({...base,kind:z.literal('place.state'),id:reference,version:z.number().int().min(0),data:z.object({status_id:z.enum(placeStatusIds).nullable().optional(),note:z.string().max(2000).optional()}).strict()}).strict(),
   z.object({...base,kind:z.literal('place.tags'),id:reference,version:z.number().int().min(1),data:tags}).strict(),
   z.object({...base,kind:z.literal('place.visibility'),id:reference,version:z.number().int().min(1),hidden:z.boolean()}).strict(),
   z.object({...base,kind:z.literal('plan.create'),data:planFields}).strict(),
   z.object({...base,kind:z.literal('plan.update'),id,version:z.number().int().min(1),data:planFields}).strict(),
+  z.object({...base,kind:z.literal('plan.delete'),id,version:z.number().int().min(1)}).strict(),
   z.object({...base,kind:z.literal('decision.resolve'),id,version:z.number().int().min(1),data:z.object({mode:z.enum(['resolve','reopen']).default('resolve'),option_id:id.nullable().optional(),alternatives:z.record(id,z.enum(['keep','hide'])).optional()}).strict()}).strict(),
 ]);
 export const proposalSchema=z.object({

@@ -6,7 +6,7 @@ import {tagDefinitions,tagIcon,tagsHeading,tagsDetails,matchesTags} from './plac
 import {createApiClient} from './api-client.js';
 import {createAccountUI} from './accounts.js';
 import {cityOptions,statusAppearance,hoursVerification,hoursOverview} from './map-model.js';
-import {createStatusUI} from './statuses.js';
+import {fixedPlaceStatuses} from './place-statuses.js';
 import {categoryIcon as icon} from './categories.js';
 import {createHelpUI} from './help.js';
 import {createThemeUI} from './theme.js';
@@ -133,7 +133,7 @@ async function saveState(event,p){
  }
 }
 
-async function load({signal}={}){const sequence=++loadSequence,wasAuthenticated=Boolean(data?.user),id=selected;let next;try{next=await api(transport.hasSession()?'/api/data':'/api/public/data',{signal,allowAnonymous:true})}catch(error){if(error.status!==401)throw error;next=await api('/api/public/data',{signal})}if(sequence!==loadSequence)return;data=next;planning=null;if(!data.user&&wasAuthenticated){resetDirty();$('detail').replaceChildren();$('detail').hidden=true;$('application').classList.remove('detail-open');placeUI?.close();$('accounts-dialog').close();$('status-dialog').close();$('help-dialog').close()}if(data.user)void hydratePlanningLinks({api,current:data,getCurrent:()=>data,signal,onReady:value=>{planning=value;const target=$('place-planning-links');if(target&&selected)target.innerHTML=planningPlaceSummary(planning,selected,esc)},onError:error=>toast('Календарь временно недоступен. '+error.message)});accountUI?.update();accountUI?.hideLogin();$('login').hidden=true;$('application').inert=false;$('application').hidden=false;document.body.classList.add('app-active');populateFilters();$('verified').textContent=hoursOverview(data.places);const tripDates=document.querySelector('.trip-dates');if(tripDates)tripDates.hidden=!data.user;if(tripDates&&data.trip.start_date&&data.trip.end_date)tripDates.textContent=new Date(data.trip.start_date+'T12:00:00Z').toLocaleDateString('ru',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'})+' — '+new Date(data.trip.end_date+'T12:00:00Z').toLocaleDateString('ru',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});if(!map){setSidebar(false);initMap()}render();if(id&&data.places.some(p=>p.id===id)&&!dirty)detail(data.places.find(p=>p.id===id));if(map)setTimeout(()=>map.resize(),0);await openPlanningHash()}
+async function load({signal}={}){const sequence=++loadSequence,wasAuthenticated=Boolean(data?.user),id=selected;let next;try{next=await api(transport.hasSession()?'/api/data':'/api/public/data',{signal,allowAnonymous:true})}catch(error){if(error.status!==401)throw error;next=await api('/api/public/data',{signal})}if(sequence!==loadSequence)return;data=next;data.statuses=fixedPlaceStatuses(data.statuses);planning=null;if(!data.user&&wasAuthenticated){resetDirty();$('detail').replaceChildren();$('detail').hidden=true;$('application').classList.remove('detail-open');placeUI?.close();$('accounts-dialog').close();$('help-dialog').close()}if(data.user)void hydratePlanningLinks({api,current:data,getCurrent:()=>data,signal,onReady:value=>{planning=value;const target=$('place-planning-links');if(target&&selected)target.innerHTML=planningPlaceSummary(planning,selected,esc)},onError:error=>toast('Календарь временно недоступен. '+error.message)});accountUI?.update();accountUI?.hideLogin();$('login').hidden=true;$('application').inert=false;$('application').hidden=false;document.body.classList.add('app-active');populateFilters();$('verified').textContent=hoursOverview(data.places);const tripDates=document.querySelector('.trip-dates');if(tripDates)tripDates.hidden=!data.user;if(tripDates&&data.trip.start_date&&data.trip.end_date)tripDates.textContent=new Date(data.trip.start_date+'T12:00:00Z').toLocaleDateString('ru',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'})+' — '+new Date(data.trip.end_date+'T12:00:00Z').toLocaleDateString('ru',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});if(!map){setSidebar(false);initMap()}render();if(id&&data.places.some(p=>p.id===id)&&!dirty)detail(data.places.find(p=>p.id===id));if(map)setTimeout(()=>map.resize(),0);await openPlanningHash()}
 $('login-form').onsubmit=async e=>{e.preventDefault();const button=e.currentTarget.querySelector('button[type=submit]');if(button.disabled)return;button.disabled=true;$('login-error').textContent='';try{await api('/api/login',{method:'POST',body:JSON.stringify({username:$('username').value,password:$('password').value})});accountUI.resetLoginPassword();await load()}catch(err){$('login-error').textContent=err.message}finally{button.disabled=false}};
 $('logout').onclick=async()=>{if(dirty){toast('Сначала сохраните изменения.');return}try{await api('/api/logout',{method:'POST'});await accountUI.notifications.signOut();await load();toast('Вы вышли. Карта доступна для просмотра.')}catch(e){toast(e.message)}};
 $('city-filter').onchange=e=>{if(dirty){e.target.value=city;toast('Сначала сохраните изменения.');return}city=e.target.value;render();fit()};
@@ -145,17 +145,12 @@ $('reset').onclick=()=>{if(dirty){toast('Сначала сохраните из�
 $('place-list').onclick=e=>{const b=e.target.closest('[data-place]');if(b)openPlace(b.dataset.place)};$('fit').onclick=fit;
 $('locate').onclick=()=>{if(!map?.available){toast('Карта недоступна. Места и ссылки доступны в списке.');return}if(!window.isSecureContext||!navigator.geolocation){toast('Геопозиции нужен HTTPS и поддержка браузера.');return}const button=$('locate');button.disabled=true;navigator.geolocation.getCurrentPosition(p=>{button.disabled=false;map?.showPosition(p.coords);toast('Ваше положение показано на карте.');},e=>{button.disabled=false;toast(e.code===1?'Доступ к геопозиции запрещён. Разрешите его в настройках браузера.':'Не удалось определить положение. Попробуйте у окна или на улице.')},{enableHighAccuracy:true,timeout:15000,maximumAge:60000})};
 $('map-list').onclick=()=>{setSidebar(true);$('search').focus()};
-const statusUI=createStatusUI({api,$,esc,getData:()=>data,toast,onChange:()=>{
- populateFilters();render();
- const select=$('place-status');if(select){const value=select.value;select.innerHTML='<option value="">Без статуса</option>'+data.statuses.map(s=>`<option value="${esc(s.id)}">${esc(s.label)}</option>`).join('');select.value=value;}
-}});
-$('manage-statuses').onclick=()=>statusUI.open();
 const helpUI=createHelpUI({$,getData:()=>data,esc});$('help-open').onclick=()=>helpUI.open();
 $('mobile-toggle').onclick=()=>{if(!closeDetail())return;setSidebar(!$('places-panel').classList.contains('mobile-open'));if(map)setTimeout(()=>map.resize(),0)};
 let outsidePlacePress=null;
 function outsidePlaceCard(target){
  return !$('detail').hidden&&!document.querySelector('dialog[open]')&&
-  !target.closest('#login, #login-open, #detail, #help-open, #manage-statuses, #hidden-places-open, [data-place], .maplibregl-marker, .maplibregl-ctrl, .map-tools, .map-zoom, #map-status, .theme-control');
+  !target.closest('#login, #login-open, #detail, #help-open, #hidden-places-open, [data-place], .maplibregl-marker, .maplibregl-ctrl, .map-tools, .map-zoom, #map-status, .theme-control');
 }
 function movedFromPlacePress(event){
  return Math.hypot(event.clientX-outsidePlacePress.clientX,event.clientY-outsidePlacePress.clientY)>8;
@@ -169,7 +164,7 @@ document.addEventListener('click',event=>{
  const tap=outsidePlacePress&&!movedFromPlacePress(event);outsidePlacePress=null;
  if(tap&&outsidePlaceCard(event.target)&&!closeDetail()){event.preventDefault();event.stopPropagation()}
 },true);
-document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('login').hidden&&data){closeLogin();return}if(event.key!=='Escape'||$('status-dialog').open||$('accounts-dialog').open||$('help-dialog').open||$('hidden-places-dialog').open)return;if(!$('detail').hidden){event.preventDefault();closeDetail(true)}else if($('places-panel').classList.contains('mobile-open')){setSidebar(false);$('mobile-toggle').focus()}});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('login').hidden&&data){closeLogin();return}if(event.key!=='Escape'||$('accounts-dialog').open||$('help-dialog').open||$('hidden-places-dialog').open)return;if(!$('detail').hidden){event.preventDefault();closeDetail(true)}else if($('places-panel').classList.contains('mobile-open')){setSidebar(false);$('mobile-toggle').focus()}});
 window.addEventListener('resize',()=>{if(map)map.resize()});
 const placesPanel=$('places-panel');
 installSidebarResize({

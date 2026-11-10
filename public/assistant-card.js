@@ -1,13 +1,16 @@
 // Shared by the authenticated site and the isolated MCP Apps card.
+import {transportModes} from './planning-travel.js';
 export function node(tag,text,cls){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;}
 const statusLabels={draft:'Личный черновик',ready:'Ожидает подтверждения',applied:'Сохранено в поездку',cancelled:'Предложение отменено'};
-const names={name:'Название',local_name:'Местное название',city:'Город',category_id:'Категория',lat:'Широта',lon:'Долгота',address:'Адрес',summary:'Описание',tip:'Совет',verified_at:'Проверено',coordinate_accuracy:'Точность точки',coordinate_source_url:'Источник координат',hours:'Часы работы',links:'Ссылки',hidden:'Скрыто с карты',status_id:'Статус места',note:'Заметка участников',tags:'Ярлыки',kind:'Тип',title:'Название',description:'Описание',state:'Состояние',priority:'Приоритет',assignee_id:'Ответственный',date_start:'Дата начала',date_end:'Дата окончания',starts_at:'Начало',ends_at:'Окончание',event_timezone:'Часовой пояс',fixed_external:'Фиксированный срок',source_urls:'Источники',options:'Варианты',places:'Связанные места',dependencies:'Зависит от',selected_option_id:'Выбранный вариант',resolved_at:'Решение принято',sort_order:'Порядок',label:'Название',url:'Ссылка',timezone:'Часовой пояс',weekly:'По дням недели',exceptions:'Исключения',always:'Круглосуточно',source_url:'Источник',intervals:'Время',day:'День недели',date:'Дата',photoSpot:'Место для фото',limitedDates:'Ограниченные даты',startDate:'С',endDate:'По',scheduleText:'Расписание',enabled:'Включено',reservation:'Бронирование',affects_visit:'Влияет на посещение',unselected_action:'Если не выбран',option_id:'Вариант',place_id:'Место',place_name:'Название места'};
-const enumLabels={task:'Задача',visit:'Посещение',decision:'Решение',open:'Открыто',in_progress:'В работе',done:'Готово',cancelled:'Отменено',low:'Низкий',normal:'Обычный',high:'Высокий',critical:'Срочный',keep:'Оставить',hide:'Скрыть',official:'Официальный',source:'Источник',booking:'Бронирование',other:'Другое'};
+const names={name:'Название',local_name:'Местное название',city:'Город',category_id:'Категория',lat:'Широта',lon:'Долгота',address:'Адрес',summary:'Описание',tip:'Совет',verified_at:'Проверено',coordinate_accuracy:'Точность точки',coordinate_source_url:'Источник координат',hours:'Часы работы',links:'Ссылки',hidden:'Скрыто с карты',status_id:'Статус места',note:'Заметка участников',tags:'Ярлыки',kind:'Тип',title:'Название',description:'Описание',state:'Состояние',priority:'Приоритет',assignee_id:'Ответственный',date_start:'Дата начала',date_end:'Дата окончания',starts_at:'Начало',ends_at:'Окончание',event_timezone:'Часовой пояс',fixed_external:'Фиксированный срок',source_urls:'Источники',options:'Варианты',places:'Связанные места',dependencies:'Зависит от',selected_option_id:'Выбранный вариант',resolved_at:'Решение принято',sort_order:'Порядок',label:'Название',url:'Ссылка',timezone:'Часовой пояс',weekly:'По дням недели',exceptions:'Исключения',always:'Круглосуточно',source_url:'Источник',intervals:'Время',day:'День недели',date:'Дата',photoSpot:'Место для фото',limitedDates:'Ограниченные даты',startDate:'С',endDate:'По',scheduleText:'Расписание',enabled:'Включено',reservation:'Бронирование',affects_visit:'Влияет на посещение',unselected_action:'Если не выбран',option_id:'Вариант',place_id:'Место',place_name:'Название места',transport:'Переезд',mode:'Вид транспорта',arrival_timezone:'Пояс прибытия',service_number:'Номер',departure_details:'Детали отправления',arrival_details:'Детали прибытия',stops:'Остановки'};
+const enumLabels={task:'Задача',visit:'Посещение',decision:'Решение',stay:'Проживание',transport:'Транспорт',open:'Открыто',in_progress:'В работе',done:'Готово',cancelled:'Отменено',low:'Низкий',normal:'Обычный',high:'Высокий',critical:'Срочный',keep:'Оставить',hide:'Скрыть',official:'Официальный',source:'Источник',booking:'Бронирование',other:'Другое'};
 function format(value,labels={},key=''){
+  if(key==='status_id'&&value===null)return 'Без статуса';
   if(value===undefined||value===null||value==='')return '—';
   if(typeof value==='boolean')return value?'Да':'Нет';
   if(Array.isArray(value))return value.length?value.map(v=>format(v,labels,key)).join('; '):'—';
-  if(key==='places'&&typeof value==='object')return [value.place_name||labels[value.place_id]||'Место',value.option_id?'вариант «'+(labels[value.option_id]||value.option_id)+'»':'',value.affects_visit?'влияет на посещение':'',value.unselected_action==='hide'?'скрыть, если не выбрано':'',value.deleted?'место удалено':''].filter(Boolean).join(' · ');
+  if(key==='mode')return transportModes[value]||String(value);
+  if(key==='places'&&typeof value==='object')return [({lodging:'Жильё',departure:'Отправление',arrival:'Прибытие'})[value.role],value.place_name||labels[value.place_id]||'Место',value.option_id?'вариант «'+(labels[value.option_id]||value.option_id)+'»':'',value.affects_visit?'влияет на посещение':'',value.unselected_action==='hide'?'скрыть, если не выбрано':'',value.deleted?'место удалено':''].filter(Boolean).join(' · ');
   if(key==='tags'&&typeof value==='object')return [value.photoSpot?'Место для фото':'',value.limitedDates?.enabled?format(value.limitedDates,labels):'',value.reservation?.enabled?'Бронирование: '+(value.reservation.url||'ссылка не указана'):''].filter(Boolean).join('; ')||'—';
   if(typeof value==='object')return Object.entries(value).filter(([k,v])=>!['id','item_id'].includes(k)&&v!==null&&v!==''&&(!Array.isArray(v)||v.length)).map(([k,v])=>`${names[k]||k}: ${format(v,labels,k)}`).join(' · ')||'—';
   if(key==='day')return ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'][value];
@@ -51,14 +54,15 @@ export function mountAssistant(root,call,{onApplied=()=>{},openLink}={}){
       if(proposal.preview?.reasons?.length){const reasons=node('ul');for(const reason of proposal.preview.reasons)reasons.append(node('li',reason.reason));root.append(reasons);}
       for(const change of details.changes){
         const item=node('article',undefined,'assistant-change');
-        const noun=change.entity==='place'?'место':({task:'задачу',visit:'посещение',decision:'решение'})[change.after.kind]||'запись плана';
-        item.append(node('h3',`${proposal.status==='applied'?'Сохранено':(change.action==='create'?'Добавить ':'Изменить ')+noun}: ${change.name}`));
+        const noun=change.entity==='place'?'место':({task:'задачу',visit:'посещение',decision:'решение',stay:'проживание',transport:'переезд'})[(change.after||change.before).kind]||'запись плана';
+        const verb={create:'Добавить',update:'Изменить',delete:'Удалить'}[change.action];
+        item.append(node('h3',`${proposal.status==='applied'?(change.action==='delete'?'Удалено':'Сохранено'):verb+' '+noun}: ${change.name}`));
         const list=node('dl'),extra=node('dl'),fold=node('details');
-        const important=new Set(['hidden','status_id','selected_option_id','state','date_start','date_end','starts_at','ends_at','assignee_id','fixed_external','dependencies','places']);
+        const important=new Set(['hidden','status_id','selected_option_id','state','date_start','date_end','starts_at','ends_at','assignee_id','fixed_external','dependencies','places','kind','transport','event_timezone']);
         for(const key of change.fields){
-          const after=format(change.after[key],labels,key),before=format(change.before?.[key],labels,key);
+          const after=format(change.after?.[key],labels,key),before=format(change.before?.[key],labels,key);
           if(change.action==='create'&&(after==='—'||['name','title','sort_order'].includes(key)||(after==='Нет'&&key!=='hidden')))continue;
-          const target=important.has(key)?list:extra,dd=node('dd',change.action==='create'?after:`${before} → ${after}`);
+          const target=important.has(key)?list:extra,dd=node('dd',change.action==='create'?after:change.action==='delete'?before:`${before} → ${after}`);
           if(change.action==='create'&&/^https?:\/\//.test(after)&&!after.includes(' ')){const link=node('a',after);link.href=after;link.target='_blank';link.rel='noopener noreferrer';if(openLink)link.addEventListener('click',e=>{e.preventDefault();action(()=>openLink(after));});dd.replaceChildren(link);}
           target.append(node('dt',names[key]||key),dd);
         }
@@ -89,10 +93,11 @@ export function mountAssistant(root,call,{onApplied=()=>{},openLink}={}){
       const include=field(box,'Включить в пакет',null,'checkbox');include.checked=true;
       const update={op,include};
       if(op.data?.title!==undefined)update.title=field(box,'Название',op.data.title);
-      if(op.kind.startsWith('plan.')){
+      if(op.data&&op.kind.startsWith('plan.')){
         const current=context.planning.items.find(i=>i.id===op.id)||{};
         // Exact time editing needs a timezone-aware form in the calendar.
-        if(!op.data.starts_at&&!current.starts_at){for(const k of ['date_start','date_end'])update[k]=field(box,names[k],op.data[k]??current[k],'date');}
+        const values={...current,...op.data};
+        if(!values.starts_at&&!values.ends_at){for(const k of ['date_start','date_end'])update[k]=field(box,names[k],values[k],'date');}
         else box.append(node('p','Точное время и часовой пояс можно уточнить в чате.','assistant-muted'));
       }
       if(['place.create','place.visibility'].includes(op.kind)){update.hidden=field(box,'Скрыть место с публичной карты',null,'checkbox');update.hidden.checked=Boolean(op.hidden);}

@@ -84,19 +84,19 @@ export function createTimeReview({scroller,content,title,error,esc,setBusy,setDi
  return {show};
 }
 
-const dayInput=(name,value,esc)=>`<span class="date-wrap ui-field-group ui-field-group--soft"><input name="${name}" type="date" value="${esc(value||'')}"></span>`;
-export function itemDateEditor(item,plan,esc){
+export const dateInput=(name,value,esc)=>`<span class="date-wrap ui-field-group ui-field-group--soft"><input name="${name}" type="date" value="${esc(value||'')}"></span>`;
+export function itemDateEditor(item,plan,esc,{showFixed=true}={}){
  const start=item.starts_at?localPoint(item.starts_at,plan):null,end=item.ends_at?localPoint(item.ends_at,plan):null;
  const first=start?.day||item.date_start||item.date_end||'',last=end?.day||item.date_end||'';
  const mode=(end&&start||item.date_start&&item.date_end&&item.date_start!==item.date_end)?'period':first?'day':'none';
- const html=`<fieldset class="planning-item-dates ui-fieldset"><legend>Дата или период</legend>
+ const html=`<fieldset class="planning-item-dates ui-fieldset" data-standard-dates><legend>Дата или период</legend>
  <label>Когда<select class="ui-field ui-field--soft" name="date_mode" aria-label="Когда"><option value="none" ${mode==='none'?'selected':''}>Без даты</option><option value="day" ${mode==='day'?'selected':''}>Один день или дедлайн</option><option value="period" ${mode==='period'?'selected':''}>Период</option></select></label>
- <div data-dated-fields><div class="form-columns"><label><span data-start-label>Дата</span>${dayInput('date_start',first,esc)}</label><label data-period-field>Окончание${dayInput('date_end',last,esc)}</label></div>
+ <div data-dated-fields><div class="form-columns"><label><span data-start-label>Дата</span>${dateInput('date_start',first,esc)}</label><label data-period-field>Окончание${dateInput('date_end',last,esc)}</label></div>
  <label class="inline-check"><input type="checkbox" name="exact_time" ${start||end?'checked':''}> Указать точное время</label>
  <div class="form-columns" data-exact-fields><div><label><span data-time-label>Время</span><input class="ui-field ui-field--soft" name="start_time" type="time" value="${esc(start?.time||end?.time||'')}"></label><div data-clock-info="start"></div></div>
  <div data-period-field><label>Время окончания<input class="ui-field ui-field--soft" name="end_time" type="time" value="${esc(end?.time||'')}"></label><div data-clock-info="end"></div></div></div>
  <p class="muted">Время местное, по плану поездки. Для периода нужны обе даты, а при точном времени — и оба времени.</p></div>
- <label class="inline-check"><input name="fixed_external" type="checkbox" ${item.fixed_external?'checked':''}> Фиксированная внешняя дата / время</label></fieldset>`;
+ ${showFixed?`<label class="inline-check"><input name="fixed_external" type="checkbox" ${item.fixed_external?'checked':''}> Фиксированная внешняя дата / время</label>`:''}</fieldset>`;
  const selected={start:null,end:null};
  function mount(form){
   const f=form.elements,field=form.querySelector('.planning-item-dates');
@@ -158,7 +158,7 @@ const zoneRegions={
  Asia:'Азия',Atlantic:'Атлантика',Australia:'Австралия',Europe:'Европа',
  Indian:'Индийский океан',Pacific:'Тихий океан',other:'Другие пояса'
 };
-function zoneOptions(changes,esc){
+export function zoneOptions(changes,esc){
  const option=(zone,label)=>`<option value="${esc(zone)}">${esc(label)}</option>`;
  // Keep saved identifiers selectable even if the browser omits them from its list.
  const zones=new Set([...(Intl.supportedValuesOf?.('timeZone')||[]),...changes.map(change=>change.zone)]);
@@ -177,7 +177,7 @@ function zoneOptions(changes,esc){
 export function editTripTime({trip,plan,esc,showDialog,dialog,setBusy,setDirty,error,api,load,review,toast}){
  const optionsHtml=zoneOptions(plan.changes,esc);
  showDialog('Даты поездки и часовые пояса',`<form id="planning-trip-form" class="planning-form">
- <label>Вылет${dayInput('departure_date',trip.departure_date,esc)}</label><div class="form-columns"><label>Начало пребывания${dayInput('start_date',trip.start_date,esc)}</label><label>Окончание${dayInput('end_date',trip.end_date,esc)}</label></div>
+ <label>Вылет${dateInput('departure_date',trip.departure_date,esc)}</label><div class="form-columns"><label>Начало пребывания${dateInput('start_date',trip.start_date,esc)}</label><label>Окончание${dateInput('end_date',trip.end_date,esc)}</label></div>
  <section class="trip-zone-editor"><h3>Часовые пояса поездки</h3><p class="muted">Выберите новый пояс и укажите дату и время смены по его местным часам. В этот момент календарь переключится на новый пояс. Смену можно запланировать, например, за час до посадки.</p>
  <div class="trip-zone-initial"><strong>Москва</strong><span class="timezone-badge">Europe/Moscow · UTC+3</span></div><div data-zone-changes></div>
  <button type="button" class="ui-button ui-button--quiet ui-button--compact" data-zone-change-add>＋ Добавить смену пояса</button></section>
@@ -188,7 +188,7 @@ export function editTripTime({trip,plan,esc,showDialog,dialog,setBusy,setDirty,e
   row.className='trip-zone-change ui-fieldset';
   row.innerHTML=`<legend>Смена часового пояса</legend>
    <div class="form-columns trip-zone-details"><label>Новый часовой пояс<select class="ui-field ui-field--soft" name="zone" required>${optionsHtml}</select></label><label>Регион (необязательно)<input class="ui-field ui-field--soft" name="region" value="${esc(p?.region||'')}" maxlength="60" placeholder="Тайвань"></label></div>
-   <div class="form-columns"><label>Дата смены${dayInput('day',p?.day||trip.start_date,esc)}</label><label>Время смены<input class="ui-field ui-field--soft" type="time" name="time" value="${esc(p?.time||'')}" required></label></div>
+   <div class="form-columns"><label>Дата смены${dateInput('day',p?.day||trip.start_date,esc)}</label><label>Время смены<input class="ui-field ui-field--soft" type="time" name="time" value="${esc(p?.time||'')}" required></label></div>
    <div data-zone-offset></div><button type="button" class="ui-button ui-button--quiet ui-button--compact" data-zone-change-remove>Убрать смену пояса</button>`;
   const {day,time,zone}=row.elements;
   day.required=true;
