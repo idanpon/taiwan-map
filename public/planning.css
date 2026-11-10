@@ -53,12 +53,15 @@
 .planning-month-grid { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); }
 .planning-weekday { text-align: center; font-size: var(--ui-text-caption); color: var(--ui-text-muted); padding: var(--ui-space-3) 0; }
 .planning-calendar-day { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; min-height: 62px; padding: 7px; border-radius: 0; border: 0; border-top: 1px solid var(--ui-border-panel); color: var(--ui-text); background: transparent; }
+.planning-calendar-day.other-month:not(.is-trip,[aria-pressed=true]) {
+ --ui-action-fill: var(--ui-calendar-other-month-fill);
+}
 .planning-calendar-day.other-month:not(.is-trip,[aria-pressed=true]) .planning-day-number {
  color: var(--planning-other-month-ink,var(--ui-calendar-other-month));
 }
-.planning-calendar-day:active { --planning-other-month-ink: var(--ui-text-muted); }
+.planning-calendar-day:active { --planning-other-month-ink: var(--ui-text); }
 @media (hover: hover) and (pointer: fine) {
- :where(:root:not([data-ui-touch])) .planning-calendar-day:hover { --planning-other-month-ink: var(--ui-text-muted); }
+ :where(:root:not([data-ui-touch])) .planning-calendar-day:hover:not(:active) { --planning-other-month-ink: var(--ui-text-muted); }
 }
 .planning-calendar-day.is-trip { --ui-action-fill: color-mix(in srgb,var(--ui-surface-selected) 55%,var(--ui-surface-panel)); }
 .planning-calendar-day[aria-pressed=true] { --ui-action-fill: var(--ui-surface-selected); }
@@ -103,11 +106,11 @@
 .planning-card-icon { display: flex; flex: none; padding: 5px; border-radius: 8px; background: var(--ui-surface-selected); color: var(--ui-accent); }
 .planning-card.kind-task .planning-card-icon { background: var(--ui-surface-icon); color: var(--ui-text-muted); }
 .planning-card.kind-decision .planning-card-icon { background: var(--ui-decision-surface); color: var(--ui-decision); }
-.planning-card-meta { display: block; margin-top: var(--ui-space-1); font-size: var(--ui-text-caption); color: var(--ui-text-muted); }
+.planning-card-meta { display: block; margin-top: var(--ui-space-1); font-size: var(--ui-text-caption); color: var(--planning-card-muted,var(--ui-text-muted)); }
 .planning-card-signals { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ui-space-1) var(--ui-space-2); }
 .planning-card-next { display: block; color: var(--ui-accent); font-size: var(--ui-text-caption); margin-bottom: var(--ui-space-1); }
 .planning-card.is-done .planning-card-title { text-decoration: line-through; }
-.planning-card.is-done .planning-card-title { color: var(--ui-text-muted); }
+.planning-card.is-done .planning-card-title { color: var(--planning-card-muted,var(--ui-text-muted)); }
 .planning-card .planning-finish { align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: var(--ui-space-1); min-height: 64px; height: auto; width: 64px; padding: var(--ui-space-2) var(--ui-space-1); border-color: color-mix(in srgb,var(--ui-action-fill) 60%,currentColor); border-radius: var(--ui-radius-control); font-size: 11px; }
 .planning-card .planning-finish svg { width: 22px; height: 22px; }
 .planning-card[aria-busy=true] { opacity: .6; cursor: progress; }
@@ -386,8 +389,16 @@ label.time-choice, .time-choice-custom > label { display: flex; align-items: fle
 }
 
 .planning-stays { display: grid; gap: var(--ui-space-2); margin-bottom: var(--ui-space-2); }
-.planning-card.kind-stay,.planning-stay-transfer { --planning-travel-tint: var(--ui-lodging); }
-.planning-card.kind-transport { --planning-travel-tint: var(--ui-accent); }
+.planning-card.kind-stay,.planning-stay-transfer {
+ --planning-travel-tint: var(--ui-lodging);
+ --planning-tint-a: var(--ui-lodging-tint-a);
+ --planning-tint-b: var(--ui-lodging-tint-b);
+}
+.planning-card.kind-transport {
+ --planning-travel-tint: var(--ui-accent);
+ --planning-tint-a: var(--ui-transport-tint-a);
+ --planning-tint-b: var(--ui-transport-tint-b);
+}
 .planning-card:is(.kind-stay,.kind-transport),.planning-stay-transfer {
  --ui-depth-panel: linear-gradient(90deg,
   color-mix(in srgb,var(--planning-travel-tint) 6%,var(--ui-depth-start)),
@@ -395,6 +406,18 @@ label.time-choice, .time-choice-custom > label { display: flex; align-items: fle
   color-mix(in srgb,var(--planning-travel-tint) 6%,var(--ui-depth-end)));
  --ui-depth-panel-hover: linear-gradient(var(--ui-hover-layer),var(--ui-hover-layer)),var(--ui-depth-panel);
  --ui-depth-panel-press: linear-gradient(var(--ui-press-layer),var(--ui-press-layer)),var(--ui-depth-panel);
+}
+@supports (color: oklab(from white calc(l - .038) a b)) {
+ .planning-card:is(.kind-stay,.kind-transport),.planning-stay-transfer {
+  --planning-shift-l: calc(l + var(--ui-travel-lightness-shift));
+  --planning-shift-a: calc(a + var(--planning-tint-a));
+  --planning-shift-b: calc(b + var(--planning-tint-b));
+  --planning-card-muted: color-mix(in srgb,var(--ui-text-muted) 75%,var(--ui-text));
+  --ui-depth-panel: linear-gradient(var(--ui-depth-direction),
+   oklab(from var(--ui-depth-start) var(--planning-shift-l) var(--planning-shift-a) var(--planning-shift-b)),
+   oklab(from var(--ui-depth-middle) var(--planning-shift-l) var(--planning-shift-a) var(--planning-shift-b)) 38%,
+   oklab(from var(--ui-depth-end) var(--planning-shift-l) var(--planning-shift-a) var(--planning-shift-b)));
+ }
 }
 .planning-card.kind-stay .planning-card-icon { background: var(--ui-lodging-surface); color: var(--ui-lodging); }
 .planning-stay-transfer {
@@ -434,7 +457,7 @@ label.time-choice, .time-choice-custom > label { display: flex; align-items: fle
 .planning-stay-direction svg { width: 16px; height: 16px; flex: none; stroke-width: 2.5; }
 .planning-transport-route { margin-top: var(--ui-space-1); }
 .planning-transport-route { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ui-space-1); font-size: var(--ui-text-caption); }
-.planning-transport-route > svg { align-self: center; width: 13px; height: 13px; color: var(--ui-text-muted); }
+.planning-transport-route > svg { align-self: center; width: 13px; height: 13px; color: var(--planning-card-muted,var(--ui-text-muted)); }
 .planning-transport-route small { white-space: nowrap; }
 .planning-travel-details { display: grid; gap: var(--ui-space-2); overflow-wrap: anywhere; }
 .planning-travel-details dt { font-size: var(--ui-text-caption); color: var(--ui-text-muted); }
