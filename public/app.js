@@ -11,7 +11,7 @@ import {categoryIcon as icon} from './categories.js';
 import {createHelpUI} from './help.js';
 import {createThemeUI} from './theme.js';
 import {createMapView} from './map-view.js';
-import {createMapStatusMenu,installMapMarkerHold} from './map-status-menu.js';
+import {installMapMarkerActions} from './map-marker-actions.js';
 import {createAuthStartup,createLoadingScreenUI} from './auth-startup.js';
 import {createPlaceLifecycleUI} from './place-lifecycle.js';
 import {installSheetSwipe} from './sheet-swipe.js';
@@ -36,12 +36,15 @@ async function api(path,options={}){if(configurationError)throw new Error(config
 async function exportData(event){event.preventDefault();try{const content=await api('/api/export');const blob=new Blob([JSON.stringify(content,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='taiwan-map.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(e){toast(e.message)}}
 let accountUI,placeUI,startup;
 const canEdit=()=>['admin','editor'].includes(data?.user?.role);
-const mapStatusMenu=createMapStatusMenu({esc,onSelect:saveQuickStatus});
 const compactMap=matchMedia('(max-width:1000px)');
-compactMap.addEventListener('change',event=>{if(!event.matches)mapStatusMenu.close()});
-installMapMarkerHold($('map'),{
- enabled:()=>compactMap.matches&&canEdit()&&!busy&&!$('application').inert&&!document.querySelector('dialog[open]'),
- onHold:openQuickStatus
+installMapMarkerActions($('map'),{
+ actionsFor(id){
+  if(!compactMap.matches||busy||$('application').inert||document.querySelector('dialog[open]'))return [];
+  const place=data?.places.find(value=>value.id===id);
+  if(!place)return [];
+  return canEdit()&&place.status_id!=='visited'?['route','visited']:['route'];
+ },
+ onAction:runMarkerAction
 });
 function showLogin(){
  notice.clear();
@@ -129,49 +132,48 @@ function showPlaceSaved(place,becameVisited){
  if(!becameVisited||!placeRatings.offer([place]))toast('Изменения сохранены.','success');
 }
 
-function openQuickStatus(id){
+function runMarkerAction(id,action){
  if(dirty){toast('Сначала сохраните изменения в открытой карточке.');return}
  const place=data.places.find(value=>value.id===id);
- if(place)mapStatusMenu.open(place,data.statuses);
+ if(!place)return;
+ if(action==='route'){
+  const url=new URL('https://www.google.com/maps/dir/');
+  url.searchParams.set('api','1');
+  url.searchParams.set('destination',place.lat+','+place.lon);
+  location.assign(url);
+ }else if(canEdit()&&place.status_id!=='visited'){
+  void markPlaceVisited(place);
+ }
 }
 
-async function saveQuickStatus(id,statusId){
- if(!canEdit()||busy||dirty)return;
- const place=data.places.find(value=>value.id===id);
- if(!place){mapStatusMenu.close();toast('Место не найдено.');return}
- if((place.status_id??null)===statusId){mapStatusMenu.close();return}
+async function markPlaceVisited(place){
  busy=true;
  ++loadSequence;
- mapStatusMenu.setSaving(true);
  try{
-  await writePlaceState(place,statusId,place.note);
-  mapStatusMenu.close();
+  await writePlaceState(place,'visited',place.note);
   render();
   const statusField=$('place-status');
-  if(selected===id&&statusField&&!dirty){
-   statusField.value=statusId||'';
+  if(selected===place.id&&statusField&&!dirty){
+   statusField.value='visited';
    document.querySelector('#detail .planning-status-conflict')?.remove();
    placeRatings.refreshCard(place);
   }
-  showPlaceSaved(place,statusId==='visited');
+  showPlaceSaved(place,true);
  }catch(error){
-  if(error.status===401||error.status===403){
-   mapStatusMenu.close();
-   toast(error.message);
-  }else{
-   mapStatusMenu.showError(error);
-  }
-  if([404,409].includes(error.status)&&error.details?.code!=='planning_decision_required'){
+  if(error.details?.code==='planning_decision_required'){
+   const decision=error.details.decisions?.[0];
+   notice.show(error.message,{tone:'warning',action:decision&&{
+    label:'В План',
+    run:()=>location.assign('./planning.html#item='+encodeURIComponent(decision.id))
+   }});
+  }else if([404,409].includes(error.status)){
    try{
-    await load();
-    const current=data.places.find(value=>value.id===id);
-    if(current&&canEdit())mapStatusMenu.update(current,data.statuses);
-    else mapStatusMenu.close();
-   }catch(refreshError){mapStatusMenu.showError(refreshError)}
-  }
+    if(!dirty)await load();
+    toast(error.message,'warning');
+   }catch(refreshError){toast(refreshError.message,'warning')}
+  }else toast(error.message,'warning');
  }finally{
   busy=false;
-  mapStatusMenu.setSaving(false);
  }
 }
 

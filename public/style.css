@@ -242,11 +242,71 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
 .map-pin-button { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; background: none; }
 @media (max-width: 1000px) {
  .map-pin-button[data-map-place] { -webkit-touch-callout: none; user-select: none; }
- dialog.map-status-menu.ui-sheet[open] {
-  left: var(--ui-sheet-mobile-left);
-  right: var(--ui-sheet-mobile-right);
-  width: auto;
-  animation: none;
+ .map-pin-button[data-quick-action] { z-index: 502 !important; }
+ .map-pin-button[data-quick-action]::after { visibility: hidden; }
+ .map-quick-actions, .map-quick-direction {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+ }
+ .map-quick-actions::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border: 1px dashed var(--ui-border-selected);
+  border-radius: 50%;
+ }
+ .map-quick-direction {
+  --glow-length: 36px;
+  --glow-opacity: .43;
+ }
+ .map-quick-direction[data-action=route] {
+  --glow-color: light-dark(#287a9d, #8fcfe7);
+  --hint-color: var(--ui-accent);
+ }
+ .map-quick-direction[data-action=visited] {
+  --glow-color: light-dark(#3d8659, #9bd5ad);
+  --hint-color: var(--ui-success);
+ }
+ .map-quick-direction::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(2 * (28px + var(--glow-length)));
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: conic-gradient(from -60deg, transparent, var(--glow-color) 8deg 112deg, transparent 120deg);
+  mask-image: radial-gradient(circle, transparent 26px, black 29px, transparent calc(28px + var(--glow-length)));
+  opacity: var(--glow-opacity);
+ }
+ .map-quick-direction[data-action=visited]::before { rotate: 180deg; }
+ .map-pin-button[data-quick-action=route] .map-quick-direction[data-action=route],
+ .map-pin-button[data-quick-action=visited] .map-quick-direction[data-action=visited] {
+  --glow-length: 41.4px;
+  --glow-opacity: .86;
+ }
+ .map-pin-button[data-quick-action=route] .map-quick-direction[data-action=visited],
+ .map-pin-button[data-quick-action=visited] .map-quick-direction[data-action=route] { --glow-opacity: .16; }
+ .map-quick-hint {
+  position: absolute;
+  top: calc(50% + var(--map-quick-label-y));
+  left: calc(50% + var(--map-quick-label-x));
+  translate: -50% -50%;
+  padding: var(--ui-space-1) var(--ui-space-2);
+  border: 1px solid var(--ui-border-panel);
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-surface-panel);
+  color: var(--hint-color);
+  box-shadow: var(--ui-shadow-panel);
+  white-space: nowrap;
+  font-size: var(--ui-text-caption);
+ }
+ .map-pin-button[data-quick-action=route] [data-action=route] .map-quick-hint,
+ .map-pin-button[data-quick-action=visited] [data-action=visited] .map-quick-hint {
+  background: color-mix(in srgb, var(--glow-color) 20%, var(--ui-surface-panel));
+  border-color: var(--glow-color);
  }
 }
 .map-pin-button.has-stay::before {
