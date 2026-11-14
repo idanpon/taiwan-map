@@ -1,3 +1,4 @@
+import {isAppleMobile} from './client-runtime.js';
 export const pushIcon='<svg class="notification-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9m-8 12a2 2 0 0 0 4 0"/></svg>';
 const put=value=>({method:'PUT',body:JSON.stringify(value)});
 const post=value=>({method:'POST',body:JSON.stringify(value)});
@@ -7,11 +8,10 @@ const safeStorage={
  remove(key){try{localStorage.removeItem(key)}catch{}}
 };
 const supported=()=>isSecureContext&&'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;
-const appleMobile=()=>/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const installed=()=>navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
 const permission=()=>window.Notification?.permission||'default';
 const installHelp='На iPhone и iPad откройте сайт в Safari, выберите «Поделиться» → «На экран Домой», затем откройте Тайвань с домашнего экрана.';
-const defaultName=()=>appleMobile()?(navigator.userAgent.includes('iPhone')?'iPhone':'iPad'):/Android/.test(navigator.userAgent)?'Android':/Mac/.test(navigator.userAgent)?'Mac':/Windows/.test(navigator.userAgent)?'Windows':'Браузер';
+const defaultName=()=>isAppleMobile(navigator)?(navigator.userAgent.includes('iPhone')?'iPhone':'iPad'):/Android/.test(navigator.userAgent)?'Android':/Mac/.test(navigator.userAgent)?'Mac':/Windows/.test(navigator.userAgent)?'Windows':'Браузер';
 const publicKeyBytes=key=>Uint8Array.from(atob(key.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
 export function createNotificationUI({api,esc,getUser,toast,root,onChange=()=>{}}){
  let owner=null,settings=null,registration=null,registrationPromise=null,localSubscription=null,fetching=null,loadError='',busy=false,installation=null;
@@ -33,7 +33,7 @@ export function createNotificationUI({api,esc,getUser,toast,root,onChange=()=>{}
   const d=current(),others=settings?.devices.filter(d=>d.installation_id!==installation&&active(d)).length||0;
   const connected=Boolean(d&&active(d)&&localSubscription&&permission()==='granted');
   let detail;
-  if(appleMobile()&&!installed())detail=installHelp;
+  if(isAppleMobile(navigator)&&!installed())detail=installHelp;
   else if(!supported())detail='Этот браузер не поддерживает пуши. Подключите другое устройство.';
   else if(permission()==='denied')detail='Пуши запрещены на этом устройстве. Разрешите уведомления в настройках устройства или браузера.';
   else if(!settings)detail=loadError||'Проверяем устройства…';
@@ -44,10 +44,10 @@ export function createNotificationUI({api,esc,getUser,toast,root,onChange=()=>{}
   const paused=settings?.paused??false;
   const noDevices=Boolean(settings&&!connected&&!others);
   return {connected,others,paused,noDevices,detail,available:Boolean(settings?.available),
-   canConnect:Boolean(settings?.available&&supported()&&(!appleMobile()||installed())&&permission()!=='denied'&&!connected)};
+   canConnect:Boolean(settings?.available&&supported()&&(!isAppleMobile(navigator)||installed())&&permission()!=='denied'&&!connected)};
  }
  async function prepare(){
-  if(!supported()||(appleMobile()&&!installed()))return null;
+  if(!supported()||(isAppleMobile(navigator)&&!installed()))return null;
   if(!registrationPromise){
    registrationPromise=navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'}).then(async r=>{
     registration=r;
@@ -135,7 +135,7 @@ export function createNotificationUI({api,esc,getUser,toast,root,onChange=()=>{}
  function renderInvitation(){
   if(!invite)return;
   const s=status();
-  const useful=s.available&&!s.connected&&permission()!=='denied'&&(s.canConnect||appleMobile()&&!installed());
+  const useful=s.available&&!s.connected&&permission()!=='denied'&&(s.canConnect||isAppleMobile(navigator)&&!installed());
   invite.hidden=!owner||!useful||invitationDismissed||!invitationShown&&Boolean(safeStorage.get(invitationKey()));
   if(invite.hidden)return;
   if(!invitationShown){invitationShown=true;safeStorage.set(invitationKey(),'seen')}
