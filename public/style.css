@@ -132,10 +132,22 @@ button:disabled { opacity: .55; cursor: not-allowed; }
  line-height: 1;
 }
 .place-group { --ui-sheet-width: 400px; max-height: min(65dvh, 480px); }
+dialog.place-group::backdrop { --ui-backdrop: transparent; }
+.place-group .ui-overlay-heading {
+ background: var(--ui-surface-panel);
+ border-bottom: 1px solid var(--ui-border-panel);
+}
 .place-group .ui-overlay-title { font-size: var(--ui-text-section); }
-.place-group .ui-list-item { min-height: var(--ui-control); align-items: center; }
+.place-group .ui-list { display: grid; gap: var(--ui-space-2); padding: 0; }
+.place-group .ui-list-item {
+ --ui-action-fill: color-mix(in srgb, var(--ui-surface-soft) 35%, var(--ui-surface-panel));
+ min-height: var(--ui-control);
+ align-items: center;
+ padding: var(--ui-space-2) var(--ui-space-3);
+ border-color: var(--ui-border-panel);
+}
 .place-group .place-name { margin-bottom: 0; }
-.place-group .card-status { margin-top: 2px; }
+.place-group .card-status { margin-top: var(--ui-space-1); }
 @media (max-width: 1000px) {
  .place-group.ui-sheet { left: var(--ui-sheet-mobile-left); right: var(--ui-sheet-mobile-right); width: auto; }
 }

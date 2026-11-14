@@ -65,10 +65,11 @@ export function createMapView({container,statusElement,retryButton,statusText,li
    }return;
   }
   for(const [key, group] of groups){
-   const p=group[0],c=p.category,s=p.status,multiple=group.length>1;
+   const selectedPlace=group.find(place=>place.id===selected);
+   const p=selectedPlace||group[0],c=p.category,s=p.status,multiple=group.length>1&&!selectedPlace;
    const label=multiple?placeCountLabel(group.length)+' в этой точке':p.name+(s?' · '+s.label:'')+(p.has_stay?' · Есть проживание':'');
    const element=markerButton(label,p.has_stay?'map-pin-button has-stay':'map-pin-button');
-   const active=group.some(place=>place.id===selected);
+   const active=Boolean(selectedPlace);
    if(multiple){
     element.dataset.mapGroup=key;
     element.setAttribute('aria-haspopup','dialog');
