@@ -254,11 +254,11 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
   --glow-opacity: .43;
  }
  .map-quick-direction[data-action=maps] {
-  --glow-color: light-dark(color-mix(in srgb, var(--ui-accent) 78%, var(--ui-surface-panel)), #8fcfe7);
+  --glow-color: light-dark(#2c85ab, #8fcfe7);
   --hint-color: var(--ui-accent);
  }
  .map-quick-direction[data-action=visited] {
-  --glow-color: light-dark(color-mix(in srgb, var(--ui-success) 72%, var(--ui-surface-panel)), #9bd5ad);
+  --glow-color: light-dark(#439261, #9bd5ad);
   --hint-color: var(--ui-success);
  }
  .map-quick-direction::before {
