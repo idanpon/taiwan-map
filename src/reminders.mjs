@@ -4,6 +4,9 @@ import {TRIP,body,fail,json,Problem} from './auth.mjs';
 import {all,one,run,transaction} from './sqlite.mjs';
 import {validDate} from '../public/planning-model.js';
 import {validClock,namedZone,localInstants,tripLocalInstants,localPoint,localConflict,resolveLocalChoice,minute} from '../public/trip-timezones.js';
+import {applicablePlanningIds} from './planning-applicability.mjs';
+import { readSources, planningModel } from './planning-domain-store.mjs';
+import { deadlineTarget } from '../public/planning-deadline-view.js';
 
 const open=item=>item.state==='open'||item.state==='in_progress';
 const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -27,7 +30,7 @@ function ruleView(row,item,plan){
  return {
   enabled:Boolean(row.enabled),version:row.version,mode:row.mode,local_time:row.local_time,offset_minutes:row.offset_minutes,
   scheduled:row.fires_at!==null?localPoint(row.fires_at,plan):null,review:row.review,
-  sent:row.sent_generation===row.generation,active:open(item),adjusted:row.chosen_at!==null
+  sent:row.sent_generation===row.generation,active:open(item)&&item._applicable!==false,adjusted:row.chosen_at!==null
  };
 }
 function writeRule(db,row,change,now,{rearm=false}={}){
@@ -38,20 +41,32 @@ function writeRule(db,row,change,now,{rearm=false}={}){
   next.enabled,next.mode,next.local_time,next.offset_minutes,next.fires_at,next.chosen_at,next.chosen_revision,next.review,Number(reschedule),now,row.id);
  if(reschedule)run(db,"UPDATE push_deliveries SET state='expired' WHERE reminder_id=? AND state IN ('queued','sending')",row.id);
 }
-const getRule=(db,user,id)=>one(db,'SELECT * FROM planning_reminders WHERE user_id=? AND item_id=?',user,id);
-const readItem=(db,id)=>one(db,'SELECT * FROM planning_items WHERE id=? AND trip_id=?',id,TRIP);
+const getRule=(db,user,id,deadline=false)=>one(db,'SELECT * FROM planning_reminders WHERE user_id=? AND '+(deadline?'deadline_id':'item_id')+'=?',user,id);
+export function reminderTarget(db, row, sources=null, now=Date.now()) {
+ if(row.deadline_id){
+  if(planningModel(db)!==3)return null;
+  return deadlineTarget(sources||readSources(db).sources,row.deadline_id,undefined,now);
+ }
+ return readItem(db,row.item_id);
+}
+const anchorPlan=(item,plan)=>item._reminder_timezone?{revision:plan.revision,changes:[{at:-8640000000000000,zone:item._reminder_timezone,region:''}]}:plan;
+const readItem=(db,id)=>{
+ const item=one(db,'SELECT * FROM planning_items WHERE id=? AND trip_id=?',id,TRIP);
+ if(item){const applicable=applicablePlanningIds(db);item._applicable=applicable?applicable.has(id):true;}
+ return item;
+};
 
 function resolveRule(db,item,user,input,now){
- const current=getRule(db,user.id,item.id),plan=readZonePlan(db);
+ const current=getRule(db,user.id,item.id,Boolean(item.deadline_id)),plan=anchorPlan(item,readZonePlan(db));
  if(input.version!==(current?.version??null)||input.item_version!==item.version||input.timezone_revision!==plan.revision)
   conflict('Запись или напоминание изменились. Откройте карточку заново.');
  if(typeof input.enabled!=='boolean')fail(400,'Укажите, включено ли напоминание.');
  if(!input.enabled){
   if(current?.enabled)writeRule(db,current,{enabled:0,review:null},now);
-  return ruleView(getRule(db,user.id,item.id),item,plan);
+  return ruleView(getRule(db,user.id,item.id,Boolean(item.deadline_id)),item,plan);
  }
  const anchor=reminderAnchor(item);
- if(!anchor||!open(item))fail(400,'Для напоминания нужна дата открытой записи.');
+ if(!anchor||!open(item)||item._applicable===false)fail(400,'Для напоминания нужна дата применимой открытой записи.');
  const next={enabled:1,mode:anchor.mode,local_time:null,offset_minutes:null,fires_at:null,chosen_at:null,chosen_revision:null,review:null};
  if(anchor.mode==='offset'){
   if(!Number.isSafeInteger(input.offset_minutes)||input.offset_minutes<0||input.offset_minutes>43200)fail(400,'Укажите интервал от 0 минут до 30 дней.');
@@ -69,7 +84,7 @@ function resolveRule(db,item,user,input,now){
    if(!picked)fail(400,'Выберите существующее время и его пояс.');
    if(picked.off){
     if(current)writeRule(db,current,{enabled:0,review:null},now);
-    return ruleView(getRule(db,user.id,item.id),item,plan);
+    return ruleView(getRule(db,user.id,item.id,Boolean(item.deadline_id)),item,plan);
    }
    next.fires_at=next.chosen_at=picked.at;
    next.chosen_revision=plan.revision;
@@ -77,25 +92,25 @@ function resolveRule(db,item,user,input,now){
  }
  if(next.fires_at<=now)fail(400,'Выберите время отправки в будущем.');
  if(current)writeRule(db,current,next,now,{rearm:true});
- else run(db,`INSERT INTO planning_reminders(id,user_id,item_id,enabled,mode,local_time,offset_minutes,fires_at,chosen_at,chosen_revision,updated_at)
-  VALUES(?,?,?,?,?,?,?,?,?,?,?)`,crypto.randomUUID(),user.id,item.id,1,next.mode,next.local_time,next.offset_minutes,next.fires_at,next.chosen_at,next.chosen_revision,now);
- return ruleView(getRule(db,user.id,item.id),item,plan);
+ else run(db,`INSERT INTO planning_reminders(id,user_id,item_id,deadline_id,enabled,mode,local_time,offset_minutes,fires_at,chosen_at,chosen_revision,updated_at)
+  VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,crypto.randomUUID(),user.id,item.deadline_id?null:item.id,item.deadline_id||null,1,next.mode,next.local_time,next.offset_minutes,next.fires_at,next.chosen_at,next.chosen_revision,now);
+ return ruleView(getRule(db,user.id,item.id,Boolean(item.deadline_id)),item,plan);
 }
 
 // An edit can invalidate pending reminders. Completed deliveries are never re-armed
 // by shared changes; a user can still explicitly choose a new reminder.
-export function refreshItemReminders(db,old,item,now=Date.now()){
+export function refreshItemReminders(db,old,item,now=Date.now(),{beforeApplicable=true,applicable=true}={}){
  const before=reminderAnchor(old),anchor=reminderAnchor(item);
- if(JSON.stringify(before)===JSON.stringify(anchor)&&open(old)===open(item))return;
- const rows=all(db,'SELECT * FROM planning_reminders WHERE item_id=? AND enabled=1 AND sent_generation IS NOT generation',item.id);
+ if(JSON.stringify(before)===JSON.stringify(anchor)&&open(old)===open(item)&&beforeApplicable===applicable&&old._reminder_timezone===item._reminder_timezone)return;
+ const rows=all(db,'SELECT * FROM planning_reminders WHERE '+(item.deadline_id?'deadline_id':'item_id')+'=? AND enabled=1 AND sent_generation IS NOT generation',item.id);
  if(!rows.length)return;
- const plan=readZonePlan(db);
+ const plan=anchorPlan(item,readZonePlan(db));
  for(const row of rows){
-  if(!open(item)){
+  if(!open(item)||!applicable){
    run(db,"UPDATE push_deliveries SET state='expired' WHERE reminder_id=? AND state IN ('queued','sending')",row.id);
    continue;
   }
-  if(JSON.stringify(before)===JSON.stringify(anchor))continue;
+  if(JSON.stringify(before)===JSON.stringify(anchor)&&beforeApplicable===applicable&&old._reminder_timezone===item._reminder_timezone)continue;
   const next={fires_at:null,review:'date_changed',chosen_at:null,chosen_revision:null};
   if(anchor?.mode===row.mode){
    if(row.mode==='offset')next.fires_at=anchor.at-row.offset_minutes*minute;
@@ -110,6 +125,14 @@ export function refreshItemReminders(db,old,item,now=Date.now()){
    else next.fires_at=null;
   }
   writeRule(db,row,next,now);
+ }
+}
+
+export function refreshDeadlineReminders(db,before,after,now=Date.now()){
+ for(const row of all(db,'SELECT DISTINCT deadline_id FROM planning_reminders WHERE deadline_id IS NOT NULL')){
+  const old=deadlineTarget(before,row.deadline_id,undefined,now),item=deadlineTarget(after,row.deadline_id,undefined,now);
+  if(!old||!item)continue;
+  refreshItemReminders(db,old,item,now,{beforeApplicable:old._applicable,applicable:item._applicable});
  }
 }
 
@@ -188,21 +211,22 @@ function applyZones(db,user,b,now){
  }
  run(db,'UPDATE trips SET departure_date=?,start_date=?,end_date=?,planning_version=planning_version+1,timezone_revision=? WHERE id=?',
   dates.departure_date,dates.start_date,dates.end_date,plan.revision,TRIP);
- run(db,'INSERT INTO planning_events VALUES(?,?,?,?,?,?,?)',crypto.randomUUID(),TRIP,null,user.id,'trip',JSON.stringify({...dates,timezone_changes:plan.changes}),now);
+ run(db,'INSERT INTO planning_events(id,trip_id,item_id,actor_id,action,payload,created_at) VALUES(?,?,?,?,?,?,?)',crypto.randomUUID(),TRIP,null,user.id,'trip',JSON.stringify({...dates,timezone_changes:plan.changes}),now);
  return {ok:true,version:b.version+1,timezone_plan:plan};
 }
 export async function handleReminders(request,db,user){
  const {pathname:path}=new URL(request.url),method=request.method;
- const match=path.match(/^\/api\/planning\/items\/([a-zA-Z0-9-]+)\/reminder$/);
+ const match=path.match(/^\/api\/planning\/(items|deadlines)\/([a-zA-Z0-9_-]+)\/reminder$/);
  if(match){
+  const target=()=>reminderTarget(db,match[1]==='deadlines'?{deadline_id:match[2]}:{item_id:match[2]});
   if(method==='GET'){
-   const item=readItem(db,match[1]);if(!item)fail(404,'Запись календаря не найдена.');
-   return json({reminder:ruleView(getRule(db,user.id,item.id),item,readZonePlan(db))});
+   const item=target();if(!item)fail(404,'Запись календаря не найдена.');
+   return json({reminder:ruleView(getRule(db,user.id,item.id,Boolean(item.deadline_id)),item,anchorPlan(item,readZonePlan(db)))});
   }
   if(method!=='PUT')fail(405,'Неизвестное действие.');
   const b=await body(request);
   return transaction(db,()=>{
-   const item=readItem(db,match[1]);if(!item)fail(404,'Запись календаря не найдена.');
+   const item=target();if(!item)fail(404,'Запись календаря не найдена.');
    return json({reminder:resolveRule(db,item,user,b,Date.now())});
   });
  }

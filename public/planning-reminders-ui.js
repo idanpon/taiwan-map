@@ -13,10 +13,11 @@ function offsetLabel(minutes){
  return 'За '+[days?days+' дн.':'',hours?hours+' ч':'',rest?rest+' мин':''].filter(Boolean).join(' ');
 }
 export function reminderCard({mount,item,plan,notifications,api,esc,review,setDirty,setBusy,toast,openSettings}){
- const path='/api/planning/items/'+encodeURIComponent(item.id)+'/reminder';
+ const path='/api/planning/'+(item.deadline_id?'deadlines':'items')+'/'+encodeURIComponent(item.id)+'/reminder';
+ if(item._reminder_timezone)plan={revision:plan.revision,changes:[{at:-8640000000000000,zone:item._reminder_timezone,region:''}]};
  const day=item.date_start||item.date_end,exact=item.starts_at?Date.parse(item.starts_at):null;
  let rule=null,loading=true,error='';
- const eligible=Boolean((day||exact!==null)&&active(item)&&(isTravel(item.kind)||!(item.ends_at&&!item.starts_at)));
+ const eligible=Boolean((day||exact!==null)&&active(item)&&item._applicable!==false&&(isTravel(item.kind)||!(item.ends_at&&!item.starts_at)));
  const section=mount;
  function deviceInfo(){
   const s=notifications.status();

@@ -1,6 +1,8 @@
 import { TRIP, SHARED_USER, fail, Problem } from './auth.mjs';
 import { all, one } from './sqlite.mjs';
 import { readZonePlan } from './reminders.mjs';
+import { readSources } from './planning-domain-store.mjs';
+import { activePlacement, taskApplicable } from '../public/planning-readiness.js';
 const conflict = (message, details = {}) => {
   const error = new Problem(409, message);
   error.details = details;
@@ -12,7 +14,20 @@ export function itemById(db, id) {
   if (!item) fail(404, 'Запись календаря не найдена.');
   return item;
 }
-export function readItem(db, { transport_json, ...row }) {
+export function readItem(db, { transport_json, ...row }, sources=null) {
+  const routeSources=sources||(row.route_owner_decision_id?readSources(db).sources:null);
+  const placement = row.activation_scope_id && ['visit','stay','transport'].includes(row.kind) && (routeSources?
+    routeSources.placements.find(p=>p.item_id===row.id&&activePlacement(routeSources,p)):
+    one(db, "SELECT id FROM planning_placements WHERE item_id=? AND scope_id=? AND participation='included' AND archived_at IS NULL", row.id, row.activation_scope_id));
+  const projectedPlaces = placement ? all(db,
+    "SELECT l.*,p.name current_name,p.hidden FROM planning_placement_places l LEFT JOIN places p ON p.id=l.place_id WHERE l.placement_id=? AND l.archived_at IS NULL AND l.selection='chosen' AND l.role<>'reference' ORDER BY l.sort_order,l.id", placement.id
+  ).map(l => ({
+    id:l.id,item_id:row.id,option_id:null,place_id:l.place_id,
+    place_name:['departure','arrival'].includes(l.role)?l.label_snapshot:l.current_name||l.label_snapshot,
+    current_name:l.current_name,hidden:l.hidden,affects_visit:false,unselected_action:'keep',
+    ...(['lodging','departure','arrival'].includes(l.role)?{role:l.role}:{}),
+    deleted:!l.place_id&&!['departure','arrival'].includes(l.role),
+  })) : null;
   return {
     ...row,
     fixed_external: Boolean(row.fixed_external),
@@ -20,10 +35,10 @@ export function readItem(db, { transport_json, ...row }) {
     ...(transport_json ? { transport: JSON.parse(transport_json) } : {}),
     options: all(
       db,
-      'SELECT * FROM planning_options WHERE item_id=? ORDER BY sort_order,id',
+      'SELECT id,item_id,label,description,sort_order FROM planning_options WHERE item_id=? AND archived_at IS NULL ORDER BY sort_order,id',
       row.id,
     ),
-    places: all(
+    places: projectedPlaces ?? all(
       db,
       'SELECT l.*,p.name current_name,p.hidden FROM planning_item_places l LEFT JOIN places p ON p.id=l.place_id WHERE l.item_id=? ORDER BY l.role,l.option_id,l.place_id,l.place_name,l.id',
       row.id,
@@ -45,7 +60,11 @@ export function readItem(db, { transport_json, ...row }) {
   };
 }
 export function planningData(db, { legacy = false } = {}) {
+  const model = one(db, 'SELECT planning_model FROM trips WHERE id=?', TRIP)?.planning_model;
+  const sources=model===3?readSources(db).sources:null;
   return {
+    model_version: model,
+    ...(model === 3 ? { compatibility: { structural_writes: false, full_model: '/api/planning?model=3' } } : {}),
     trip: one(
       db,
       'SELECT id,name,timezone,departure_date,start_date,end_date,planning_version version FROM trips WHERE id=?',
@@ -54,9 +73,10 @@ export function planningData(db, { legacy = false } = {}) {
     timezone_plan: readZonePlan(db),
     items: all(
       db,
-      'SELECT * FROM planning_items WHERE trip_id=?' + (legacy ? " AND kind IN ('task','decision','visit')" : '') + ' ORDER BY date_start,sort_order,title',
+      'SELECT * FROM planning_items WHERE trip_id=? AND archived_at IS NULL' + (legacy ? " AND kind IN ('task','decision','visit')" : '') +
+        (model === 3 ? " AND (kind NOT IN ('stay','transport') OR EXISTS(SELECT 1 FROM planning_migration_refs r WHERE r.source_table='planning_items' AND r.source_id=planning_items.id AND r.target_kind='placement'))" : '') + ' ORDER BY date_start,sort_order,title',
       TRIP,
-    ).map((row) => readItem(db, row)),
+    ).filter(row=>!sources||(row.kind==='decision'?row.decision_mode!=='route_segment':row.kind==='task'?taskApplicable(sources,row):row.state==='done'||sources.placements.some(p=>p.item_id===row.id&&activePlacement(sources,p)))).map((row) => readItem(db, row,sources)),
     users: all(
       db,
       "SELECT u.id,u.display_name name FROM users u JOIN memberships m ON m.user_id=u.id WHERE m.trip_id=? AND u.disabled=0 AND m.role IN ('admin','editor','viewer') ORDER BY u.display_name",

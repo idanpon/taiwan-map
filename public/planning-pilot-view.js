@@ -10,6 +10,7 @@ paths.calendar='<path d="M8 2v4m8-4v4M3 10h18"/><rect x="3" y="4" width="18" hei
 paths.pencil='<path d="m16 3 5 5M4 15 16 3a3.5 3.5 0 0 1 5 5L9 20l-6 1 1-6Z"/>';
 // Lucide outline paths. License: vendor/lucide-LICENSE.txt.
 Object.assign(paths,{
+ pin:'<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>',
  stay:'<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
  down:'<path d="M12 5v14m-7-7 7 7 7-7"/>',
  transport:'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',

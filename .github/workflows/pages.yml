@@ -29,9 +29,9 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           node --input-type=module <<'JS'
-          import { readFile, writeFile } from 'node:fs/promises';
+          import { readFile, writeFile, readdir } from 'node:fs/promises';
           import { createHash } from 'node:crypto';
-          const files = ['index.html', 'planning.html', 'assistant.html', 'app.js', 'planning.js', 'assistant.js', 'assistant-card.js', 'assistant.css', 'config.js', 'style.css', 'planning.css', 'client-runtime.js', 'sw.js'];
+          const files = (await readdir('dist')).filter(file => /\.(?:html|js|css|webmanifest)$/.test(file)).sort();
           const sha256 = Object.fromEntries(await Promise.all(files.map(async file =>
             [file, createHash('sha256').update(await readFile('dist/' + file)).digest('hex')]
           )));
@@ -63,10 +63,10 @@ jobs:
           PAGES_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
           python3 -u <<'PYTHON'
-          import hashlib, json, os, time, urllib.request
+          import hashlib, json, os, re, time, urllib.request
           base = os.environ['PAGES_URL'].rstrip('/') + '/'
           commit = os.environ['GITHUB_SHA']
-          files = ['index.html', 'planning.html', 'assistant.html', 'app.js', 'planning.js', 'assistant.js', 'assistant-card.js', 'assistant.css', 'config.js', 'style.css', 'planning.css', 'client-runtime.js', 'sw.js']
+          required = {'index.html', 'planning.html', 'assistant.html', 'config.js', 'sw.js', 'route-planning-ui.js', 'route-planning.css', 'planning-domain.js'}
           def read(path):
               request = urllib.request.Request(base + path + '?release=' + commit, headers={'Cache-Control': 'no-cache'})
               with urllib.request.urlopen(request, timeout=15) as response:
@@ -76,6 +76,9 @@ jobs:
                   release = json.loads(read('release.json'))
                   if release.get('commit') != commit:
                       raise ValueError('Published revision does not match this workflow')
+                  files = release.get('sha256', {})
+                  if not required.issubset(files) or not all(re.fullmatch(r'[a-zA-Z0-9_-]+\.(html|js|css|webmanifest)', path) for path in files):
+                      raise ValueError('Published asset manifest is incomplete or invalid')
                   for path in files:
                       if hashlib.sha256(read(path)).hexdigest() != release['sha256'][path]:
                           raise ValueError('Published asset differs from artifact: ' + path)

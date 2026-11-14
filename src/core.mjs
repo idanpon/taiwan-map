@@ -4,6 +4,7 @@ import { handleStatuses } from './statuses.mjs';
 import { handlePlaceState } from './place-state.mjs';
 import { handlePlaceRatings } from './place-ratings.mjs';
 import { handlePlanning } from './planning.mjs';
+import { handleDocuments } from './documents.mjs';
 import { handlePlaceTags } from './place-tags.mjs';
 import {
   SHARED_USER as USER,
@@ -78,6 +79,8 @@ async function handleApi(request, env, context = {}) {
     if (notificationsResponse) return notificationsResponse;
     const planningResponse = await handlePlanning(request, db, user);
     if (planningResponse) return planningResponse;
+    const documentsResponse = await handleDocuments(request, db, user);
+    if (documentsResponse) return documentsResponse;
     const tagResponse = await handlePlaceTags(request, db, user);
     if (tagResponse) return tagResponse;
     const lifecycle = await handlePlaceLifecycle(request, db, user, stateUser);
@@ -125,19 +128,19 @@ export async function handle(request, env, context = {}) {
       .map((h) => h.trim().toLowerCase())
       .filter(Boolean);
     const allowedHeaders =
-      env.AUTH_MODE === 'bearer' ? ['content-type', 'authorization'] : ['content-type'];
+      env.AUTH_MODE === 'bearer' ? ['content-type', 'authorization', 'range'] : ['content-type', 'range'];
     if (
       !origin ||
-      !['GET', 'POST', 'PUT', 'DELETE'].includes(method) ||
+      !['GET', 'HEAD', 'POST', 'PUT', 'DELETE'].includes(method) ||
       requested.some((h) => !allowedHeaders.includes(h))
     )
       return json({ error: 'Preflight не разрешён.' }, 403, { Vary: 'Origin' });
     response = new Response(null, {
       status: 204,
       headers: {
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
+        'Access-Control-Allow-Methods': 'GET, HEAD, POST, PUT, DELETE',
         'Access-Control-Allow-Headers':
-          env.AUTH_MODE === 'bearer' ? 'Content-Type, Authorization' : 'Content-Type',
+          env.AUTH_MODE === 'bearer' ? 'Content-Type, Authorization, Range' : 'Content-Type, Range',
         'Access-Control-Max-Age': '600',
         'Cache-Control': 'no-store',
       },
@@ -158,7 +161,7 @@ function corsResponse(request, env, response) {
   if (origin && allowedOrigins(env, new URL(request.url)).has(origin)) {
     headers.set('Access-Control-Allow-Origin', origin);
     if (env.AUTH_MODE !== 'bearer') headers.set('Access-Control-Allow-Credentials', 'true');
-    headers.set('Access-Control-Expose-Headers', 'Content-Disposition');
+    headers.set('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length, Content-Range, Accept-Ranges');
   }
   return new Response(response.body, { status: response.status, headers });
 }
