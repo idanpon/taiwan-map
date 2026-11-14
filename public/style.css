@@ -260,7 +260,7 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
   --glow-length: 36px;
   --glow-opacity: .43;
  }
- .map-quick-direction[data-action=route] {
+ .map-quick-direction[data-action=maps] {
   --glow-color: light-dark(#287a9d, #8fcfe7);
   --hint-color: var(--ui-accent);
  }
@@ -282,13 +282,13 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
   opacity: var(--glow-opacity);
  }
  .map-quick-direction[data-action=visited]::before { rotate: 180deg; }
- .map-pin-button[data-quick-action=route] .map-quick-direction[data-action=route],
+ .map-pin-button[data-quick-action=maps] .map-quick-direction[data-action=maps],
  .map-pin-button[data-quick-action=visited] .map-quick-direction[data-action=visited] {
   --glow-length: 41.4px;
   --glow-opacity: .86;
  }
- .map-pin-button[data-quick-action=route] .map-quick-direction[data-action=visited],
- .map-pin-button[data-quick-action=visited] .map-quick-direction[data-action=route] { --glow-opacity: .16; }
+ .map-pin-button[data-quick-action=maps] .map-quick-direction[data-action=visited],
+ .map-pin-button[data-quick-action=visited] .map-quick-direction[data-action=maps] { --glow-opacity: .16; }
  .map-quick-hint {
   position: absolute;
   top: calc(50% + var(--map-quick-label-y));
@@ -303,7 +303,7 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
   white-space: nowrap;
   font-size: var(--ui-text-caption);
  }
- .map-pin-button[data-quick-action=route] [data-action=route] .map-quick-hint,
+ .map-pin-button[data-quick-action=maps] [data-action=maps] .map-quick-hint,
  .map-pin-button[data-quick-action=visited] [data-action=visited] .map-quick-hint {
   background: color-mix(in srgb, var(--glow-color) 20%, var(--ui-surface-panel));
   border-color: var(--glow-color);

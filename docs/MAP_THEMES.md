@@ -153,8 +153,12 @@ basemap starts before the map applies any queued camera focus.
 
 ## Quick actions on mobile
 
-Holding a place marker for 500 ms reveals a blue glow for directions in
-Google Maps and a green glow for marking the place visited. Editors and
+Holding a place marker for 425 ms reveals a blue glow for opening the place
+in Google Maps and a green glow for marking it visited. The upward swipe and
+card button open the same Google Maps search URL. It uses the place name and
+address when available, or drops a pin at the saved coordinates for a place
+with only coordinates. The phone handles the HTTPS link in the installed app
+when available and supported by its browser and link settings. Editors and
 admins get the visit action for places they have yet to mark. A short tap
 opens the place card. Moving before the hold threshold pans the map.
 
