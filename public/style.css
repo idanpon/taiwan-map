@@ -271,9 +271,7 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
   translate: -50% -50%;
   border-radius: 50%;
   background: conic-gradient(from -60deg, transparent, var(--glow-color) 8deg 112deg, transparent 120deg);
-  mask-image: radial-gradient(circle,
-   transparent 26px, rgb(0 0 0 / .3) 30px, rgb(0 0 0 / .75) 34px,
-   black 39px, transparent calc(28px + var(--glow-length)));
+  mask-image: radial-gradient(circle, transparent 26px, black 29px, transparent calc(28px + var(--glow-length)));
   opacity: var(--glow-opacity);
  }
  @media (prefers-reduced-motion: no-preference) {
