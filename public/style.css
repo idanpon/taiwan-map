@@ -131,8 +131,7 @@ button:disabled { opacity: .55; cursor: not-allowed; }
  font-weight: 700;
  line-height: 1;
 }
-.place-group { --ui-sheet-width: 400px; max-height: min(65dvh, 480px); }
-dialog.place-group::backdrop { --ui-backdrop: transparent; }
+.place-group { --ui-sheet-width: 400px; max-height: min(65dvh, 480px); z-index: var(--ui-layer-detail); }
 .place-group .ui-overlay-heading {
  background: var(--ui-surface-panel);
  border-bottom: 1px solid var(--ui-border-panel);
@@ -234,7 +233,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round
   .mobile-toggle > span { grid-area: 1 / 1; }
  .mobile-toggle[aria-expanded=true] > .mobile-toggle-closed,
  .mobile-toggle[aria-expanded=false] > .mobile-toggle-open { visibility: hidden; }
-  .detail-open .mobile-toggle.ui-button { display: none; }
+  #application:is(.detail-open, :has(#place-group[open])) .mobile-toggle.ui-button { display: none; }
   .map-area .detail { position: fixed; inset: auto var(--ui-sheet-mobile-right) var(--map-credit-clearance,0px) var(--ui-sheet-mobile-left); width: auto; max-height: min(72dvh, calc(100dvh - var(--topbar-height) - env(safe-area-inset-top) - 72px)); }
   .detail-links a { min-height: 44px; }
   .map-status { bottom: calc(90px + env(safe-area-inset-bottom)); left: 12px; right: 12px; max-width: none; }
