@@ -1,5 +1,6 @@
 import {dateLabel,validDate} from './planning-model.js';
 import {initialZone,localPoint,localInstants,tripLocalInstants,resolveLocalChoice,offsetLabel,validClock,namedZone,minute} from './trip-timezones.js';
+import {dateInput,dateValue} from './date-picker.js';
 
 const icon=(path,classes='')=>`<svg class="timezone-icon ${classes}" viewBox="0 0 24 24" aria-hidden="true">${path}</svg>`;
 const arrow=icon('<path d="M5 12h14m-6-6 6 6-6 6"/>');
@@ -84,14 +85,13 @@ export function createTimeReview({scroller,content,title,error,esc,setBusy,setDi
  return {show};
 }
 
-export const dateInput=(name,value,esc)=>`<span class="date-wrap ui-field-group ui-field-group--soft"><input name="${name}" type="date" value="${esc(value||'')}"></span>`;
 export function itemDateEditor(item,plan,esc,{showFixed=true}={}){
  const start=item.starts_at?localPoint(item.starts_at,plan):null,end=item.ends_at?localPoint(item.ends_at,plan):null;
  const first=start?.day||item.date_start||item.date_end||'',last=end?.day||item.date_end||'';
  const mode=(end&&start||item.date_start&&item.date_end&&item.date_start!==item.date_end)?'period':first?'day':'none';
  const html=`<fieldset class="planning-item-dates ui-fieldset" data-standard-dates><legend>Дата или период</legend>
  <label>Когда<select class="ui-field ui-field--soft" name="date_mode" aria-label="Когда"><option value="none" ${mode==='none'?'selected':''}>Без даты</option><option value="day" ${mode==='day'?'selected':''}>Один день или дедлайн</option><option value="period" ${mode==='period'?'selected':''}>Период</option></select></label>
- <div data-dated-fields><div class="form-columns"><label><span data-start-label>Дата</span>${dateInput('date_start',first,esc)}</label><label data-period-field>Окончание${dateInput('date_end',last,esc)}</label></div>
+ <div data-dated-fields><div class="form-columns">${dateInput('date_start',first,'Дата')}<div data-period-field>${dateInput('date_end',last,'Окончание')}</div></div>
  <label class="inline-check"><input type="checkbox" name="exact_time" ${start||end?'checked':''}> Указать точное время</label>
  <div class="form-columns" data-exact-fields><div><label><span data-time-label>Время</span><input class="ui-field ui-field--soft" name="start_time" type="time" value="${esc(start?.time||end?.time||'')}"></label><div data-clock-info="start"></div></div>
  <div data-period-field><label>Время окончания<input class="ui-field ui-field--soft" name="end_time" type="time" value="${esc(end?.time||'')}"></label><div data-clock-info="end"></div></div></div>
@@ -105,12 +105,12 @@ export function itemDateEditor(item,plan,esc,{showFixed=true}={}){
    field.querySelector('[data-dated-fields]').hidden=!dated;
    field.querySelector('[data-exact-fields]').hidden=!timed;
    for(const el of field.querySelectorAll('[data-period-field]'))el.hidden=!period;
-   field.querySelector('[data-start-label]').textContent=period?'Начало':'Дата';
+   f.date_start.labels[0].textContent=period?'Начало':'Дата';
    field.querySelector('[data-time-label]').textContent=period?'Время начала':'Время';
    f.date_start.required=dated;f.date_end.required=period;f.start_time.required=timed;f.end_time.required=timed&&period;
    f.date_start.disabled=!dated;f.date_end.disabled=!period;f.start_time.disabled=!timed;f.end_time.disabled=!timed||!period;
    for(const [side,old,original] of [['start',start,item.starts_at],['end',end,item.ends_at]]){
-    const box=field.querySelector('[data-clock-info="'+side+'"]'),day=f['date_'+side].value,time=f[side+'_time'].value;
+    const box=field.querySelector('[data-clock-info="'+side+'"]'),day=dateValue(f['date_'+side]),time=f[side+'_time'].value;
     const picked=box.querySelector('select')?.value||String(selected[side]?.at??'');
     box.replaceChildren();selected[side]=null;
     if(!timed||side==='end'&&!period||!validDate(day)||!validClock(time))continue;
@@ -134,9 +134,11 @@ export function itemDateEditor(item,plan,esc,{showFixed=true}={}){
  }
  function values(form){
   const f=form.elements,mode=f.date_mode.value,exact=mode!=='none'&&f.exact_time.checked;
+  const first=dateValue(f.date_start),last=dateValue(f.date_end);
+  if((mode!=='none'&&!first)||(mode==='period'&&!last))throw new Error('Укажите дату или обе даты периода.');
   if(exact&&(!selected.start||mode==='period'&&!selected.end))throw new Error('Уточните точное время и его пояс.');
-  if(mode==='period'&&(exact?selected.end.at<selected.start.at:f.date_end.value<f.date_start.value))throw new Error('Окончание должно быть не раньше начала.');
-  return {date_start:mode==='none'?null:f.date_start.value,date_end:mode==='period'?f.date_end.value:null,
+  if(mode==='period'&&(exact?selected.end.at<selected.start.at:last<first))throw new Error('Окончание должно быть не раньше начала.');
+  return {date_start:mode==='none'?null:first,date_end:mode==='period'?last:null,
    starts_at:exact?selected.start.iso:null,ends_at:exact&&mode==='period'?selected.end.iso:null,event_timezone:exact?selected.start.zone:item.event_timezone||initialZone.zone};
  }
  return {html,mount,values};
@@ -177,18 +179,19 @@ export function zoneOptions(changes,esc){
 export function editTripTime({trip,plan,esc,showDialog,dialog,setBusy,setDirty,error,api,load,review,toast}){
  const optionsHtml=zoneOptions(plan.changes,esc);
  showDialog('Даты поездки и часовые пояса',`<form id="planning-trip-form" class="planning-form">
- <label>Вылет${dateInput('departure_date',trip.departure_date,esc)}</label><div class="form-columns"><label>Начало пребывания${dateInput('start_date',trip.start_date,esc)}</label><label>Окончание${dateInput('end_date',trip.end_date,esc)}</label></div>
+ ${dateInput('departure_date',trip.departure_date,'Вылет')}<div class="form-columns">${dateInput('start_date',trip.start_date,'Начало пребывания')}${dateInput('end_date',trip.end_date,'Окончание')}</div>
  <section class="trip-zone-editor"><h3>Часовые пояса поездки</h3><p class="muted">Выберите новый пояс и укажите дату и время смены по его местным часам. В этот момент календарь переключится на новый пояс. Смену можно запланировать, например, за час до посадки.</p>
  <div class="trip-zone-initial"><strong>Москва</strong><span class="timezone-badge">Europe/Moscow · UTC+3</span></div><div data-zone-changes></div>
  <button type="button" class="ui-button ui-button--quiet ui-button--compact" data-zone-change-add>＋ Добавить смену пояса</button></section>
  <p class="muted">Даты задач и маршрута не переносятся автоматически. Связанные переносы можно обсудить в чате.</p><button class="ui-button ui-button--primary" type="submit">Продолжить</button></form>`,{system:true});
  const form=dialog.querySelector('#planning-trip-form'),zoneChanges=form.querySelector('[data-zone-changes]');
+ for(const name of ['departure_date','start_date','end_date'])form.elements[name].required=true;
  function append(change){
   const row=document.createElement('fieldset'),p=change?localPoint(change.at,{changes:[change]}):null;
   row.className='trip-zone-change ui-fieldset';
   row.innerHTML=`<legend>Смена часового пояса</legend>
    <div class="form-columns trip-zone-details"><label>Новый часовой пояс<select class="ui-field ui-field--soft" name="zone" required>${optionsHtml}</select></label><label>Регион (необязательно)<input class="ui-field ui-field--soft" name="region" value="${esc(p?.region||'')}" maxlength="60" placeholder="Тайвань"></label></div>
-   <div class="form-columns"><label>Дата смены${dateInput('day',p?.day||trip.start_date,esc)}</label><label>Время смены<input class="ui-field ui-field--soft" type="time" name="time" value="${esc(p?.time||'')}" required></label></div>
+   <div class="form-columns">${dateInput('day',p?.day||trip.start_date,'Дата смены')}<label>Время смены<input class="ui-field ui-field--soft" type="time" name="time" value="${esc(p?.time||'')}" required></label></div>
    <div data-zone-offset></div><button type="button" class="ui-button ui-button--quiet ui-button--compact" data-zone-change-remove>Убрать смену пояса</button>`;
   const {day,time,zone}=row.elements;
   day.required=true;
@@ -197,8 +200,9 @@ export function editTripTime({trip,plan,esc,showDialog,dialog,setBusy,setDirty,e
   const update=()=>{
    const offset=row.querySelector('[data-zone-offset]'),old=offset.querySelector('select')?.value||(p?.at??'');
    offset.replaceChildren();
-   if(!validDate(day.value)||!validClock(time.value)||!zone.value)return;
-   const options=localInstants(day.value,time.value,zone.value);
+   const date=dateValue(day);
+   if(!validDate(date)||!validClock(time.value)||!zone.value)return;
+   const options=localInstants(date,time.value,zone.value);
    if(!options.length){offset.innerHTML='<p class="planning-warning">Такого местного времени нет. Укажите другое время.</p>';return}
    if(options.length===1){offset.textContent=offsetLabel(localPoint(options[0],{changes:[{at:options[0],zone:zone.value,region:''}]}).offset);return}
    const label=document.createElement('label'),select=document.createElement('select');
@@ -237,11 +241,12 @@ export function editTripTime({trip,plan,esc,showDialog,dialog,setBusy,setDirty,e
  }
  form.onsubmit=async e=>{
   e.preventDefault();error.textContent='';
-  const fields=form.elements,dates=Object.fromEntries(['departure_date','start_date','end_date'].map(k=>[k,fields[k].value]));
+  const fields=form.elements,dates=Object.fromEntries(['departure_date','start_date','end_date'].map(k=>[k,dateValue(fields[k])]));
   let changes;
   try{
+   if(Object.values(dates).some(date=>!date))throw new Error('Укажите даты вылета, начала и окончания поездки.');
    changes=[...zoneChanges.children].map(row=>{
-    const day=row.elements.day.value,time=row.elements.time.value,zone=row.elements.zone.value,region=row.elements.region.value.trim();
+    const day=dateValue(row.elements.day),time=row.elements.time.value,zone=row.elements.zone.value,region=row.elements.region.value.trim();
     if(!namedZone(zone))throw new Error('Выберите часовой пояс из списка.');
     const list=localInstants(day,time,zone),at=list.length===1?list[0]:Number(row.elements.at?.value);
     if(!list.includes(at))throw new Error('Уточните местное время смены пояса и его смещение.');

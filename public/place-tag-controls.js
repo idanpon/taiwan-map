@@ -1,4 +1,5 @@
-import {tagDefinitions,tagIcon,mergeTags} from './place-tags.js';
+import {tagDefinitions,tagIcon,mergeTags,validDate} from './place-tags.js';
+import {dateInput,dateValue,setDateValue} from './date-picker.js';
 
 export function tagsPatch(original,draft){
  const patch={};
@@ -6,7 +7,7 @@ export function tagsPatch(original,draft){
  for(const name of ['limitedDates','reservation']){const fields={};for(const key of Object.keys(draft[name]))if(original[name][key]!==draft[name][key])fields[key]=draft[name][key];if(Object.keys(fields).length)patch[name]=fields}
  return patch;
 }
-export function tagEditorContent(esc){return `<section id="place-tags-fields" class="tag-editor"><h3>Дополнительные ярлыки</h3><div class="chips tag-switches" role="group" aria-label="Дополнительные ярлыки">${tagDefinitions.map(t=>`<label class="ui-chip"><input type="checkbox" name="${t.id}">${tagIcon(t.icon)}<span>${esc(t.filterLabel||t.label)}</span></label>`).join('')}</div><fieldset data-tag-fields="limitedDates" hidden><legend>Даты и расписание</legend><div class="tag-date-fields"><label>Дата начала<span class="date-input ui-field-group ui-field-group--soft"><input type="date" name="startDate"></span></label><label>Дата окончания<span class="date-input ui-field-group ui-field-group--soft"><input type="date" name="endDate"></span></label></div><details class="schedule-editor"><summary>Дополнительное расписание ${tagIcon('chevron-down')}</summary><label>Особые дни и часы<textarea class="ui-field ui-field--soft" name="scheduleText" maxlength="2000" placeholder="Необычное расписание, до 2000 символов"></textarea></label></details><p class="muted">Даты и текст необязательны. День окончания входит в период; даты проверяются по времени Тайваня.</p></fieldset><fieldset data-tag-fields="reservation" hidden><legend>Бронирование</legend><label>Ссылка на бронирование<input class="ui-field ui-field--soft" type="url" name="bookingUrl" maxlength="1024" placeholder="https://…"></label><p class="muted">Можно оставить пустой. Поддерживаются HTTP и HTTPS.</p></fieldset></section>`}
+export function tagEditorContent(esc){return `<section id="place-tags-fields" class="tag-editor"><h3>Дополнительные ярлыки</h3><div class="chips tag-switches" role="group" aria-label="Дополнительные ярлыки">${tagDefinitions.map(t=>`<label class="ui-chip"><input type="checkbox" name="${t.id}">${tagIcon(t.icon)}<span>${esc(t.filterLabel||t.label)}</span></label>`).join('')}</div><fieldset data-tag-fields="limitedDates" hidden><legend>Даты и расписание</legend><div class="tag-date-fields">${dateInput('startDate','','Дата начала')}${dateInput('endDate','','Дата окончания')}</div><details class="schedule-editor"><summary>Дополнительное расписание ${tagIcon('chevron-down')}</summary><label>Особые дни и часы<textarea class="ui-field ui-field--soft" name="scheduleText" maxlength="2000" placeholder="Необычное расписание, до 2000 символов"></textarea></label></details><p class="muted">Даты и текст необязательны. День окончания входит в период; даты проверяются по времени Тайваня.</p></fieldset><fieldset data-tag-fields="reservation" hidden><legend>Бронирование</legend><label>Ссылка на бронирование<input class="ui-field ui-field--soft" type="url" name="bookingUrl" maxlength="1024" placeholder="https://…"></label><p class="muted">Можно оставить пустой. Поддерживаются HTTP и HTTPS.</p></fieldset></section>`}
 
 // Fields belong to the card's single form; saving is coordinated by app.js.
 export function createPlaceTagControls({root,place,esc,onDirty}){
@@ -14,17 +15,39 @@ export function createPlaceTagControls({root,place,esc,onDirty}){
  root.innerHTML=tagEditorContent(esc);
  const field=name=>root.querySelector(`[name="${name}"]`),schedule=root.querySelector('.schedule-editor');
  function read(){return {photoSpot:field('photoSpot').checked,limitedDates:{enabled:field('limitedDates').checked,startDate:field('startDate').value,endDate:field('endDate').value,scheduleText:field('scheduleText').value},reservation:{enabled:field('reservation').checked,url:field('bookingUrl').value.trim()}}}
- function write(tags){field('photoSpot').checked=tags.photoSpot;field('limitedDates').checked=tags.limitedDates.enabled;field('reservation').checked=tags.reservation.enabled;for(const name of ['startDate','endDate','scheduleText'])field(name).value=tags.limitedDates[name];field('bookingUrl').value=tags.reservation.url}
+ function write(tags){
+  field('photoSpot').checked=tags.photoSpot;
+  field('limitedDates').checked=tags.limitedDates.enabled;
+  field('reservation').checked=tags.reservation.enabled;
+  for(const name of ['startDate','endDate'])setDateValue(field(name),tags.limitedDates[name]);
+  field('scheduleText').value=tags.limitedDates.scheduleText;
+  field('bookingUrl').value=tags.reservation.url;
+ }
+ function tagValues(){
+  const values=read();
+  for(const name of ['startDate','endDate']){
+   const date=dateValue(field(name));
+   if(date===''||date&&validDate(date))values.limitedDates[name]=date;
+   else if(!values.limitedDates.enabled)values.limitedDates[name]=baseline.limitedDates[name];
+  }
+  return values;
+ }
  function update(){
   for(const t of tagDefinitions)field(t.id).closest('label').classList.toggle('active',field(t.id).checked);
   for(const name of ['limitedDates','reservation']){const fields=root.querySelector(`[data-tag-fields="${name}"]`);fields.hidden=!field(name).checked;fields.disabled=saving||!field(name).checked}
-  onDirty(Object.keys(tagsPatch(baseline,read())).length>0);
+  onDirty(Object.keys(tagsPatch(baseline,tagValues())).length>0);
  }
  write(baseline);root.oninput=update;root.onchange=update;update();
  return {
-  patch(){return tagsPatch(baseline,mergeTags(undefined,read()))},
+  patch(){
+   const values=tagValues();
+   const {startDate,endDate}=values.limitedDates;
+   if([startDate,endDate].some(date=>date&&!validDate(date)))
+    throw new Error('Укажите существующую дату в формате ДД.ММ.ГГГГ.');
+   return tagsPatch(baseline,mergeTags(undefined,values));
+  },
   commit(tags){baseline=mergeTags(undefined,tags||{});write(baseline);update()},
-  setBusy(value){saving=value;root.querySelectorAll('input,textarea').forEach(el=>el.disabled=value);update()},
+  setBusy(value){saving=value;root.querySelectorAll('input,textarea,button').forEach(el=>el.disabled=value);update()},
   snapshot(){return {baseline:structuredClone(baseline),draft:read(),scheduleOpen:schedule.open}},
   restore(snapshot){baseline=snapshot.baseline;write(snapshot.draft);schedule.open=Boolean(snapshot.scheduleOpen);update()}
  };

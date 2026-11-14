@@ -97,6 +97,35 @@ textarea.ui-field { min-height: 88px; resize: vertical; line-height: 1.6; }
 .ui-field-group:focus-within { outline: 3px solid var(--ui-focus); outline-offset: 2px; }
 .ui-field-group > input:focus-visible { outline: none; }
 :root[data-ui-touch] :is(button,a,summary):focus { outline: none; }
+
+.ui-date-control { min-width: 0; }
+.ui-date-control > label { margin-block-end: var(--ui-space-1); }
+.ui-date-field { gap: 0; padding-inline-end: 0; }
+.ui-date-field:has(input[aria-invalid=true]) { border-color: var(--ui-danger); }
+.ui-date-field:has(input:disabled) { opacity: .65; }
+.ui-date-field > .ui-button { width: var(--ui-control); }
+.ui-overlay.ui-date-picker {
+  --ui-dialog-width: 384px;
+}
+.ui-date-navigation {
+  display: grid;
+  grid-template-columns: var(--ui-control) minmax(0,1fr) var(--ui-control);
+  align-items: center;
+  gap: var(--ui-space-1);
+  margin-bottom: var(--ui-space-2);
+}
+.ui-date-month { margin: 0; font-size: var(--ui-text-section); text-align: center; }
+.ui-date-month::first-letter { text-transform: uppercase; }
+.ui-date-days { width: 100%; table-layout: fixed; border-spacing: 1px; }
+.ui-date-days :is(th,td) { padding: 0; }
+.ui-date-days th { color: var(--ui-text-muted); font-size: var(--ui-text-caption); font-weight: 500; }
+.ui-date-days .ui-date-day { width: 100%; padding: 0; color: var(--ui-text); }
+.ui-date-days .ui-date-other-month { color: var(--ui-text-muted); }
+.ui-date-days [aria-selected=true] .ui-date-day { --ui-action-fill: var(--ui-surface-selected); border-color: var(--ui-border-selected); color: var(--ui-accent); }
+.ui-date-day[aria-current=date] { box-shadow: inset 0 0 0 1px var(--ui-border-selected); }
+.ui-date-day:focus-visible { outline-offset: -3px; }
+.ui-date-footer { margin-top: var(--ui-space-2); }
+
 .ui-chip {
   --ui-action-fill: var(--ui-surface-soft);
   display: inline-flex;
@@ -119,7 +148,8 @@ textarea.ui-field { min-height: 88px; resize: vertical; line-height: 1.6; }
   color: var(--ui-accent);
   border-color: var(--ui-border-selected);
 }
-.ui-chip[aria-pressed=true]::after { content: '✓'; font-weight: 600; }
+.ui-chip[aria-pressed]::after { content: '✓'; font-weight: 600; flex: none; visibility: hidden; }
+.ui-chip[aria-pressed=true]::after { visibility: visible; }
 .ui-chip input { accent-color: var(--ui-accent); }
 .ui-chip:has(input:disabled) { opacity: .55; cursor: not-allowed; }
 .ui-list { padding-block: var(--ui-space-1); }
@@ -135,7 +165,8 @@ textarea.ui-field { min-height: 88px; resize: vertical; line-height: 1.6; }
   text-align: left;
 }
 .ui-list-item[aria-pressed=true] { --ui-action-fill: var(--ui-surface-selected); border-color: var(--ui-border); }
-.ui-list-item[aria-pressed=true]::after { content: '✓'; flex: none; color: var(--ui-accent); font-weight: 600; }
+.ui-list-item[aria-pressed]::after { content: '✓'; flex: none; color: var(--ui-accent); font-weight: 600; visibility: hidden; }
+.ui-list-item[aria-pressed=true]::after { visibility: visible; }
 .ui-panel { background: var(--ui-depth-panel); border: 1px solid var(--ui-border-panel); border-radius: var(--ui-radius-panel); box-shadow: var(--ui-shadow-panel); }
 .ui-status { display: inline-flex; align-items: center; gap: var(--ui-space-1); max-width: 100%; padding: 1px 6px; border-radius: 6px; font-size: var(--ui-text-caption); line-height: var(--ui-leading); background: var(--ui-surface-soft); color: var(--ui-text-muted); }
 .ui-status[data-state=in_progress] { background: var(--ui-surface-selected); color: var(--ui-accent); }

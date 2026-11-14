@@ -3,7 +3,8 @@ import {planningPlaceSummary,planningConflictContent,hydratePlanningLinks} from 
 import {createGoogleMapsOpener,googleMapsUrl} from './place-maps.js';
 import {copyTextControl,installPlaceCopy} from './copy-text.js';
 import {createPlaceTagControls} from './place-tag-controls.js';
-import {tagDefinitions,tagIcon,tagsHeading,tagsDetails,matchesTags} from './place-tags.js';
+import {tagDefinitions,tagIcon,tagsHeading,tagsDetails,matchesTags,taipeiDay} from './place-tags.js';
+import {installDatePicker} from './date-picker.js';
 import {createApiClient} from './api-client.js';
 import {createAccountUI} from './accounts.js';
 import {cityOptions,statusAppearance,hoursVerification,hoursOverview} from './map-model.js';
@@ -21,6 +22,7 @@ import {createPlaceRatings} from './place-ratings.js';
 import {installSidebarResize} from './sidebar-resize.js';
 const $=id=>document.getElementById(id);
 trackTouchInput(document);
+const closeDatePicker=installDatePicker(document,{today:taipeiDay});
 const config=window.TAIWAN_CONFIG||{apiBase:'',requiresApi:false};
 const {apiBase,configurationError,authMode}=readClientConfiguration(config,{missing:'Сервер данных ещё не подключён. Адрес API будет добавлен после настройки VPS.',invalid:'В настройках сайта указан некорректный HTTPS-адрес API.'});
 
@@ -50,6 +52,7 @@ installMapMarkerActions($('map'),{
 });
 function showLogin(){
  notice.clear();
+ closeDatePicker();
  $('auth-loading').hidden=true;$('auth-content').hidden=false;$('login').hidden=false;
  $('login').classList.toggle('login-overlay',Boolean(data));
  $('login-back').hidden=!data;$('application').inert=Boolean(data);accountUI?.showLogin();$('username').focus({preventScroll:true});
@@ -57,7 +60,10 @@ function showLogin(){
 function closeLogin(){if(!data)return;$('login').hidden=true;$('application').inert=false;$('login').classList.remove('login-overlay');accountUI?.hideLogin();$('login-open').focus({preventScroll:true})}
 $('login-open').onclick=showLogin;$('login-back').onclick=closeLogin;
 
-function setSidebar(open){$('places-panel').classList.toggle('mobile-open',open);$('mobile-toggle').textContent=open?'Назад к карте':'Места и фильтры';$('mobile-toggle').setAttribute('aria-expanded',String(open))}
+function setSidebar(open){
+ $('places-panel').classList.toggle('mobile-open',open);
+ $('mobile-toggle').setAttribute('aria-expanded',String(open));
+}
 function closeDetail(restoreFocus=false){
  if($('detail').hidden)return true;
  if(busy){toast('Дождитесь завершения сохранения.');return false}
@@ -209,7 +215,7 @@ async function saveState(event,p){
  }
 }
 
-async function load({signal}={}){const sequence=++loadSequence,wasAuthenticated=Boolean(data?.user),id=selected;let next;try{next=await api(transport.hasSession()?'/api/data':'/api/public/data',{signal,allowAnonymous:true})}catch(error){if(error.status!==401)throw error;next=await api('/api/public/data',{signal})}if(sequence!==loadSequence)return;data=next;data.statuses=fixedPlaceStatuses(data.statuses);planning=null;if(!data.user&&wasAuthenticated){resetDirty();$('detail').replaceChildren();$('detail').hidden=true;$('application').classList.remove('detail-open');placeUI?.close();$('accounts-dialog').close();$('help-dialog').close()}if(data.user)void hydratePlanningLinks({api,current:data,getCurrent:()=>data,signal,onReady:value=>{planning=value;const target=$('place-planning-links');if(target&&selected)target.innerHTML=planningPlaceSummary(planning,selected,esc)},onError:error=>toast('Календарь временно недоступен. '+error.message)});accountUI?.update();accountUI?.hideLogin();$('login').hidden=true;$('application').inert=false;$('application').hidden=false;document.body.classList.add('app-active');populateFilters();$('verified').textContent=hoursOverview(data.places);const tripDates=document.querySelector('.trip-dates');if(tripDates)tripDates.hidden=!data.user;if(tripDates&&data.trip.start_date&&data.trip.end_date)tripDates.textContent=new Date(data.trip.start_date+'T12:00:00Z').toLocaleDateString('ru',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'})+' — '+new Date(data.trip.end_date+'T12:00:00Z').toLocaleDateString('ru',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});if(!map){setSidebar(false);initMap()}render();if(id&&data.places.some(p=>p.id===id)&&!dirty)detail(data.places.find(p=>p.id===id));if(map)setTimeout(()=>map.resize(),0);await openPlanningHash()}
+async function load({signal}={}){const sequence=++loadSequence,wasAuthenticated=Boolean(data?.user),id=selected;let next;try{next=await api(transport.hasSession()?'/api/data':'/api/public/data',{signal,allowAnonymous:true})}catch(error){if(error.status!==401)throw error;next=await api('/api/public/data',{signal})}if(sequence!==loadSequence)return;closeDatePicker();data=next;data.statuses=fixedPlaceStatuses(data.statuses);planning=null;if(!data.user&&wasAuthenticated){resetDirty();$('detail').replaceChildren();$('detail').hidden=true;$('application').classList.remove('detail-open');placeUI?.close();$('accounts-dialog').close();$('help-dialog').close()}if(data.user)void hydratePlanningLinks({api,current:data,getCurrent:()=>data,signal,onReady:value=>{planning=value;const target=$('place-planning-links');if(target&&selected)target.innerHTML=planningPlaceSummary(planning,selected,esc)},onError:error=>toast('Календарь временно недоступен. '+error.message)});accountUI?.update();accountUI?.hideLogin();$('login').hidden=true;$('application').inert=false;$('application').hidden=false;document.body.classList.add('app-active');populateFilters();$('verified').textContent=hoursOverview(data.places);if(!map){setSidebar(false);initMap()}render();if(id&&data.places.some(p=>p.id===id)&&!dirty)detail(data.places.find(p=>p.id===id));if(map)setTimeout(()=>map.resize(),0);await openPlanningHash()}
 $('login-form').onsubmit=async e=>{e.preventDefault();const button=e.currentTarget.querySelector('button[type=submit]');if(button.disabled)return;button.disabled=true;$('login-error').textContent='';try{await api('/api/login',{method:'POST',body:JSON.stringify({username:$('username').value,password:$('password').value})});accountUI.resetLoginPassword();await load()}catch(err){$('login-error').textContent=err.message}finally{button.disabled=false}};
 $('logout').onclick=async()=>{if(dirty){toast('Сначала сохраните изменения.');return}try{await api('/api/logout',{method:'POST'});await accountUI.notifications.signOut();await load();toast('Вы вышли. Карта доступна для просмотра.')}catch(e){toast(e.message)}};
 $('city-filter').onchange=e=>{if(dirty){e.target.value=city;toast('Сначала сохраните изменения.');return}city=e.target.value;render();fit()};
@@ -240,7 +246,7 @@ document.addEventListener('click',event=>{
  const tap=outsidePlacePress&&!movedFromPlacePress(event);outsidePlacePress=null;
  if(tap&&outsidePlaceCard(event.target)&&!closeDetail()){event.preventDefault();event.stopPropagation()}
 },true);
-document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('login').hidden&&data){closeLogin();return}if(event.key!=='Escape'||$('accounts-dialog').open||$('help-dialog').open||$('hidden-places-dialog').open)return;if(!$('detail').hidden){event.preventDefault();closeDetail(true)}else if($('places-panel').classList.contains('mobile-open')){setSidebar(false);$('mobile-toggle').focus()}});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('login').hidden&&data){closeLogin();return}if(event.key!=='Escape'||document.querySelector('dialog[open]'))return;if(!$('detail').hidden){event.preventDefault();closeDetail(true)}else if($('places-panel').classList.contains('mobile-open')){setSidebar(false);$('mobile-toggle').focus()}});
 window.addEventListener('resize',()=>{if(map)map.resize()});
 const placesPanel=$('places-panel');
 installSidebarResize({

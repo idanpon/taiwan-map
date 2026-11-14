@@ -196,6 +196,11 @@ source links start collapsed, with the Google Maps action kept visible.
 
 ## Light clarity
 
+The map header links to «План». The trip dates are available in that section.
+The mobile map and filter toggle keeps its size as the caption changes.
+Filter chips reserve space for their check mark so selection cannot reflow
+the row.
+
 The map, calendar and shared screens use semantic tokens and common buttons,
 fields, chips, selection rows and panel surfaces. Floating map buttons use
 the regular button fill and border, with the floating shadow above the tiles.
