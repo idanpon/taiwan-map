@@ -165,7 +165,9 @@ for places they have yet to mark. A short tap opens the place card.
 Moving before the hold threshold pans the map.
 
 Release outside a 28 px radius in the top or bottom 120° sector to act.
-Releasing inside the circle or toward either side dismisses the hints.
+Releasing within 28 px of the marker or toward either side dismisses the hints.
+The glow fades in and grows brighter with distance from the marker before
+fading at its outer edge. The light theme uses muted blue and green tints.
 The chosen glow brightens and extends from 36 to 41.4 px. The visit action
 uses the same version check and open-decision guard as the place card and
 offers a rating after a successful change.
