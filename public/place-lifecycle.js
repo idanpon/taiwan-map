@@ -1,3 +1,4 @@
+import {googleMapsUrl} from './place-maps.js';
 import {installDialogBackdrop} from './dialogs.js';
 export function createPlaceLifecycleUI({api,$,esc,getData,onChange,canOpen,canChange,toast,onBusy=()=>{}}){
  let hidden=[],busy=false,loading=false,sequence=0;
@@ -8,7 +9,7 @@ export function createPlaceLifecycleUI({api,$,esc,getData,onChange,canOpen,canCh
   const bulk=$('hidden-delete-all');if(bulk){bulk.hidden=!allowed()||loading||!hidden.length;bulk.disabled=busy;bulk.textContent='Удалить всё · '+hidden.length;}
   $('hidden-places-list').innerHTML=loading?'<p class="muted">Загрузка скрытых мест…</p>':hidden.length?hidden.map(p=>{
    const category=getData()?.categories.find(c=>c.id===p.category_id),status=getData()?.statuses.find(s=>s.id===p.status_id);
-   return `<article class="hidden-place" data-hidden-place="${esc(p.id)}"><h3>${esc(p.name)}</h3><p class="muted">${esc(p.city)} · ${esc(category?.label||'')}</p>${status?`<p>Статус: ${esc(status.label)}</p>`:''}${p.note?`<p class="hidden-place-note">${esc(p.note)}</p>`:''}<a target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name+' '+p.address)}">Открыть в Google Maps ↗</a>${allowed()?`<div class="place-actions"><button type="button" class="ui-button ui-button--primary" data-restore-place ${busy?'disabled':''}>Вернуть на карту</button><button type="button" class="ui-button ui-button--quiet ui-button--compact" data-delete-place ${busy?'disabled':''}>Удалить</button></div>`:''}</article>`;
+   return `<article class="hidden-place" data-hidden-place="${esc(p.id)}"><h3>${esc(p.name)}</h3><p class="muted">${esc(p.city)} · ${esc(category?.label||'')}</p>${status?`<p>Статус: ${esc(status.label)}</p>`:''}${p.note?`<p class="hidden-place-note">${esc(p.note)}</p>`:''}<a target="_blank" rel="noopener noreferrer" href="${esc(googleMapsUrl(p))}">Открыть в Google Maps ↗</a>${allowed()?`<div class="place-actions"><button type="button" class="ui-button ui-button--primary" data-restore-place ${busy?'disabled':''}>Вернуть на карту</button><button type="button" class="ui-button ui-button--quiet ui-button--compact" data-delete-place ${busy?'disabled':''}>Удалить</button></div>`:''}</article>`;
   }).join(''):'<p class="muted">Скрытых мест нет.</p>';
  }
  async function refresh(){

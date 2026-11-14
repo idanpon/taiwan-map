@@ -1,11 +1,11 @@
-const holdDuration = 500;
+const holdDuration = 425;
 const guardRadius = 28;
 const holdSlop = 8;
 
 export function markerSwipeAction(dx, dy) {
  const distance = Math.hypot(dx, dy);
  if (distance <= guardRadius || Math.abs(dy) <= distance / 2) return null;
- return dy < 0 ? 'route' : 'visited';
+ return dy < 0 ? 'maps' : 'visited';
 }
 
 export function installMapMarkerActions(surface, {actionsFor, onAction}) {
@@ -42,10 +42,10 @@ export function installMapMarkerActions(surface, {actionsFor, onAction}) {
    direction.dataset.action = action;
    const hint = document.createElement('span');
    hint.className = 'map-quick-hint';
-   const preferredY = press.centerY + (action === 'route' ? -70 : 70);
+   const preferredY = press.centerY + (action === 'maps' ? -70 : 70);
    const labelY = Math.max(mapRect.top + 16, Math.min(mapRect.bottom - 16, preferredY));
    hint.style.setProperty('--map-quick-label-y', (labelY - press.centerY) + 'px');
-   hint.textContent = action === 'route' ? '↑ Маршрут' : '↓ Уже посетили';
+   hint.textContent = action === 'maps' ? '↑ Google Maps' : '↓ Уже посетили';
    direction.append(hint);
    overlay.append(direction);
   }
