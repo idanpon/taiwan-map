@@ -240,6 +240,15 @@ input:is(:autofill, :-webkit-autofill) { -webkit-text-fill-color: var(--ui-text)
 input[type=checkbox] { accent-color: var(--ui-accent); }
 .tip { white-space: pre-line; }
 .map-pin-button { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; background: none; }
+@media (max-width: 1000px) {
+ .map-pin-button[data-map-place] { -webkit-touch-callout: none; user-select: none; }
+ dialog.map-status-menu.ui-sheet[open] {
+  left: var(--ui-sheet-mobile-left);
+  right: var(--ui-sheet-mobile-right);
+  width: auto;
+  animation: none;
+ }
+}
 .map-pin-button.has-stay::before {
  content: "";
  position: absolute;

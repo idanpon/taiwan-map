@@ -148,6 +148,18 @@ Closing with the cross, outside click or Escape eases the same place to the
 full map centre without changing zoom or bearing. Repeated or interrupted
 transitions replace the target instead of adding pan deltas. MapLibre honours
 prefers-reduced-motion; data and style loading remain independent of framing.
+Links from the Plan use the same selection and framing on first load. The
+basemap starts before the map applies any queued camera focus.
+
+## Quick status on mobile
+
+Editors and admins can hold an individual marker for half a second and
+release it to choose a status from a bottom sheet. A short tap opens the
+place card, and moving a finger cancels the hold. The status buttons appear
+in their final positions so an immediate tap selects the intended status.
+The status change uses
+the same version check and open-decision guard as the place card. Marking
+a place visited offers a rating in the bottom notification.
 
 ## Mobile place-card dismissal
 
