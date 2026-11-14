@@ -249,23 +249,16 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
   inset: 0;
   pointer-events: none;
  }
- .map-quick-actions::after {
-  content: "";
-  position: absolute;
-  inset: -8px;
-  border: 1px dashed var(--ui-border-selected);
-  border-radius: 50%;
- }
  .map-quick-direction {
   --glow-length: 36px;
   --glow-opacity: .43;
  }
  .map-quick-direction[data-action=maps] {
-  --glow-color: light-dark(#287a9d, #8fcfe7);
+  --glow-color: light-dark(color-mix(in srgb, var(--ui-accent) 78%, var(--ui-surface-panel)), #8fcfe7);
   --hint-color: var(--ui-accent);
  }
  .map-quick-direction[data-action=visited] {
-  --glow-color: light-dark(#3d8659, #9bd5ad);
+  --glow-color: light-dark(color-mix(in srgb, var(--ui-success) 72%, var(--ui-surface-panel)), #9bd5ad);
   --hint-color: var(--ui-success);
  }
  .map-quick-direction::before {
@@ -278,8 +271,14 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
   translate: -50% -50%;
   border-radius: 50%;
   background: conic-gradient(from -60deg, transparent, var(--glow-color) 8deg 112deg, transparent 120deg);
-  mask-image: radial-gradient(circle, transparent 26px, black 29px, transparent calc(28px + var(--glow-length)));
+  mask-image: radial-gradient(circle,
+   transparent 26px, rgb(0 0 0 / .3) 30px, rgb(0 0 0 / .75) 34px,
+   black 39px, transparent calc(28px + var(--glow-length)));
   opacity: var(--glow-opacity);
+ }
+ @media (prefers-reduced-motion: no-preference) {
+  .map-quick-direction::before { animation: map-quick-glow-in var(--ui-duration-feedback) var(--ui-ease); }
+  @keyframes map-quick-glow-in { from { opacity: 0; } }
  }
  .map-quick-direction[data-action=visited]::before { rotate: 180deg; }
  .map-pin-button[data-quick-action=maps] .map-quick-direction[data-action=maps],
