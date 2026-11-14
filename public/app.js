@@ -11,6 +11,7 @@ import {categoryIcon as icon} from './categories.js';
 import {createHelpUI} from './help.js';
 import {createThemeUI} from './theme.js';
 import {createMapView} from './map-view.js';
+import {installMapMarkerActions} from './map-marker-actions.js';
 import {createAuthStartup,createLoadingScreenUI} from './auth-startup.js';
 import {createPlaceLifecycleUI} from './place-lifecycle.js';
 import {installSheetSwipe} from './sheet-swipe.js';
@@ -35,6 +36,16 @@ async function api(path,options={}){if(configurationError)throw new Error(config
 async function exportData(event){event.preventDefault();try{const content=await api('/api/export');const blob=new Blob([JSON.stringify(content,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='taiwan-map.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(e){toast(e.message)}}
 let accountUI,placeUI,startup;
 const canEdit=()=>['admin','editor'].includes(data?.user?.role);
+const compactMap=matchMedia('(max-width:1000px)');
+installMapMarkerActions($('map'),{
+ actionsFor(id){
+  if(!compactMap.matches||busy||$('application').inert||document.querySelector('dialog[open]'))return [];
+  const place=data?.places.find(value=>value.id===id);
+  if(!place)return [];
+  return canEdit()&&place.status_id!=='visited'?['route','visited']:['route'];
+ },
+ onAction:runMarkerAction
+});
 function showLogin(){
  notice.clear();
  $('auth-loading').hidden=true;$('auth-content').hidden=false;$('login').hidden=false;
@@ -110,19 +121,75 @@ function openPlace(id,{keepMapCredits=false}={}){
 }
 
 function bindTagHints(){for(const button of $('detail').querySelectorAll('[data-tag-info]'))button.onclick=()=>toast(tagDefinitions.find(t=>t.id===button.dataset.tagInfo).tooltip)}
+
+async function writePlaceState(place,statusId,note,tags={}){
+ const payload={version:place.version,note,status_id:statusId,...tags};
+ const result=await api(`/api/places/${encodeURIComponent(place.id)}/state`,{method:'PUT',body:JSON.stringify(payload)});
+ Object.assign(place,{note,status_id:statusId,...result});
+}
+
+function showPlaceSaved(place,becameVisited){
+ if(!becameVisited||!placeRatings.offer([place]))toast('Изменения сохранены.','success');
+}
+
+function runMarkerAction(id,action){
+ if(dirty){toast('Сначала сохраните изменения в открытой карточке.');return}
+ const place=data.places.find(value=>value.id===id);
+ if(!place)return;
+ if(action==='route'){
+  const url=new URL('https://www.google.com/maps/dir/');
+  url.searchParams.set('api','1');
+  url.searchParams.set('destination',place.lat+','+place.lon);
+  location.assign(url);
+ }else if(canEdit()&&place.status_id!=='visited'){
+  void markPlaceVisited(place);
+ }
+}
+
+async function markPlaceVisited(place){
+ busy=true;
+ ++loadSequence;
+ try{
+  await writePlaceState(place,'visited',place.note);
+  render();
+  const statusField=$('place-status');
+  if(selected===place.id&&statusField&&!dirty){
+   statusField.value='visited';
+   document.querySelector('#detail .planning-status-conflict')?.remove();
+   placeRatings.refreshCard(place);
+  }
+  showPlaceSaved(place,true);
+ }catch(error){
+  if(error.details?.code==='planning_decision_required'){
+   const decision=error.details.decisions?.[0];
+   notice.show(error.message,{tone:'warning',action:decision&&{
+    label:'В План',
+    run:()=>location.assign('./planning.html#item='+encodeURIComponent(decision.id))
+   }});
+  }else if([404,409].includes(error.status)){
+   try{
+    if(!dirty)await load();
+    toast(error.message,'warning');
+   }catch(refreshError){toast(refreshError.message,'warning')}
+  }else toast(error.message,'warning');
+ }finally{
+  busy=false;
+ }
+}
+
 async function saveState(event,p){
  event.preventDefault();if(!canEdit()||busy)return;
  let patch;try{patch=tagControls?.patch()||{}}catch(error){toast(error.message);return}
  const note=$('place-note').value,statusId=$('place-status').value||null,tagDraft=tagDirty?tagControls?.snapshot():null;
  const becameVisited=statusId==='visited'&&p.status_id!=='visited';
- const payload={version:p.version,note,status_id:statusId,...(Object.keys(patch).length?{tags:patch,tags_version:p.tags_version}:{})};
+ const tagPayload=Object.keys(patch).length?{tags:patch,tags_version:p.tags_version}:{};
  busy=true;const form=$('state-form');form.setAttribute('aria-busy','true');$('place-save-error').textContent='';$('save-state').textContent='Сохраняем…';$('save-state').setAttribute('aria-busy','true');form.querySelectorAll('input,select,textarea,button').forEach(el=>el.disabled=true);tagControls?.setBusy(true);
  try{
-  const result=await api(`/api/places/${encodeURIComponent(p.id)}/state`,{method:'PUT',body:JSON.stringify(payload)});
-  Object.assign(p,{note,status_id:statusId,...result});resetDirty();tagControls?.commit(p.tags);
+  await writePlaceState(p,statusId,note,tagPayload);
+  resetDirty();tagControls?.commit(p.tags);
   $('detail-tags').innerHTML=tagsHeading(p.tags,esc);$('place-tag-details').innerHTML=tagsDetails(p.tags,esc);bindTagHints();render();
   placeRatings.refreshCard(p);
-  if(!becameVisited||!placeRatings.offer([p]))toast('Изменения сохранены.','success');
+  showPlaceSaved(p,becameVisited);
  }catch(error){
   const errorElement=$('place-save-error');if(errorElement)errorElement.textContent=error.message;
   toast(error.message);

@@ -148,6 +148,21 @@ Closing with the cross, outside click or Escape eases the same place to the
 full map centre without changing zoom or bearing. Repeated or interrupted
 transitions replace the target instead of adding pan deltas. MapLibre honours
 prefers-reduced-motion; data and style loading remain independent of framing.
+Links from the Plan use the same selection and framing on first load. The
+basemap starts before the map applies any queued camera focus.
+
+## Quick actions on mobile
+
+Holding a place marker for 500 ms reveals a blue glow for directions in
+Google Maps and a green glow for marking the place visited. Editors and
+admins get the visit action for places they have yet to mark. A short tap
+opens the place card. Moving before the hold threshold pans the map.
+
+Release outside a 28 px radius in the top or bottom 120° sector to act.
+Releasing inside the circle or toward either side dismisses the hints.
+The chosen glow brightens and extends from 36 to 41.4 px. The visit action
+uses the same version check and open-decision guard as the place card and
+offers a rating after a successful change.
 
 ## Mobile place-card dismissal
 

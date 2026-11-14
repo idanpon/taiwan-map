@@ -66,6 +66,8 @@ export function createMapView({container,statusElement,retryButton,statusText,li
   for(const p of places){
    const c=p.category,s=p.status,label=p.name+(s?' · '+s.label:'')+(p.has_stay?' · Есть проживание':'');
    const element=markerButton(label,p.has_stay?'map-pin-button has-stay':'map-pin-button');
+   element.dataset.mapPlace=p.id;
+   element.setAttribute('aria-pressed',String(p.id===selected));
    const priority=p.has_stay?4:(statusMarkerPriority.get(p.status_id)??1);
    element.style.zIndex=p.id===selected?'500':String(priority);
    const pin=document.createElement('span');pin.className='pin';pin.style.setProperty('--category',c.color);pin.style.setProperty('--status',s?.color||c.color);pin.style.setProperty('--status-opacity',s?.opacity??1);pin.style.setProperty('--status-symbol',s?.symbolColor||'#fff');pin.setAttribute('aria-hidden','true');pin.innerHTML=categoryIcon(c.icon);
@@ -113,8 +115,9 @@ export function createMapView({container,statusElement,retryButton,statusText,li
    map.on('zoomend',()=>{const grouped=map.getZoom()<10;if(grouped!==lastGrouped){render();onZoomGroupChange?.()}});
    map.getCanvas().addEventListener('webglcontextlost',()=>{basemap?.dispose();unsupported()});
    map.getCanvas().addEventListener('webglcontextrestored',()=>{if(!disposed)unsupported()});
+   basemap.start();
    if(focusRequest)focusPlace(focusRequest.p,focusRequest.offset,focusRequest.zoomToPlace);else if(fitRequested)fitPlaces();else initialFraming.update(Boolean(map),places);
-   basemap.start();render();
+   render();
   }catch{map?.remove();map=null;unsupported()}
  })();
  return {
