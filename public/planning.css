@@ -15,8 +15,8 @@
 .planner-navigation h2 { font-size: 18px; margin: 0; }
 .planner-navigation h2::first-letter { text-transform: uppercase; }
 .planner-period-actions { justify-content: flex-end; gap: var(--ui-space-1); }
-.planner-list-actions { display: flex; align-items: center; gap: var(--ui-space-4); flex-wrap: wrap; }
-.planner-completed-control { display: inline-flex; align-items: center; gap: var(--ui-space-2); min-height: var(--ui-control-compact); margin: 0; padding-inline: var(--ui-space-1); border-radius: var(--ui-radius-control); color: var(--ui-text-muted); font-size: var(--ui-text-caption); white-space: nowrap; }
+.planner-list-actions.ui-button-group { gap: var(--ui-space-4); flex-wrap: wrap; }
+.planner-completed-control { display: inline-flex; align-items: center; gap: var(--ui-space-2); min-height: var(--ui-group-control); margin: 0; padding-inline: var(--ui-space-1); border-radius: var(--ui-radius-control); color: var(--ui-text-muted); font-size: var(--ui-text-caption); white-space: nowrap; }
 .planner-completed-control input { width: 16px; height: 16px; margin: 0; accent-color: var(--ui-accent); }
 .planner-navigation .ui-button--icon { font-size: 22px; }
 .planner-filter-block { margin: 0 0 var(--ui-space-3); }
@@ -279,7 +279,6 @@ button.planning-date-action>span { text-decoration: underline; text-decoration-s
  .planner-filter-row .planner-filter-block>summary { line-height: var(--ui-control); width: max-content; }
  #planning-list-actions { width: 100%; justify-content: space-between; gap: var(--ui-space-2); flex-wrap: nowrap; }
  #planning-list-today { min-width: 0; }
- .planner-completed-control { min-height: var(--ui-control); }
  .planning-agenda-heading { position: sticky; top: calc(56px + env(safe-area-inset-top)); z-index: 2; padding-block: var(--ui-space-2); background: var(--ui-surface-page); }
  .planner-zone-disclosure { position: static; }
  .planner-heading { position: relative; }
