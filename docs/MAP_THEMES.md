@@ -166,8 +166,9 @@ Moving before the hold threshold pans the map.
 
 Release outside a 28 px radius in the top or bottom 120° sector to act.
 Releasing within 28 px of the marker or toward either side dismisses the hints.
-The glow fades in and grows brighter with distance from the marker before
-fading at its outer edge. The light theme uses muted blue and green tints.
+The glow fades in, with its brightest point near the marker and a gradual
+falloff toward the outer edge. The light theme uses blue and green with a
+slight increase in lightness over the original palette.
 The chosen glow brightens and extends from 36 to 41.4 px. The visit action
 uses the same version check and open-decision guard as the place card and
 offers a rating after a successful change.
