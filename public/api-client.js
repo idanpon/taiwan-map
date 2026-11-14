@@ -47,7 +47,7 @@ export function createApiClient({
     return token;
   }
   async function api(path, options = {}) {
-    if (path !== '/api/planning?model=2' && !/^\/api\/[a-zA-Z0-9/_-]+$/.test(path))
+    if (!/^\/api\/planning\?model=[23]$/.test(path) && !/^\/api\/[a-zA-Z0-9/_-]+$/.test(path))
       throw new Error('Некорректный путь API.');
     // Re-read persisted credentials so logout in another tab revokes local access.
     const requestToken = currentToken(),
@@ -56,10 +56,10 @@ export function createApiClient({
       requestSession === sessionVersion &&
       (authMode !== 'bearer' || requestToken === currentToken());
     const headers = new Headers(options.headers);
-    if (options.body) headers.set('Content-Type', 'application/json');
+    if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', typeof options.body==='string'?'application/json':'application/octet-stream');
     if (authMode === 'bearer' && token && (!loginPaths.has(path) || path === '/api/auth/setup'))
       headers.set('Authorization', 'Bearer ' + token);
-    const { allowAnonymous, ...requestOptions } = options;
+    const { allowAnonymous, responseType, ...requestOptions } = options;
     const response = await fetchImpl(apiBase + path, {
       ...requestOptions,
       headers,
@@ -67,6 +67,12 @@ export function createApiClient({
       redirect: 'error',
       cache: 'no-store',
     });
+    if(response.ok && !sameSession())throw new Error('Сессия изменилась. Повторите запрос после входа.');
+    if(response.ok && responseType==='blob'){
+      const blob=await response.blob();
+      if(!sameSession())throw new Error('Сессия изменилась. Повторите запрос после входа.');
+      return blob;
+    }
     let value;
     try {
       value = await response.json();
@@ -88,6 +94,7 @@ export function createApiClient({
       error.details = value.details;
       throw error;
     }
+    if(!sameSession())throw new Error('Сессия изменилась. Повторите запрос после входа.');
     if (authMode === 'bearer' && loginPaths.has(path)) {
       if (!/^[a-f0-9]{64}$/.test(value.token || ''))
         throw new Error('Сервер не поддерживает выбранный режим авторизации.');

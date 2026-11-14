@@ -157,7 +157,7 @@ test('official MCP client initializes, reads resource, saves, previews and appli
   await client.connect(transport);t.after(()=>client.close());
   const rules = readFileSync(new URL('../docs/PLANNING_RULES.md', import.meta.url), 'utf8').trim();
   assert.ok(client.getInstructions().includes(rules));
-  const {tools}=await client.listTools();assert.equal(tools.length,8);
+  const {tools}=await client.listTools();assert.equal(tools.length,10);assert(tools.some(t=>t.name==='planning_evaluate'));
   assert.match(tools.find(t=>t.name==='proposal_save').description,/trip_read.*planning_rules.*planning_today/);
   const ui=tools.find(t=>t.name==='proposal_preview')._meta.ui;assert.ok(ui.resourceUri);assert.deepEqual(ui.visibility,['model','app']);
   const resource=await client.readResource({uri:ui.resourceUri});assert.equal(resource.contents[0].mimeType,'text/html;profile=mcp-app');assert.ok(resource.contents[0].text.includes('Подтвердить изменения'));

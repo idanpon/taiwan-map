@@ -22,7 +22,7 @@ export async function handlePlaceLifecycle(request,db,user,stateUser){
     db.sqlite.prepare("DELETE FROM app_meta WHERE key LIKE 'import:%' AND CASE WHEN json_valid(value) THEN json_extract(value,'$.place_id') END=?").run(p.id);
     db.sqlite.prepare('DELETE FROM places WHERE id=? AND trip_id=? AND hidden=1').run(p.id,TRIP);
    }
-   db.sqlite.prepare('INSERT INTO planning_events VALUES(?,?,?,?,?,?,?)').run(crypto.randomUUID(),TRIP,null,user.id,'places_deleted',JSON.stringify({count:current.length}),Date.now());
+   db.sqlite.prepare('INSERT INTO planning_events(id,trip_id,item_id,actor_id,action,payload,created_at) VALUES(?,?,?,?,?,?,?)').run(crypto.randomUUID(),TRIP,null,user.id,'places_deleted',JSON.stringify({count:current.length}),Date.now());
    db.sqlite.exec('COMMIT');return json({ok:true,count:current.length});
   }catch(error){db.sqlite.exec('ROLLBACK');throw error}
  }

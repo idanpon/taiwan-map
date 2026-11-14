@@ -7,6 +7,9 @@ import { validDate } from '../public/planning-model.js';
 import { isTravel } from '../public/planning-travel.js';
 import { all, one, run, transaction } from './sqlite.mjs';
 import { refreshItemReminders, readZonePlan } from './reminders.mjs';
+import { handlePlanningDomain } from './planning-domain-http.mjs';
+import { planningModel, problem } from './planning-domain-store.mjs';
+import { applyMetadataCommands } from './planning-command-service.mjs';
 const editable = (u) => ['owner', 'admin', 'editor'].includes(u.role);
 const conflict = (message, details = {}) => {
   const error = new Problem(409, message);
@@ -16,7 +19,7 @@ const conflict = (message, details = {}) => {
 const event = (db, user, item, action, payload) =>
   run(
     db,
-    'INSERT INTO planning_events VALUES(?,?,?,?,?,?,?)',
+    'INSERT INTO planning_events(id,trip_id,item_id,actor_id,action,payload,created_at) VALUES(?,?,?,?,?,?,?)',
     crypto.randomUUID(),
     TRIP,
     item,
@@ -32,7 +35,7 @@ function writeRelations(db, id, value) {
   for (const o of value.options)
     run(
       db,
-      'INSERT INTO planning_options VALUES(?,?,?,?,?)',
+      'INSERT INTO planning_options(id,item_id,label,description,sort_order) VALUES(?,?,?,?,?)',
       o.id,
       id,
       o.label,
@@ -84,16 +87,21 @@ export async function handlePlanning(request, db, user, { creationId = null } = 
   const url = new URL(request.url),
     path = url.pathname,
     method = request.method;
-  if (!path.startsWith('/api/planning')) return null;
+  if (!path.startsWith('/api/planning') && !path.startsWith('/api/bookings') && path!=='/api/preparation') return null;
+  if (path === '/api/planning' && method === 'GET' && url.searchParams.has('model') && !['1','2','3'].includes(url.searchParams.get('model')))
+    fail(400, 'Неизвестная версия модели планирования.');
+  const domainResponse = await handlePlanningDomain(request, db, user);
+  if (domainResponse) return domainResponse;
   if (path === '/api/planning' && method === 'GET')
     return json(planningData(db, { legacy: url.searchParams.get('model') !== '2' }));
-  const history = path.match(/^\/api\/planning\/items\/([a-zA-Z0-9-]+)\/events$/);
+  const history = path.match(/^\/api\/planning\/items\/([a-zA-Z0-9_-]+)\/events$/);
   if (history && method === 'GET') {
     itemById(db, history[1]);
     return json({
       events: all(
         db,
-        'SELECT e.id,e.action,e.payload,e.created_at,u.display_name actor FROM planning_events e JOIN users u ON u.id=e.actor_id WHERE e.item_id=? ORDER BY e.created_at DESC,e.rowid DESC LIMIT 100',
+        'SELECT e.id,e.action,e.payload,e.created_at,u.display_name actor FROM planning_events e JOIN users u ON u.id=e.actor_id WHERE e.item_id=? OR EXISTS(SELECT 1 FROM planning_event_refs r WHERE r.event_id=e.id AND r.item_id=?) ORDER BY e.created_at DESC,e.rowid DESC LIMIT 100',
+        history[1],
         history[1],
       ).map((e) => ({ ...e, payload: JSON.parse(e.payload) })),
     });
@@ -107,6 +115,16 @@ export async function handlePlanning(request, db, user, { creationId = null } = 
 export function applyPlanningChange(db, user, { path, method, body: b, creationId = null }) {
   if (!editable(user)) fail(403, 'Доступ только для просмотра.');
   return transaction(db, () => {
+    if (planningModel(db) === 3) {
+      const target = path.match(/^\/api\/planning\/items\/([a-zA-Z0-9_-]+)$/);
+      const safe = ['version', 'title', 'description', 'note', 'priority', 'assignee_id', 'idempotency_key'];
+      if (method !== 'PUT' || !target || Object.keys(b).some(key => !safe.includes(key)))
+        problem(409, 'MODEL3_REQUIRED', 'Изменение дат, состояния или связей требует нового протокола планирования.');
+      const { version, idempotency_key, ...data } = b;
+      applyMetadataCommands(db, user, { version: 3, idempotency_key: idempotency_key || crypto.randomUUID(),
+        commands: [{ key: 'metadata', type: 'edit_item', id: target[1], expected_version: version, data }] });
+      return json({ item: readItem(db, itemById(db, target[1])) });
+    }
     if (path === '/api/planning/trip' && method === 'PUT') {
       if (!Number.isSafeInteger(b.version)) fail(400, 'Укажите версию поездки.');
       for (const k of ['departure_date', 'start_date', 'end_date'])
@@ -126,7 +144,7 @@ export function applyPlanningChange(db, user, { path, method, body: b, creationI
       event(db, user, null, 'trip', b);
       return json({ ok: true, version: b.version + 1 });
     }
-    const action = path.match(/^\/api\/planning\/items\/([a-zA-Z0-9-]+)\/(preview|resolve)$/);
+    const action = path.match(/^\/api\/planning\/items\/([a-zA-Z0-9_-]+)\/(preview|resolve)$/);
     if (action && method === 'POST') {
       const preview = computePreview(db, action[1], b);
       if (action[2] === 'preview') return json(preview);
@@ -199,7 +217,7 @@ export function applyPlanningChange(db, user, { path, method, body: b, creationI
       event(db, user, preview.item_id, reopen ? 'reopen' : 'resolve', preview);
       return json({ item: readItem(db, updated), preview });
     }
-    const match = path.match(/^\/api\/planning\/items\/([a-zA-Z0-9-]+)$/),
+    const match = path.match(/^\/api\/planning\/items\/([a-zA-Z0-9_-]+)$/),
       creating = path === '/api/planning/items' && method === 'POST';
     if (!creating && !(match && ['PUT', 'DELETE'].includes(method)))
       fail(404, 'Маршрут планировщика не найден.');

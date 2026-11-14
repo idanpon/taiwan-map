@@ -1,3 +1,4 @@
+@import url('./route-planning.css');
 .planning-page.app-active { overflow-x: hidden; overflow-y: scroll; }
 .planning-page #application { height: auto; min-height: 100dvh; }
 .planning-page .topbar { position: sticky; top: 0; z-index: 10; width: 100%; }

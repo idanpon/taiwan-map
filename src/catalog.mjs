@@ -3,6 +3,7 @@ import { categories, verifiedAt } from './places.mjs';
 import { readTags } from '../public/place-tags.js';
 import { planningData } from './planning.mjs';
 import { canRatePlaces } from './place-ratings.mjs';
+import { readModel3 } from './planning-command-service.mjs';
 
 export async function handleCatalog(request, db, user, stateUser, scope) {
   const path = new URL(request.url).pathname;
@@ -67,13 +68,22 @@ export async function handleCatalog(request, db, user, stateUser, scope) {
       })),
     };
     const tripRecord = await stmt(db, 'SELECT * FROM trips WHERE id=?', TRIP).first();
+    const model3=tripRecord?.planning_model===3?readModel3(db,user):null;
+    if(model3){
+      const confirmed=new Set(model3.derived.housing_coverage.map(c=>c.place_id));
+      for(const place of data.places)place.has_stay=confirmed.has(place.id);
+    }
     data.trip = {
       ...data.trip,
       departure_date: tripRecord?.departure_date,
       start_date: tripRecord?.start_date,
       end_date: tripRecord?.end_date,
+      planning_model: tripRecord?.planning_model,
     };
-    if (path === '/api/export') data.planning = planningData(db);
+    if (path === '/api/export') {
+      data.planning = planningData(db);
+      if (model3) data.planning_v3 = model3;
+    }
     return json(
       data,
       200,

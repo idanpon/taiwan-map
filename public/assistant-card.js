@@ -22,8 +22,8 @@ export function unpack(result){
   if(result.isError||value.error){const error=new Error(value.error||result.content?.find(c=>c.type==='text')?.text||'Не удалось выполнить действие.');error.status=value.status;throw error;}
   return value;
 }
-export async function applyWithRecovery(call,proposal){
-  const args={id:proposal.id,version:proposal.version,confirmation_token:proposal.preview.confirmation_token,confirmed_via:'button'};
+export async function applyWithRecovery(call,proposal,acknowledgements=[]){
+  const args={id:proposal.id,version:proposal.version,confirmation_token:proposal.preview.confirmation_token,confirmed_via:'button',...(acknowledgements.length?{acknowledgements}:{})};
   for(let attempt=0;attempt<4;attempt++){
     try{return await call('proposal_apply',args);}catch(error){
       if(error.status&&error.status<500)throw error;
@@ -36,13 +36,15 @@ export async function applyWithRecovery(call,proposal){
   }
 }
 export function mountAssistant(root,call,{onApplied=()=>{},openLink}={}){
-  let proposal=null,busy=false;
+  let proposal=null,busy=false,confirmed=new Set();
   const message=node('p','','assistant-message');message.setAttribute('role','status');
   const button=(text,fn,primary=false)=>{const b=node('button',text,primary?'assistant-primary':'');b.type='button';b.addEventListener('click',()=>action(fn));return b;};
-  async function action(fn){if(busy)return;busy=true;root.querySelectorAll('button').forEach(b=>b.disabled=true);message.textContent='Проверяем…';try{await fn();}catch(e){message.textContent=e.message+(e.status===409?' Обновите данные и подтвердите новый предпросмотр.':'');message.className='assistant-message assistant-error';}finally{busy=false;root.querySelectorAll('button').forEach(b=>b.disabled=false);}}
+  function syncApply(){const b=root.querySelector('[data-confirm-proposal]');if(b)b.disabled=busy||proposal?.preview?.can_apply===false||(proposal?.preview?.acknowledgements||[]).some(a=>!confirmed.has(a.key));}
+  async function action(fn){if(busy)return;busy=true;root.querySelectorAll('button').forEach(b=>b.disabled=true);message.textContent='Проверяем…';try{await fn();}catch(e){message.textContent=e.message+(e.status===409?' Обновите данные и подтвердите новый предпросмотр.':'');message.className='assistant-message assistant-error';}finally{busy=false;root.querySelectorAll('button').forEach(b=>b.disabled=false);syncApply();}}
   function set(value){if(value.proposal_id&&value.status==='applied')proposal={...proposal,id:value.proposal_id,title:value.title||proposal?.title,status:'applied',preview:proposal?.preview||{labels:value.labels},result:value,review_url:value.review_url||proposal?.review_url};else proposal=value;render();}
   async function refresh(){set(await call('proposal_read',{id:proposal.id}));}
   function render(){
+    confirmed=new Set();
     root.replaceChildren();message.textContent='';message.className='assistant-message';
     if(!proposal?.id){root.append(node('p','Предложение ещё не подготовлено. Продолжите обсуждение в чате.'));return;}
     root.append(node('p',statusLabels[proposal.status]||proposal.status,'assistant-badge'),node('h2',proposal.title||'Изменения поездки'));
@@ -54,7 +56,7 @@ export function mountAssistant(root,call,{onApplied=()=>{},openLink}={}){
       if(proposal.preview?.reasons?.length){const reasons=node('ul');for(const reason of proposal.preview.reasons)reasons.append(node('li',reason.reason));root.append(reasons);}
       for(const change of details.changes){
         const item=node('article',undefined,'assistant-change');
-        const noun=change.entity==='place'?'место':({task:'задачу',visit:'посещение',decision:'решение',stay:'проживание',transport:'переезд'})[(change.after||change.before).kind]||'запись плана';
+        const noun=change.entity==='place'?'место':({task:'задачу',visit:'посещение',decision:'решение',stay:'проживание',transport:'переезд'})[(change.after||change.before)?.kind]||'запись плана';
         const verb={create:'Добавить',update:'Изменить',delete:'Удалить'}[change.action];
         item.append(node('h3',`${proposal.status==='applied'?(change.action==='delete'?'Удалено':'Сохранено'):verb+' '+noun}: ${change.name}`));
         const list=node('dl'),extra=node('dl'),fold=node('details');
@@ -75,15 +77,18 @@ export function mountAssistant(root,call,{onApplied=()=>{},openLink}={}){
       if(warnings.length){const list=node('ul',undefined,'assistant-warning');for(const warning of warnings)list.append(node('li',typeof warning==='string'?warning:format(warning)));root.append(node('h3','Нужно учесть'),list);}
     }else if(proposal.operations){const list=node('ul');for(const op of proposal.operations)list.append(node('li',`${op.data?.name||op.data?.title||'Изменение записи'} — ${op.reason}`));root.append(list,node('p','Черновик сохранён лично для вас. На карту ничего не добавлено.'));}
     const actions=node('div',undefined,'assistant-actions');
+    for(const ack of proposal.preview?.acknowledgements||[]){const label=node('label',undefined,'assistant-warning'),input=node('input');input.type='checkbox';input.addEventListener('change',()=>{if(input.checked)confirmed.add(ack.key);else confirmed.delete(ack.key);syncApply();});label.append(input,document.createTextNode(ack.label));root.append(label);}
     if(!['applied','cancelled'].includes(proposal.status)){
-      if(proposal.status==='ready')actions.append(button('Подтвердить изменения',async()=>{const receipt=await applyWithRecovery(call,proposal);set(receipt);try{await onApplied(receipt);}catch{/* A chat notification is not the write receipt. */}},true));
+      if(proposal.status==='ready'){const b=button('Подтвердить изменения',async()=>{const receipt=await applyWithRecovery(call,proposal,[...confirmed]);set(receipt);try{await onApplied(receipt);}catch{/* A chat notification is not the write receipt. */}},true);b.dataset.confirmProposal='';actions.append(b);}
       actions.append(button(proposal.status==='ready'?'Обновить предпросмотр':'Проверить и показать',async()=>set(await call('proposal_preview',{id:proposal.id,version:proposal.version})),proposal.status==='draft'));
       actions.append(button('Изменить',edit),button('Оставить черновиком',async()=>set(await call('proposal_draft',{id:proposal.id,version:proposal.version}))),button('Отменить предложение',async()=>set(await call('proposal_cancel',{id:proposal.id,version:proposal.version}))));
     }
     actions.append(button('Проверить результат',refresh));root.append(actions,message);
+    syncApply();
     if(proposal.review_url&&openLink){const link=button('Открыть на сайте',()=>openLink(proposal.review_url));root.append(link);}
   }
   async function edit(){
+    if(proposal.input?.planning_commands){message.textContent='Уточните изменения в чате или оставьте этот пакет черновиком и внесите правки в плане. После правки нужен новый предпросмотр.';return;}
     const context=await call('trip_read',{}),input=structuredClone(proposal.input),form=node('form');
     const field=(parent,label,value,type='text')=>{const wrap=node('label',label),control=node('input');control.type=type;control.value=value??'';wrap.append(control);parent.append(wrap);return control;};
     const title=field(form,'Название предложения',input.title);title.maxLength=160;

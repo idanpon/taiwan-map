@@ -3,6 +3,16 @@ import assert from 'node:assert/strict';
 import {createApiClient} from '../public/api-client.js';
 const token='a'.repeat(64);
 const response=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json'}});
+test('model 3 transport keeps binary bytes and MIME, and rejects downloads after logout',async()=>{
+ const calls=[];let release;
+ const api=createApiClient({fetchImpl:async(path,options)=>{calls.push({path,options});if(path.endsWith('/content')&&options.method!=='POST')return new Promise(resolve=>release=resolve);return response({ok:true});}});
+ await api('/api/planning?model=3');const blob=new Blob(['%PDF-demo'],{type:'application/pdf'});await api('/api/documents/uploads/demo/content',{method:'POST',body:blob,headers:{'Content-Type':'application/pdf'}});
+ assert.equal(calls.at(-1).options.headers.get('Content-Type'),'application/pdf');assert.equal(calls.at(-1).options.body,blob);
+ const pending=api('/api/documents/demo/content',{responseType:'blob'});await api('/api/logout',{method:'POST'});release(new Response(blob));await assert.rejects(pending,/Сессия изменилась/);
+ let bodyReady,readStarted;const started=new Promise(resolve=>readStarted=resolve);
+ const streaming=createApiClient({fetchImpl:async path=>path.endsWith('/content')?{ok:true,blob:()=>{readStarted();return new Promise(resolve=>bodyReady=resolve);}}:response({ok:true})});
+ const reading=streaming('/api/documents/demo/content',{responseType:'blob'});await started;await streaming('/api/logout',{method:'POST'});bodyReady(blob);await assert.rejects(reading,/Сессия изменилась/);
+});
 test('a late unauthorized response cannot revoke a newer login',async()=>{
  const values=new Map(),storage={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
  let pending,issued=token,notified=0;

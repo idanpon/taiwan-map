@@ -24,10 +24,10 @@ test('schema upgrade on a SQLite backup guards assigned custom statuses and pres
   run(original,"INSERT INTO state_events VALUES('status-event',?,'taipei-101','hype','Keep place note',7,1)",user);
   for(const [id,kind] of [['historic-decision','decision'],['historic-visit','visit']])
    run(original,"INSERT INTO planning_items(id,trip_id,kind,title,note,date_start,version,created_by,updated_by,created_at,updated_at) VALUES(?,?,?,?,?,'2027-01-07',5,?,?,1,1)",id,trip,kind,id,'Keep plan note',user,user);
-  run(original,"INSERT INTO planning_options VALUES('historic-option','historic-decision','Option','Keep option',0)");
+  run(original,"INSERT INTO planning_options(id,item_id,label,description,sort_order) VALUES('historic-option','historic-decision','Option','Keep option',0)");
   run(original,"INSERT INTO planning_item_places VALUES('historic-place','historic-decision','historic-option','taipei-101','Taipei 101',1,'keep')");
   run(original,"INSERT INTO planning_dependencies VALUES('historic-visit','historic-decision')");
-  run(original,"INSERT INTO planning_events VALUES('plan-event',?,'historic-visit',?,'update','{}',1)",trip,user);
+  run(original,"INSERT INTO planning_events(id,trip_id,item_id,actor_id,action,payload,created_at) VALUES('plan-event',?,'historic-visit',?,'update','{}',1)",trip,user);
   run(original,"INSERT INTO sessions(token_hash,user_id,expires_at) VALUES('session-hash',?,100000)",user);
   run(original,"INSERT INTO push_devices(id,user_id,session_hash,installation_id,name,endpoint,p256dh,auth,enabled_from,last_seen) VALUES('device',?,'session-hash','installation','Fixture','https://example.test/push','p','a',1,1)",user);
   run(original,"INSERT INTO planning_reminders(id,user_id,item_id,enabled,mode,local_time,fires_at,updated_at) VALUES('reminder',?,'historic-visit',1,'day','10:00',9999,1)",user);
@@ -37,7 +37,8 @@ test('schema upgrade on a SQLite backup guards assigned custom statuses and pres
   copy=openDatabase(path);
   const tables=['planning_items','planning_options','planning_item_places','planning_dependencies',
    'planning_events','planning_reminders','push_deliveries','state_events','user_place_states'];
-  const snapshot=()=>Object.fromEntries(tables.map(table=>[table,all(copy,'SELECT * FROM '+table+' ORDER BY rowid')]));
+  const originalColumns=Object.fromEntries(tables.map(table=>[table,all(copy,'PRAGMA table_info('+table+')').map(c=>c.name)]));
+  const snapshot=()=>Object.fromEntries(tables.map(table=>[table,all(copy,'SELECT '+originalColumns[table].join(',')+' FROM '+table+' ORDER BY rowid')]));
   const before=snapshot();
   assert.throws(()=>migrate(copy,'drizzle'),/review_custom_status_assignments_before_upgrade/);
   assert.deepEqual(snapshot(),before);
@@ -49,8 +50,8 @@ test('schema upgrade on a SQLite backup guards assigned custom statuses and pres
   run(copy,"UPDATE user_place_states SET status_id='want',version=8 WHERE place_id='taipei-101'");
   const reviewed=snapshot();
   migrate(copy,'drizzle');migrate(copy,'drizzle');
-  reviewed.planning_items=reviewed.planning_items.map(row=>Object.assign(row,{transport_json:null}));
-  reviewed.planning_item_places=reviewed.planning_item_places.map(row=>Object.assign(row,{role:null}));
+  assert.equal(one(copy,"SELECT transport_json FROM planning_items LIMIT 1").transport_json,null);
+  assert.equal(one(copy,"SELECT role FROM planning_item_places LIMIT 1").role,null);
   assert.deepEqual(snapshot(),reviewed);
   assert.equal(one(copy,"SELECT archived FROM statuses WHERE id='hype'").archived,1);
   assert.deepEqual({...one(copy,"SELECT color,symbol,dimmed FROM statuses WHERE id='want'")},{color:'#123456',symbol:'+',dimmed:1});

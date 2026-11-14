@@ -3,6 +3,7 @@ import { Problem } from './auth.mjs';
 import { placeStatusIds } from '../public/place-statuses.js';
 import { kindLabels } from '../public/planning-model.js';
 import { transportModes } from '../public/planning-travel.js';
+import { planningCommandFields } from '../public/planning-domain.js';
 
 export const id = z.string().regex(/^[a-zA-Z0-9-]{1,80}$/);
 const reference = z.string().regex(/^\$?[a-zA-Z0-9-]{1,80}$/);
@@ -60,13 +61,17 @@ export const operationSchema=z.discriminatedUnion('kind',[
   z.object({...base,kind:z.literal('plan.delete'),id,version:z.number().int().min(1)}).strict(),
   z.object({...base,kind:z.literal('decision.resolve'),id,version:z.number().int().min(1),data:z.object({mode:z.enum(['resolve','reopen']).default('resolve'),option_id:id.nullable().optional(),alternatives:z.record(id,z.enum(['keep','hide'])).optional()}).strict()}).strict(),
 ]);
+export const planningCommandSchema=z.discriminatedUnion('type',Object.entries(planningCommandFields).map(([type,fields])=>
+ z.object({key:z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/),type:z.literal(type),...Object.fromEntries(fields.map(name=>[name,name==='expected_version'?z.number().int().min(0).optional():z.json().optional()]))}).strict()
+));
 export const proposalSchema=z.object({
   id:z.string().uuid().describe('Stable client-generated UUID. Reuse this ID for retries.'),
   version:z.number().int().min(1).optional(),
   title:z.string().trim().min(1).max(160),
-  operations:z.array(operationSchema).min(1).max(30),
+  operations:z.array(operationSchema).max(30).default([]),
+  planning_commands:z.array(planningCommandSchema).min(1).max(100).optional(),
   uncertainties:z.array(z.string().max(1000)).max(20).default([]),
-}).strict();
+}).strict().refine(v=>Boolean(v.operations.length)!==Boolean(v.planning_commands),{message:'Укажите либо прежние операции карты, либо planning_commands модели 3. Не смешивайте два протокола в одном предложении.'});
 export function parse(schema,value){
   const result=schema.safeParse(value);
   if(!result.success)throw new Problem(400,result.error.issues.map(i=>`${i.path.join('.')}: ${i.message}`).slice(0,8).join('; '));

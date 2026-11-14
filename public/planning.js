@@ -21,12 +21,13 @@ import {initialZone,emptyZonePlan,localPoint,offsetLabel,zoneAt} from './trip-ti
 import {createTimeReview,editTripTime,itemDateEditor,timezoneExplanation,zoneBadge,pointText} from './planning-time-ui.js';
 import {reminderCard} from './planning-reminders-ui.js';
 import {installDatePicker,setDateValue} from './date-picker.js';
+import {createRoutePlanningUI} from './route-planning-ui.js';
 const $=id=>document.getElementById(id);
 trackTouchInput(document);
 const config=window.TAIWAN_CONFIG||{};
 let zone=emptyZonePlan;
 const closeDatePicker=installDatePicker(document,{today:()=>dayInZone(new Date(),zone)});
-let data,plan,view='month',focusDay=dayInZone(new Date(),zone),kind='',state='active',search='',busy=false,dirty=false,editingId=null,currentPreview=null,previewSequence=0,accountUI,startup,reminderUI;
+let data,plan,view='month',focusDay=dayInZone(new Date(),zone),kind='',state='active',search='',busy=false,dirty=false,editingId=null,currentPreview=null,previewSequence=0,accountUI,startup,reminderUI,routeUI;
 const filterDisplays=[...document.querySelectorAll('.planner-filters select,.planner-filters input')].map(control=>{
  const wrapper=document.createElement('span'),value=document.createElement('span');wrapper.className='planner-filter-control';value.className='planner-filter-value';value.setAttribute('aria-hidden','true');control.before(wrapper);wrapper.append(control,value);
  const update=()=>{value.textContent=control.tagName==='SELECT'?control.selectedOptions[0]?.textContent||'':control.value||control.placeholder;value.classList.toggle('is-placeholder',control.tagName==='INPUT'&&!control.value)};
@@ -80,7 +81,7 @@ function showDialog(title,html,{system=false,wide=false}={}){
  dialogBody.scrollTop=0;dialogTitle.focus({preventScroll:true});
 }
 $('login-back').onclick=()=>{location.href='./'};
-function showLogin(){drag?.cancel();lastMove=null;++loadSequence;notice.clear();closeDatePicker();data=null;plan=null;dirty=false;busy=false;for(const id of ['planning-canvas','planning-dialog-content','planning-preview-content'])$(id).replaceChildren();accountUI?.update();dialog.close();previewDialog.close();$('accounts-dialog').close();$('help-dialog').close();$('application').hidden=true;$('login').hidden=false;$('auth-loading').hidden=true;$('auth-content').hidden=false;$('login-back').hidden=false;document.body.classList.remove('app-active');accountUI?.showLogin()}
+function showLogin(){routeUI?.reset();drag?.cancel();lastMove=null;++loadSequence;notice.clear();closeDatePicker();data=null;plan=null;dirty=false;busy=false;for(const id of ['planning-canvas','planning-dialog-content','planning-preview-content'])$(id).replaceChildren();accountUI?.update();dialog.close();previewDialog.close();$('accounts-dialog').close();$('help-dialog').close();$('application').hidden=true;$('login').hidden=false;$('auth-loading').hidden=true;$('auth-content').hidden=false;$('login-back').hidden=false;document.body.classList.remove('app-active');accountUI?.showLogin()}
 function filtered(ignoreState=false){return (plan?.items||[]).filter(i=>(!kind||i.kind===kind)&&(ignoreState||!state||(state==='active'?!['done','cancelled'].includes(i.state):i.state===state))&&(!search||[i.title,i.description,i.note,i.transport?.service_number,...(i.transport?.stops||[]),...i.places.map(p=>p.place_name)].join(' ').toLowerCase().includes(search)))}
 function itemMoments(i){return [i.starts_at,i.ends_at].filter(Boolean).map(at=>localPoint(at,zone))}
 function itemWhen(i){
@@ -121,6 +122,7 @@ function render({keepAgenda=false}={}){
  const completed=filtered(true).filter(item=>item.state==='done').length;
  $('planning-completed-control').hidden=!completed&&state==='active';$('planning-completed-label').textContent='Выполненные · '+completed;$('planning-completed').checked=state===''||state==='done';
  $('planning-canvas').dataset.view=view;canvas.dataset.day=focusDay;
+ if(routeUI?.active){routeUI.render({view,focusDay,today,kind,state,search});for(const b of $('planning-views').querySelectorAll('[data-view]'))b.setAttribute('aria-pressed',String(b.dataset.view===view));layout.refresh({scrollTop:canvas.querySelector('[data-planning-scroller]').scrollTop,pageTop});return;}
  renderPlanningCanvas(canvas,renderPlanningPilot({view,items,plan,zone,focusDay,today,allowed:allowed(),pendingId,listLimit,hasFilters:Boolean(kind||search||state!=='active'||plan.items.length&&!items.length)}));
  $('planning-prev').hidden=$('planning-next').hidden=view==='list';
  const agendaShift=agenda?agenda.getBoundingClientRect().top+window.scrollY-agendaTop:0;
@@ -147,6 +149,7 @@ function actionsHtml(item){
  return `<div class="planning-record-actions">${primary}<div class="planning-record-secondary"><button class="ui-button ui-button--quiet ui-button--compact" data-edit="${id}">Изменить</button><button class="ui-button ui-button--quiet ui-button--compact ui-button--danger" data-delete="${id}">Удалить</button></div></div>`;
 }
 function openItem(id){
+ if(routeUI?.active){routeUI.open('item',id);return;}
  if(!plan||!canLeave())return;const i=plan.items.find(i=>i.id===id);if(!i){toast('Запись удалена или недоступна.');return}editingId=null;activeItemId=id;
  const u=urgency(i,{zone}),deadlineToday=!isTravel(i.kind)&&i.kind!=='visit'&&u.kind==='current'&&itemDates(i,zone)[1]===dayInZone(new Date(),zone);
  showDialog(i.title,`<div class="planning-dialog-meta muted"><span class="planning-kind-label" data-kind="${i.kind}">${kindIcon(i.kind)}${esc(kindLabels[i.kind])}</span><span aria-hidden="true">·</span><span class="ui-status" data-state="${esc(i.state)}">${esc(stateLabel(i))}</span></div>${recordDateHtml(i)}<p class="muted" id="planning-item-zone-help" hidden>${timezoneExplanation}</p>${!isTravel(i.kind)&&u.label&&u.kind!=='quiet'?`<span class="planning-indicator ${u.kind} ${deadlineToday?'is-deadline':''}">${esc(deadlineToday?'Срок сегодня':u.label)}</span>`:''}${i.fixed_external?'<p class="planning-warning">Фиксированная внешняя дата / время. Перенос поездки не сдвигает её.</p>':''}${i.description?`<div class="planning-description">${esc(i.description)}</div>`:''}${i.note?`<h3>Заметка участников</h3><div class="planning-note">${esc(i.note)}</div>`:''}${placesHtml(i)}${relationsHtml(i)}${i.source_urls.length?`<details><summary>${isTravel(i.kind)?'Ссылки и подтверждения':'Источники'}</summary>${i.source_urls.map(url=>`<p><a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(url)} ↗</a></p>`).join('')}</details>`:''}${i.kind==='decision'?`<h3>${i.state==='done'?'Принятое решение':'Варианты'}</h3><div class="planning-options">${i.options.map(o=>`<button type="button" class="ui-button" data-option="${esc(o.id)}" data-decision="${esc(i.id)}" ${!allowed()||!['open','in_progress'].includes(i.state)?'disabled':''}>${i.selected_option_id===o.id?'✓ ':''}${esc(o.label)}${o.description?`<span class="muted planning-description"> — ${esc(o.description)}</span>`:''}</button>`).join('')||'<p class="muted">Варианты ещё не заданы.</p>'}</div>`:''}${actionsHtml(i)}<section id="planning-reminder" class="planning-reminder"></section><details class="planning-history" id="planning-history"><summary>История изменений</summary><div>Загрузка…</div></details>`);
@@ -156,6 +159,7 @@ function openItem(id){
 }
 function selectOptions(values,current){return Object.entries(values).map(([id,label])=>`<option value="${id}" ${id===current?'selected':''}>${esc(label)}</option>`).join('')}
 function editItem(id=null,day=dayInZone(new Date(),zone)){
+ if(routeUI?.active){routeUI.edit();return;}
  if(!allowed()||!canLeave())return;const old=id?plan.items.find(i=>i.id===id):null;if(id&&!old)return;
  const i=old||{kind:'task',title:'',description:'',note:'',state:'open',priority:'normal',date_start:day,date_end:null,starts_at:null,ends_at:null,event_timezone:initialZone.zone,sort_order:0,fixed_external:false,source_urls:[],options:[],places:[],dependencies:[]};editingId=id;
  let options=i.options.map(o=>({...o})),links=i.places.filter(link=>!link.role).map(l=>({...l}));
@@ -339,14 +343,18 @@ $('planning-confirm').onclick=async()=>{if(!currentPreview||busy)return;busy=tru
 function editTrip(){if(!allowed()||!canLeave())return;editTripTime({trip:plan.trip,plan:zone,esc,showDialog,dialog,setBusy,setDirty,error:dialogError,api,load,review:timeReview,toast})}
 async function load({signal}={}){
  const sequence=++loadSequence;const [mapData,calendar]=await Promise.all([api('/api/data',{signal}),api('/api/planning?model=2',{signal})]);
+ const route=calendar.model_version===3?await api('/api/planning?model=3',{signal}):null;
+ if(route&&!['changesets','requirements','bookings','route_options','documents','group_shift','route_completion','deadline_reminders'].every(k=>route.capabilities[k]))throw Error('Новая модель плана требует совместимой версии API. Обновите страницу после обновления сервера.');
  if(sequence!==loadSequence||drag?.active)return;const first=!plan;data=mapData;plan=calendar;zone=calendar.timezone_plan||emptyZonePlan;
  if(first)focusDay=dayInZone(new Date(),zone);
+ if(route)routeUI.update(route,allowed());else if(routeUI?.active)routeUI.reset();
  accountUI?.update();accountUI?.hideLogin();
  $('application').hidden=false;$('login').hidden=true;document.body.classList.add('app-active');render();
  void accountUI?.notifications.refresh();
 }
-drag=installPlanningDrag({surface:$('planning-canvas'),document,window,enabled:()=>Boolean(allowed())&&!busy&&!document.querySelector('dialog[open]'),onDrop:moveItem,onDragEnd:layout.resetScrollTracking,onBlocked:blockedMove,onError:error=>toast(error.message,'warning')});
+drag=installPlanningDrag({surface:$('planning-canvas'),document,window,enabled:()=>!routeUI?.active&&Boolean(allowed())&&!busy&&!document.querySelector('dialog[open]'),onDrop:moveItem,onDragEnd:layout.resetScrollTracking,onBlocked:blockedMove,onError:error=>toast(error.message,'warning')});
 $('planning-canvas').onclick=event=>{
+ if(routeUI?.active)return;
  const quick=event.target.closest('[data-quick-complete]');if(quick){void completeItem(quick.dataset.quickComplete,{quick:true});return}
  const item=event.target.closest('[data-item]'),record=event.target.closest('[data-record]');if(item||record){openItem(item?.dataset.item||record.dataset.record);return}
  const day=event.target.closest('button[data-day]'),calendarDay=event.target.closest('[data-calendar-day]'),add=event.target.closest('[data-new-day]');
@@ -373,8 +381,8 @@ const compactPlanning=window.matchMedia('(max-width:720px)');
 const canNavigatePlan=()=>Boolean(plan)&&view==='month'&&!busy&&!document.querySelector('dialog[open]')&&!$('application').hidden;
 installPlanningNavigation({
  canvas:$('planning-canvas'),document,navigate,
- enabled:()=>canNavigatePlan()&&!drag.active,
- dayEnabled:()=>compactPlanning.matches&&canNavigatePlan()&&!drag.claimed,
+ enabled:()=>!routeUI?.active&&canNavigatePlan()&&!drag.active,
+ dayEnabled:()=>!routeUI?.active&&compactPlanning.matches&&canNavigatePlan()&&!drag.claimed,
  navigateDay(direction){
   drag.cancel();
   focusDay=addDays(focusDay,direction);
@@ -399,11 +407,12 @@ $('planning-export').onclick=async()=>{try{const content=await api('/api/export'
 $('logout').onclick=async()=>{if(!canLeave())return;try{await api('/api/logout',{method:'POST'});await accountUI.notifications.signOut();showLogin()}catch(error){toast(error.message)}};
 $('login-form').onsubmit=async e=>{e.preventDefault();const button=e.currentTarget.querySelector('[type=submit]');if(button.disabled)return;button.disabled=true;try{await api('/api/login',{method:'POST',body:JSON.stringify({username:$('username').value,password:$('password').value})});accountUI.resetLoginPassword();await load();openHash()}catch(error){$('login-error').textContent=error.message}finally{button.disabled=false}};
 const help=createHelpUI({$,getData:()=>data,esc});$('help-open').onclick=()=>help.open();
-accountUI=createAccountUI({api,$,esc,load:async()=>{await load();openHash()},toast,showLogin,getData:()=>data,canOpen:canLeave,onNotificationsChange:()=>reminderUI?.updateDevices()});
+accountUI=createAccountUI({api,$,esc,load:async()=>{await load();openHash()},toast,showLogin,getData:()=>data,canOpen:canLeave,onNotificationsChange:()=>{reminderUI?.updateDevices();routeUI?.refreshDevices()}});
 accountUI.notifications.calendar($('planning-push-invite'));
-function openHash(){const id=new URLSearchParams(location.hash.slice(1)).get('item');if(id&&plan)openItem(id)}
+routeUI=createRoutePlanningUI({canvas:$('planning-canvas'),api,getUsers:()=>plan?.users||[],getZone:()=>zone,notifications:()=>accountUI.notifications,openSettings:()=>accountUI.openNotifications(),onRefresh:()=>load(),onDay:day=>{focusDay=day;view='month';render()},onMonth:navigate,toast,onState:state=>{busy=state.busy;dirty=state.dirty}});
+function openHash(){if(routeUI?.active){routeUI.openHash();return;}const id=new URLSearchParams(location.hash.slice(1)).get('item');if(id&&plan)openItem(id)}
 window.addEventListener('hashchange',openHash);window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
-document.addEventListener('visibilitychange',async()=>{if(document.hidden||!plan||dirty||busy||drag.active||dialog.open||previewDialog.open)return;try{await load()}catch(error){toast(error.message)}});
+document.addEventListener('visibilitychange',async()=>{if(document.hidden||!plan||dirty||busy||routeUI?.blocked||drag.active||dialog.open||previewDialog.open)return;try{await load()}catch(error){toast(error.message)}});
 setInterval(()=>{if(plan&&!document.hidden&&!busy&&!dirty&&!drag.active&&!dialog.open)render()},60000);
 const loadingScreen=createLoadingScreenUI({$,message:'Загружаем план поездки…'});
 startup=createAuthStartup({initialize:signal=>accountUI.init(signal),load:async signal=>{await load({signal});openHash()},onLoading:()=>loadingScreen.show(),onLogin:showLogin,onError:message=>loadingScreen.error(message)});

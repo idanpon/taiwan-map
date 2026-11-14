@@ -1,5 +1,5 @@
 import http from 'node:http';
-import {readFileSync,readdirSync,mkdirSync,unlinkSync,existsSync} from 'node:fs';
+import {readFileSync,readdirSync,mkdirSync,unlinkSync,existsSync,rmSync} from 'node:fs';
 import {resolve,dirname,extname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {handle,apiErrorResponse} from '../src/core.mjs';
@@ -11,6 +11,10 @@ import {appIcon} from '../scripts/generate-icons.mjs';
 import {openDatabase,migrate} from './database.mjs';
 import {pushTransport} from './push-transport.mjs';
 import {createPushScheduler} from './push-scheduler.mjs';
+import {Readable} from 'node:stream';
+import {createDocumentStorage} from './document-storage.mjs';
+import {backupDocuments} from './document-backup.mjs';
+import {collectDocumentGarbage} from '../src/documents.mjs';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 
 const origin=new URL(process.env.APP_ORIGIN||'http://localhost:8080');
@@ -24,6 +28,10 @@ function renderPage(source){
 }
 const databasePath=resolve(process.env.DATABASE_PATH||'data/taiwan.sqlite');
 const DB=openDatabase(databasePath);migrate(DB,resolve(root,'drizzle'));
+DB.documentStore=createDocumentStorage(process.env.DOCUMENT_ROOT||resolve(dirname(databasePath),'documents'),{
+ ...(process.env.DOCUMENT_MAX_BYTES?{maxBytes:Number(process.env.DOCUMENT_MAX_BYTES)}:{}),
+ ...(process.env.DOCUMENT_QUOTA_BYTES?{quotaBytes:Number(process.env.DOCUMENT_QUOTA_BYTES)}:{}),
+});
 const frontend=process.env.FRONTEND_ORIGIN?new URL(process.env.FRONTEND_ORIGIN):null;
 if(frontend&&(frontend.origin!==process.env.FRONTEND_ORIGIN||frontend.protocol!=='https:'))throw new Error('FRONTEND_ORIGIN must be an exact HTTPS origin without a path.');
 const cookiePath=process.env.SESSION_COOKIE_PATH||'/';
@@ -42,8 +50,9 @@ const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,origin);let response;
   if(url.pathname.startsWith('/api/')||assistantRoute(url.pathname)){
    const maxBytes=['/api/assistant/mcp','/api/assistant/tool'].includes(url.pathname)?131072:url.pathname.startsWith('/api/auth/passkeys')?65536:url.pathname.startsWith('/api/planning')||url.pathname==='/api/places/hidden/delete-all'?131072:/^\/api\/places\/[a-zA-Z0-9-]+\/state$/.test(url.pathname)?32768:8192;
+   const streamedUpload=req.method==='POST'&&/^\/api\/documents\/uploads\/[a-f0-9-]{36}\/content$/.test(url.pathname);
    let size=0,chunks=[];
-   for await(const chunk of req){
+   if(!streamedUpload)for await(const chunk of req){
     size+=chunk.length;
     if(size>maxBytes){
      const rejected=apiErrorResponse(new Request(url,{headers:{Origin:req.headers.origin||''}}),env,413,'Слишком большой запрос.');
@@ -53,9 +62,10 @@ const server=http.createServer(async(req,res)=>{
     chunks.push(chunk);
    }
    const headers=new Headers();for(const [k,v] of Object.entries(req.headers))if(v!==undefined)headers.set(k,Array.isArray(v)?v.join(','):v);
-   const request=new Request(url,{method:req.method,headers,...(!['GET','HEAD'].includes(req.method)?{body:Buffer.concat(chunks)}:{})});
+   const request=new Request(url,{method:req.method,headers,...(!['GET','HEAD'].includes(req.method)?streamedUpload?{body:Readable.toWeb(req),duplex:'half'}:{body:Buffer.concat(chunks)}:{})});
    const clientIp=process.env.TRUST_PROXY==='1'?headers.get('x-real-ip')||'unknown':req.socket.remoteAddress||'unknown';
    response=await handle(request,env,{clientIp});
+   if(streamedUpload&&!req.complete)req.resume();
    if(automaticBackups&&response.ok&&req.method==='POST'&&['/api/login','/api/auth/setup','/api/auth/telegram/login'].includes(url.pathname))tryBackup();
   }else if(req.method!=='GET'&&req.method!=='HEAD'){response=new Response('Method not allowed',{status:405})}
   else if(url.pathname==='/'){response=renderPage(page)}
@@ -78,9 +88,26 @@ const server=http.createServer(async(req,res)=>{
  }catch(error){console.error('Request failed',error.name);res.writeHead(500);res.end('Internal server error')}
 });
 server.requestTimeout=20000;server.headersTimeout=15000;server.maxHeadersCount=50;
-function backup(){if(!DB.sqlite.prepare('SELECT 1 FROM places LIMIT 1').get())return;const directory=resolve(dirname(databasePath),'backups');mkdirSync(directory,{recursive:true,mode:0o700});const day=new Date().toISOString().slice(0,10),target=resolve(directory,`taiwan-${day}.sqlite`);if(!existsSync(target))DB.sqlite.exec(`VACUUM INTO '${target.replaceAll("'","''")}'`);for(const file of readdirSync(directory).filter(x=>/^taiwan-\d{4}-\d{2}-\d{2}\.sqlite$/.test(x)).sort().reverse().slice(14))unlinkSync(resolve(directory,file))}
-function tryBackup(){try{backup()}catch(e){console.error('Backup failed',e.name)}}
+async function backup(){
+ if(!DB.sqlite.prepare('SELECT 1 FROM places LIMIT 1').get())return;
+ const directory=resolve(dirname(databasePath),'backups');mkdirSync(directory,{recursive:true,mode:0o700});
+ const day=new Date().toISOString().slice(0,10);
+ if(DB.sqlite.prepare('SELECT planning_model FROM trips LIMIT 1').get()?.planning_model===3){
+  // A DB-only backup is insufficient once the model can hold private assets.
+  const target=resolve(directory,`taiwan-${day}.bundle`);
+  if(!existsSync(target))await backupDocuments(DB,DB.documentStore,target);
+  else if(existsSync(resolve(target,'INCOMPLETE')))throw new Error('Previous document backup incomplete');
+  for(const name of readdirSync(directory).filter(n=>/^taiwan-\d{4}-\d{2}-\d{2}\.bundle$/.test(n)&&existsSync(resolve(directory,n,'manifest.json'))&&!existsSync(resolve(directory,n,'INCOMPLETE'))).sort().reverse().slice(14))rmSync(resolve(directory,name),{recursive:true});
+ }else{
+  const target=resolve(directory,`taiwan-${day}.sqlite`);if(!existsSync(target))DB.sqlite.exec(`VACUUM INTO '${target.replaceAll("'","''")}'`);
+  for(const file of readdirSync(directory).filter(x=>/^taiwan-\d{4}-\d{2}-\d{2}\.sqlite$/.test(x)).sort().reverse().slice(14))unlinkSync(resolve(directory,file));
+ }
+}
+let pendingBackup=null;
+function tryBackup(){if(!pendingBackup)pendingBackup=backup().catch(e=>console.error('Backup failed',e.name)).finally(()=>{pendingBackup=null;});return pendingBackup;}
+function tryGarbageCollection(){try{collectDocumentGarbage(DB);}catch(e){console.error('Document cleanup failed',e.name)}}
+const documentTimer=setInterval(tryGarbageCollection,3600000);documentTimer.unref();tryGarbageCollection();
 const timer=automaticBackups?setInterval(tryBackup,6*3600000):null;
 if(timer){tryBackup();timer.unref()}
-server.listen(Number(process.env.PORT||8080),process.env.HOST||'127.0.0.1',()=>{console.log('Taiwan Map listening on port '+(process.env.PORT||8080));scheduler?.start()});
-for(const signal of ['SIGTERM','SIGINT'])process.once(signal,()=>{clearInterval(timer);const stopped=scheduler?.stop();server.close(async()=>{await stopped;DB.close();process.exit(0)});setTimeout(()=>process.exit(1),10000).unref()});
+server.listen(Number(process.env.PORT||8080),process.env.HOST||'127.0.0.1',()=>{console.log('Taiwan Map listening on port '+server.address().port);scheduler?.start()});
+for(const signal of ['SIGTERM','SIGINT'])process.once(signal,()=>{clearInterval(timer);clearInterval(documentTimer);const stopped=scheduler?.stop();server.close(async()=>{await stopped;await pendingBackup;DB.close();process.exit(0)});setTimeout(()=>process.exit(1),10000).unref()});
