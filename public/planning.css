@@ -20,12 +20,13 @@
 .planner-completed-control input { width: 16px; height: 16px; margin: 0; accent-color: var(--ui-accent); }
 .planner-navigation .ui-button--icon { font-size: 22px; }
 .planner-filter-block { margin: 0 0 var(--ui-space-3); }
-.planner-filter-row { display: flex; align-items: start; justify-content: space-between; gap: var(--ui-space-3); margin-bottom: var(--ui-space-2); }
-.planner-filter-row .planner-filter-block { flex: 1; min-width: 0; margin: 0; }
+.planner-filter-row { display: flex; align-items: center; justify-content: space-between; gap: var(--ui-space-3); margin-bottom: var(--ui-space-2); }
+.planner-filter-row .planner-filter-block { min-width: 0; margin: 0; }
+.planner-data-actions { margin-inline-end: auto; }
 .planner-zone-disclosure { position: relative; display: inline-flex; }
 .planner-zone-disclosure .planner-zone-help { position: absolute; top: calc(100% + var(--ui-space-2)); left: 0; z-index: 25; width: min(440px,calc(100vw - 48px)); max-width: none; max-height: min(280px,50vh); overflow-y: auto; margin: 0; }
 @media(min-width:721px) and (hover:hover) and (pointer:fine) { .planner-zone-disclosure:has(.planner-zone-help:not([hidden]))::after { content: ''; position: absolute; left: 0; top: 100%; width: 100%; height: var(--ui-space-2); } }
-.planner-filter-block>summary { cursor: pointer; color: var(--ui-text-muted); font-size: var(--ui-text-caption); padding: var(--ui-space-2) 0; min-height: var(--ui-control-compact); }
+.planner-filter-block>summary { cursor: pointer; color: var(--ui-text-muted); font-size: var(--ui-text-caption); line-height: var(--ui-control-compact); }
 .planner-filters { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)) auto; gap: var(--ui-space-3); max-width: 720px; align-items: end; }
 .planner-filters label { margin: 0; min-width: 0; font-size: var(--ui-text-caption); }
 .planner-filter-control { position: relative; display: block; margin-top: var(--ui-space-1); min-width: 0; }
@@ -168,7 +169,6 @@
 .planning-card.planning-drag-preview { position: fixed; left: 0; top: 0; z-index: 1001; margin: 0; pointer-events: none; scale: 1; opacity: 1; border-color: var(--ui-accent); box-shadow: var(--ui-shadow-panel); will-change: translate,scale,opacity; transition: scale var(--ui-duration-feedback) var(--ui-ease), opacity var(--ui-duration-feedback) var(--ui-ease); }
 .planning-card.planning-drag-preview.over-calendar { scale: .62; opacity: .38; }
 .planning-drag-preview * { pointer-events: none; }
-.planner-footer { font-size: var(--ui-text-caption); margin-top: var(--ui-space-5); }
 .planning-kind-icon { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .planning-kind-label { display: inline-flex; align-items: center; gap: 6px; color: var(--ui-text); }
 .planning-kind-label[data-kind=decision] { color: var(--ui-decision); }
@@ -222,22 +222,35 @@ button.planning-date-action>span { text-decoration: underline; text-decoration-s
 @media(min-width:721px) {
  .planning-page.app-active { overflow: hidden; overscroll-behavior-x: none; }
  .planning-page #application { height: 100dvh; min-height: 0; }
- .planner { display: flex; flex: 1; flex-direction: column; min-height: 0; padding-bottom: var(--ui-space-2); }
+ .planner {
+  --planner-month-width: clamp(min(100%,640px),84%,1120px);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding-bottom: max(var(--ui-space-1),env(safe-area-inset-bottom));
+ }
  .planner> :not(#planning-canvas) { flex: none; }
  .planner-heading { margin-bottom: var(--ui-space-3); }
  .planner-heading,.planner-filter-block { position: relative; }
  .planner-toolbar { margin-bottom: var(--ui-space-1); }
  .planner-filter-block { margin-bottom: 0; }
- .planner-filter-block>summary { padding-block: var(--ui-space-1); }
  .planner-filters { position: absolute; top: 100%; left: 0; z-index: 20; width: min(680px,calc(100vw - 48px)); padding: var(--ui-space-4); border: 1px solid var(--ui-border); border-radius: var(--ui-radius-panel); background: var(--ui-surface-panel); box-shadow: var(--ui-shadow-panel); }
  .planner-navigation { margin-block: var(--ui-space-2) var(--ui-space-3); }
- .planner-footer { margin: var(--ui-space-1) 0 0; }
+ .planner-navigation,.planning-month-layout { width: var(--planner-month-width); margin-inline: auto; }
  #planning-canvas { flex: 1; min-height: 0; overflow: hidden; }
  .planning-month-layout { height: 100%; min-height: 0; }
  .planning-month-panel { height: auto; min-height: 0; display: flex; flex-direction: column; overscroll-behavior-x: contain; user-select: none; }
- .planning-month-grid { min-height: 0; grid-template-rows: 28px repeat(var(--planning-week-count),var(--planning-week-height,40px)); }
+ .planning-month-grid {
+  --planning-week-available: var(--planning-week-height,var(--ui-control));
+  --planning-week-min: 48px;
+  --planning-week-size: min(var(--planning-week-available),clamp(var(--planning-week-min),calc(.74 * var(--planning-week-available)),88px));
+  min-height: 0;
+  grid-template-rows: 28px repeat(var(--planning-week-count),var(--planning-week-size));
+ }
  .planning-weekday { padding-block: var(--ui-space-1); }
- .planning-calendar-day { min-height: 0; padding: var(--ui-space-1); }
+ .planning-calendar-day { min-height: 0; gap: var(--ui-space-1); padding: 2px var(--ui-space-1); }
+ .planning-day-count { padding-block: 0; line-height: 1.25; }
  .planning-month-legend { flex: none; padding-block: var(--ui-space-2); }
  [data-planning-scroller] { height: 100%; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-gutter: stable; }
  [data-planning-scroller] { scroll-padding-block: 16px; mask-image: linear-gradient(to bottom,transparent,#000 var(--planning-fade-top,0px),#000 calc(100% - var(--planning-fade-bottom,0px)),transparent),linear-gradient(#000,#000); mask-size: calc(100% - var(--planning-scrollbar-size,0px)) 100%,var(--planning-scrollbar-size,0px) 100%; mask-position: left top,right top; mask-repeat: no-repeat; }
@@ -245,24 +258,25 @@ button.planning-date-action>span { text-decoration: underline; text-decoration-s
  .planning-agenda { height: 100%; min-height: 0; display: flex; flex-direction: column; }
  .planning-agenda>.planning-day-panel { flex: 1; min-height: 0; height: 0; }
  .planning-itinerary { width: min(100%,calc(var(--planning-agenda-width) + var(--planning-date-width) + var(--planning-list-gap) + 80px)); }
+ .planning-itinerary-content > .planning-day-group:nth-last-child(1 of :not(.planning-empty-day)) { margin-block-end: 0; }
+ .planning-itinerary-content > .planning-day-group:nth-last-child(1 of :not(.planning-empty-day)) > .planning-drop-items { padding-block-end: var(--ui-space-1); }
  .planning-day-stamp { top: 0; }
  .planner-zone-help { position: absolute; left: 0; top: 100%; z-index: 20; max-width: min(680px,100%); max-height: 120px; overflow-y: auto; }
 }
 @media(min-width:721px) and (max-height:740px) {
  .planner { padding-top: var(--ui-space-3); }
  .planner-heading { margin-bottom: var(--ui-space-2); }
- .planning-calendar-day { flex-direction: row; align-items: center; justify-content: flex-start; gap: var(--ui-space-1); }
- .planning-calendar-day .planning-day-number { width: 24px; height: 24px; }
- .planning-day-count { font-size: 10px; }
+ .planning-month-grid { --planning-week-min: var(--ui-control); }
+ .planning-calendar-day { flex-direction: row; justify-content: flex-start; }
 }
-@media(min-width:721px) and (max-width:900px) and (max-height:740px) {
- .planning-day-count { font-size: 0; flex: none; padding-inline: 2px; }
+@media(min-width:721px) and (max-height:740px), (721px <= width <= 900px) {
+ .planning-day-count { font-size: 0; padding-inline: 2px; }
  .planning-day-count::after { content: attr(data-count); font-size: 10px; }
 }
 @media(max-width:720px) {
- .planner-filter-row { display: flex; flex-wrap: wrap; }
- .planner-filter-row .planner-filter-block { flex-basis: 100%; }
- .planner-filter-row .planner-filter-block>summary { width: max-content; }
+ .planner-filter-row { flex-wrap: wrap; }
+ .planner-filter-row .planner-filter-block[open] { flex-basis: 100%; }
+ .planner-filter-row .planner-filter-block>summary { line-height: var(--ui-control); width: max-content; }
  #planning-list-actions { width: 100%; justify-content: space-between; gap: var(--ui-space-2); flex-wrap: nowrap; }
  #planning-list-today { min-width: 0; }
  .planner-completed-control { min-height: var(--ui-control); }
