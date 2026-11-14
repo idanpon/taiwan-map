@@ -126,6 +126,7 @@ function renderPlaceGroup(group){
    <span class="place-card-content"><span class="place-name">${esc(name)}</span>
     <span class="card-status" style="--status-text:${esc(status?.textColor||'var(--ui-text-muted)')}">${esc(status?.label||'Без статуса')}</span>
    </span>
+   <span class="place-group-chevron" aria-hidden="true">${tagIcon('chevron-down')}</span>
   </button>`).join('');
  if(focused){
   const row=Array.from(placeGroupList.children).find(el=>el.dataset.groupPlace===focused);
