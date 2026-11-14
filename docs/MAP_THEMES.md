@@ -72,10 +72,14 @@ markers by status using the fields available in the anonymous catalog.
 At individual-place zoom, exact coordinate matches share one marker with the
 usual top place's icon and status. The upper-left badge counts places visible
 with the current filters. Tapping, clicking, or holding the group on mobile
-opens a bottom sheet with category icons, names and statuses. Selecting a row
-opens its place card and centres the shared marker. When only one place at
-the coordinates is visible, the marker opens its card and offers the usual
-quick actions. City clusters still count places at wider zooms.
+opens a bottom sheet with a transparent backdrop. Its header uses the
+shared overlay spacing and a divider. Each row is a bordered card with a
+category icon, name and status. Selecting a row opens its place card,
+centres the map and raises the selected place's own icon and status. The
+selected marker offers the same quick actions as a single place. The group
+badge returns when the card closes. When only one place at the coordinates
+is visible, the marker opens its card and offers the usual quick actions.
+City clusters still count places at wider zooms.
 
 ## Desktop places panel
 
