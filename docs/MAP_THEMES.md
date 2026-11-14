@@ -155,13 +155,14 @@ basemap starts before the map applies any queued camera focus.
 
 Holding a place marker for 425 ms reveals a blue glow for opening the place
 in Google Maps and a green glow for marking it visited. The upward swipe and
-card button open the same Google Maps search URL. It uses the place name and
-address when available, or drops a pin at the saved coordinates for a place
-with only coordinates. The swipe navigates in the current window, so it works
-with pop-up blocking. Tapping the card link lets the phone hand the URL to
-the installed app when supported by its browser and link settings. Editors and
-admins get the visit action for places they have yet to mark. A short tap
-opens the place card. Moving before the hold threshold pans the map.
+card button open the same destination. Google Maps searches by name and
+address when available, or drops a pin at the saved coordinates. On iOS the
+swipe first uses Google's app link. If the map is still visible after 1.5 s,
+it navigates to the HTTPS version in the current window. When the map goes
+into the background, the pending fallback is cancelled. Other platforms
+open the HTTPS link immediately. Editors and admins get the visit action
+for places they have yet to mark. A short tap opens the place card.
+Moving before the hold threshold pans the map.
 
 Release outside a 28 px radius in the top or bottom 120° sector to act.
 Releasing inside the circle or toward either side dismisses the hints.

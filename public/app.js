@@ -1,6 +1,6 @@
 import {readClientConfiguration,sessionStores,trackTouchInput,escapeHtml as esc} from './client-runtime.js';
 import {planningPlaceSummary,planningConflictContent,hydratePlanningLinks} from './planning-links.js';
-import {googleMapsUrl} from './place-maps.js';
+import {createGoogleMapsOpener,googleMapsUrl} from './place-maps.js';
 import {copyTextControl,installPlaceCopy} from './copy-text.js';
 import {createPlaceTagControls} from './place-tag-controls.js';
 import {tagDefinitions,tagIcon,tagsHeading,tagsDetails,matchesTags} from './place-tags.js';
@@ -38,6 +38,7 @@ async function exportData(event){event.preventDefault();try{const content=await 
 let accountUI,placeUI,startup;
 const canEdit=()=>['admin','editor'].includes(data?.user?.role);
 const compactMap=matchMedia('(max-width:1000px)');
+const openGoogleMaps=createGoogleMapsOpener(window);
 installMapMarkerActions($('map'),{
  actionsFor(id){
   if(!compactMap.matches||busy||$('application').inert||document.querySelector('dialog[open]'))return [];
@@ -138,7 +139,7 @@ function runMarkerAction(id,action){
  const place=data.places.find(value=>value.id===id);
  if(!place)return;
  if(action==='maps'){
-  location.assign(googleMapsUrl(place));
+  openGoogleMaps(place);
  }else if(canEdit()&&place.status_id!=='visited'){
   void markPlaceVisited(place);
  }

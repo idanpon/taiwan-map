@@ -70,3 +70,8 @@ export function trackTouchInput(document){
   if(!event.isComposing&&!event.metaKey&&!event.ctrlKey&&!event.altKey)root.removeAttribute('data-ui-touch');
  },true);
 }
+
+export function isAppleMobile(navigator) {
+  return /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
