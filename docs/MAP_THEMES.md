@@ -74,8 +74,9 @@ usual top place's icon and status. The upper-left badge counts places visible
 with the current filters. Tapping, clicking, or holding the group on mobile
 opens a bottom sheet over an interactive map. Dragging or zooming the map
 leaves the list open. A short tap on empty map space closes it. Its header
-uses the shared overlay spacing and a divider. Each row is a bordered card with a
-category icon, name and status. Selecting a row opens its place card,
+uses the shared overlay spacing and a divider. The header and rows share the
+panel gradient. Each row shows a category icon, name, status and a chevron
+at the right. Thin dividers separate the rows. Selecting a row opens its place card,
 centres the map and raises the selected place's own icon and status. The
 selected marker offers the same quick actions as a single place. The group
 badge returns when the card closes. When only one place at the coordinates
