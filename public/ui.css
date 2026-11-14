@@ -258,7 +258,7 @@ textarea.ui-field { min-height: 88px; resize: vertical; line-height: 1.6; }
   pointer-events: none;
 }
 @media (max-width: 1000px) {
-  body:not(.planning-dragging):has(#application:not([hidden],.detail-open) .ui-button--bottom:not([hidden])) .ui-notice {
+  body:not(.planning-dragging):has(#application:not([hidden],.detail-open,:has(#place-group[open])) .ui-button--bottom:not([hidden])) .ui-notice {
     bottom: calc(var(--ui-bottom-control-inset) + var(--ui-bottom-control-height) + var(--ui-space-2));
   }
 }
