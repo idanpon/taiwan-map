@@ -69,6 +69,14 @@ Markers of equal priority keep catalog order. Selection, hover, and keyboard
 focus still raise a marker above the default layers. The public map stacks
 markers by status using the fields available in the anonymous catalog.
 
+At individual-place zoom, exact coordinate matches share one marker with the
+usual top place's icon and status. The upper-left badge counts places visible
+with the current filters. Tapping, clicking, or holding the group on mobile
+opens a bottom sheet with category icons, names and statuses. Selecting a row
+opens its place card and centres the shared marker. When only one place at
+the coordinates is visible, the marker opens its card and offers the usual
+quick actions. City clusters still count places at wider zooms.
+
 ## Desktop places panel
 
 Drag the right edge to resize the panel to 80–150% of its standard width at
@@ -153,7 +161,7 @@ basemap starts before the map applies any queued camera focus.
 
 ## Quick actions on mobile
 
-Holding a place marker for 425 ms reveals a blue glow for opening the place
+Holding a single place marker for 425 ms reveals a blue glow for opening the place
 in Google Maps and a green glow for marking it visited. The upward swipe and
 card button open the same destination. Google Maps searches by name and
 address when available, or drops a pin at the saved coordinates. On iOS the

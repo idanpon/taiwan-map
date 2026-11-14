@@ -1,3 +1,29 @@
+const statusMarkerPriority = new Map([['visited', 0], ['maybe', 2], ['want', 3]]);
+const placeCountRules = new Intl.PluralRules('ru');
+const placeCountWords = {one: 'место', few: 'места', many: 'мест', other: 'места'};
+
+export function markerPriority(place) {
+ return place.has_stay ? 4 : (statusMarkerPriority.get(place.status_id) ?? 1);
+}
+
+export function groupMapPlaces(places) {
+ const groups = new Map();
+ for (const place of places) {
+  const key = place.lat + ',' + place.lon;
+  if (!groups.has(key)) groups.set(key, []);
+  groups.get(key).push(place);
+ }
+ // At equal z-index, the last marker in catalog order previously drew on top.
+ for (const group of groups.values()) {
+  if (group.length > 1) group.reverse().sort((a, b) => markerPriority(b) - markerPriority(a));
+ }
+ return groups;
+}
+
+export function placeCountLabel(count) {
+ return count + ' ' + placeCountWords[placeCountRules.select(count)];
+}
+
 export function cityOptions(places){
  const counts=new Map();
  for(const {city} of places)if(typeof city==='string'&&city.trim())counts.set(city,(counts.get(city)||0)+1);
