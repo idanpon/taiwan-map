@@ -7,11 +7,3 @@ export function googleMapsUrl({name, address, lat, lon}) {
  url.searchParams.set('query', query);
  return url.href;
 }
-
-export function openGoogleMaps(place) {
- const link = document.createElement('a');
- link.href = googleMapsUrl(place);
- link.target = '_blank';
- link.rel = 'noopener noreferrer';
- link.click();
-}

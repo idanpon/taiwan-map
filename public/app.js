@@ -1,6 +1,6 @@
 import {readClientConfiguration,sessionStores,trackTouchInput,escapeHtml as esc} from './client-runtime.js';
 import {planningPlaceSummary,planningConflictContent,hydratePlanningLinks} from './planning-links.js';
-import {googleMapsUrl,openGoogleMaps} from './place-maps.js';
+import {googleMapsUrl} from './place-maps.js';
 import {copyTextControl,installPlaceCopy} from './copy-text.js';
 import {createPlaceTagControls} from './place-tag-controls.js';
 import {tagDefinitions,tagIcon,tagsHeading,tagsDetails,matchesTags} from './place-tags.js';
@@ -138,7 +138,7 @@ function runMarkerAction(id,action){
  const place=data.places.find(value=>value.id===id);
  if(!place)return;
  if(action==='maps'){
-  openGoogleMaps(place);
+  location.assign(googleMapsUrl(place));
  }else if(canEdit()&&place.status_id!=='visited'){
   void markPlaceVisited(place);
  }
