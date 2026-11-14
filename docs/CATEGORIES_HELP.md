@@ -54,6 +54,8 @@ reservation (ticket). От нуля до трёх на место; иконки 
 и редакторе изначально свёрнут. Начало или конец даты можно не задавать —
 это правило ярлыка места, не календарного периода. Ссылка бронирования необязательна.
 Редактор ярлыков расположен после статуса и заметки; сохранение у них общее.
+Поля начала и окончания используют тот же календарь, что и План поездки.
+Дата видна в формате ДД.ММ.ГГГГ, неделя начинается с понедельника.
 Назначения ярлыков существующим местам не делаются автоматически.
 
 ### Данные, API и подготовленные пакеты
@@ -70,8 +72,8 @@ Place information continues to be managed through ChatGPT. Admins and editors
 can additionally edit the three tags and their optional fields in the place card;
 viewers see the tags without editing controls. The card uses one Save button for tags, notes and statuses in one SQLite
 transaction with version checks and rollback on any conflict. The schedule
-editor starts collapsed. Dates share a row from 380 CSS px and stack on smaller screens; padding lives
-on the input wrapper to avoid Safari intrinsic-width overflow. To review a private
+editor starts collapsed. Date fields use the shared Russian date picker, share
+a row from 380 CSS px and stack on smaller screens. To review a private
 batch, use `server/update-place-tags.mjs` with this format:
 
 ```json

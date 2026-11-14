@@ -20,10 +20,12 @@ import {kindLabels,stateLabels,priorityLabels,addDays,dayInZone,itemDates,urgenc
 import {initialZone,emptyZonePlan,localPoint,offsetLabel,zoneAt} from './trip-timezones.js';
 import {createTimeReview,editTripTime,itemDateEditor,timezoneExplanation,zoneBadge,pointText} from './planning-time-ui.js';
 import {reminderCard} from './planning-reminders-ui.js';
+import {installDatePicker,setDateValue} from './date-picker.js';
 const $=id=>document.getElementById(id);
 trackTouchInput(document);
 const config=window.TAIWAN_CONFIG||{};
 let zone=emptyZonePlan;
+const closeDatePicker=installDatePicker(document,{today:()=>dayInZone(new Date(),zone)});
 let data,plan,view='month',focusDay=dayInZone(new Date(),zone),kind='',state='active',search='',busy=false,dirty=false,editingId=null,currentPreview=null,previewSequence=0,accountUI,startup,reminderUI;
 const filterDisplays=[...document.querySelectorAll('.planner-filters select,.planner-filters input')].map(control=>{
  const wrapper=document.createElement('span'),value=document.createElement('span');wrapper.className='planner-filter-control';value.className='planner-filter-value';value.setAttribute('aria-hidden','true');control.before(wrapper);wrapper.append(control,value);
@@ -78,7 +80,7 @@ function showDialog(title,html,{system=false,wide=false}={}){
  dialogBody.scrollTop=0;dialogTitle.focus({preventScroll:true});
 }
 $('login-back').onclick=()=>{location.href='./'};
-function showLogin(){drag?.cancel();lastMove=null;++loadSequence;notice.clear();data=null;plan=null;dirty=false;busy=false;for(const id of ['planning-canvas','planning-dialog-content','planning-preview-content'])$(id).replaceChildren();accountUI?.update();dialog.close();previewDialog.close();$('accounts-dialog').close();$('help-dialog').close();$('application').hidden=true;$('login').hidden=false;$('auth-loading').hidden=true;$('auth-content').hidden=false;$('login-back').hidden=false;document.body.classList.remove('app-active');accountUI?.showLogin()}
+function showLogin(){drag?.cancel();lastMove=null;++loadSequence;notice.clear();closeDatePicker();data=null;plan=null;dirty=false;busy=false;for(const id of ['planning-canvas','planning-dialog-content','planning-preview-content'])$(id).replaceChildren();accountUI?.update();dialog.close();previewDialog.close();$('accounts-dialog').close();$('help-dialog').close();$('application').hidden=true;$('login').hidden=false;$('auth-loading').hidden=true;$('auth-content').hidden=false;$('login-back').hidden=false;document.body.classList.remove('app-active');accountUI?.showLogin()}
 function filtered(ignoreState=false){return (plan?.items||[]).filter(i=>(!kind||i.kind===kind)&&(ignoreState||!state||(state==='active'?!['done','cancelled'].includes(i.state):i.state===state))&&(!search||[i.title,i.description,i.note,i.transport?.service_number,...(i.transport?.stops||[]),...i.places.map(p=>p.place_name)].join(' ').toLowerCase().includes(search)))}
 function itemMoments(i){return [i.starts_at,i.ends_at].filter(Boolean).map(at=>localPoint(at,zone))}
 function itemWhen(i){
@@ -270,7 +272,13 @@ function editMove(id,target=null,anchor=null,reason=''){
  activeItemId=id;const dates=itemDateEditor(item,zone,esc);
  showDialog('Изменить дату',`<form id="planning-move-form" class="planning-form"><h3>${esc(item.title)}</h3><p class="muted">Сейчас: ${whenWithBadges(item,'planning-form-zone-help')}</p>${reason?`<p class="planning-warning">${esc(reason)}</p>`:''}${dates.html}<p class="muted">Заметки, связи и состояние сохранятся. Период переносится целиком.</p><div class="planning-form-actions"><button type="submit" class="ui-button ui-button--primary">Перенести</button><button type="button" class="ui-button ui-button--quiet" data-move-back>Назад</button></div></form>`);
  const form=$('planning-move-form');dates.mount(form);
- if(target){const draft=moveDateDraft(item,target,zone,anchor);form.elements.date_mode.value=draft.end?'period':'day';form.elements.date_start.value=draft.start;form.elements.date_end.value=draft.end||'';form.elements.date_start.dispatchEvent(new Event('input',{bubbles:true}))}
+ if(target){
+  const draft=moveDateDraft(item,target,zone,anchor);
+  form.elements.date_mode.value=draft.end?'period':'day';
+  setDateValue(form.elements.date_start,draft.start);
+  setDateValue(form.elements.date_end,draft.end);
+  form.elements.date_start.dispatchEvent(new Event('input',{bubbles:true}));
+ }
  form.addEventListener('input',()=>{dirty=true});form.querySelector('[data-move-back]').onclick=()=>{if(canLeave()){dirty=false;openItem(id)}};
  form.onsubmit=async event=>{event.preventDefault();if(busy)return;let patch;try{patch={...dates.values(form),fixed_external:form.elements.fixed_external.checked}}catch(error){dialogError.textContent=error.message;return}
   form.querySelectorAll('button').forEach(button=>button.disabled=true);

@@ -1,5 +1,6 @@
 import { validDate } from './planning-model.js';
-import { dateInput, zoneOptions } from './planning-time-ui.js';
+import { zoneOptions } from './planning-time-ui.js';
+import { dateInput, dateValue } from './date-picker.js';
 import { isTravel, transportModes, travelPlace } from './planning-travel.js';
 import { civil, localInstants, offsetLabel, pointInZone, validClock } from './trip-timezones.js';
 
@@ -35,7 +36,7 @@ export function travelItemEditor(item, plan, esc) {
         <label>Место на карте (необязательно)<select class="ui-field ui-field--soft" name="${key}_place"><option value="">Текстовая точка</option>${placeOptions}</select></label>
       </fieldset>
       <div class="form-columns">
-        <label>Дата${dateInput(key+'_date',day,esc)}</label>
+        ${dateInput(key+'_date',day,'Дата')}
         <label>Время (если известно)<input class="ui-field ui-field--soft" type="time" name="${key}_clock" value="${esc(time)}"></label>
       </div>
       <label ${key==='arrival'?'data-arrival-zone':''}>Часовой пояс<select class="ui-field ui-field--soft" name="${key}_zone" required>${zones}</select></label>
@@ -72,7 +73,7 @@ export function travelItemEditor(item, plan, esc) {
   let controls, panel, kind;
   function redrawTime(side) {
     const { key } = side, zone = controls[kind==='stay'?'departure_zone':key+'_zone'].value;
-    const day = controls[key+'_date'].value, time = controls[key+'_clock'].value;
+    const day = dateValue(controls[key+'_date']), time = controls[key+'_clock'].value;
     const box = panel.querySelector('[data-travel-side="'+key+'"] [data-travel-offset]');
     const picked = box.querySelector('select')?.value;
     box.replaceChildren();
@@ -163,8 +164,9 @@ export function travelItemEditor(item, plan, esc) {
   }
   function values() {
     const [start,end] = sides;
-    const from = controls.departure_date.value, to = controls.arrival_date.value;
+    const from = dateValue(controls.departure_date), to = dateValue(controls.arrival_date);
     const lodging = kind === 'stay';
+    if (!from || !to) throw new Error(lodging ? 'Укажите даты заселения и выезда.' : 'Укажите даты отправления и прибытия.');
     if (lodging && from >= to) throw new Error('Дата выезда должна быть позже даты заселения.');
     if (sides.some(side=>controls[side.key+'_clock'].value&&!side.selected))
       throw new Error('Уточните выбранное местное время.');

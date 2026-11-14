@@ -27,7 +27,7 @@
 .planner-zone-disclosure .planner-zone-help { position: absolute; top: calc(100% + var(--ui-space-2)); left: 0; z-index: 25; width: min(440px,calc(100vw - 48px)); max-width: none; max-height: min(280px,50vh); overflow-y: auto; margin: 0; }
 @media(min-width:721px) and (hover:hover) and (pointer:fine) { .planner-zone-disclosure:has(.planner-zone-help:not([hidden]))::after { content: ''; position: absolute; left: 0; top: 100%; width: 100%; height: var(--ui-space-2); } }
 .planner-filter-block>summary { cursor: pointer; color: var(--ui-text-muted); font-size: var(--ui-text-caption); line-height: var(--ui-control-compact); }
-.planner-filters { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)) auto; gap: var(--ui-space-3); max-width: 720px; align-items: end; }
+.planner-filters { position: absolute; z-index: 20; width: min(680px,calc(100vw - 48px)); display: grid; grid-template-columns: repeat(2,minmax(0,1fr)) auto; gap: var(--ui-space-3); align-items: end; padding: var(--ui-space-4); border: 1px solid var(--ui-border); border-radius: var(--ui-radius-panel); background: var(--ui-surface-panel); box-shadow: var(--ui-shadow-panel); }
 .planner-filters label { margin: 0; min-width: 0; font-size: var(--ui-text-caption); }
 .planner-filter-control { position: relative; display: block; margin-top: var(--ui-space-1); min-width: 0; }
 .planner-filter-control .ui-field { font-size: 16px; }
@@ -217,7 +217,9 @@ button.planning-date-action>span { text-decoration: underline; text-decoration-s
 .planning-form .linked-options .ui-field { width: auto; max-width: 100%; }
 .planning-form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ui-space-3); margin-top: var(--ui-space-5); }
 .planning-form-actions>.ui-button--primary { width: auto; min-width: 120px; }
-.planning-form .ui-field-group { margin-top: var(--ui-space-2); }
+.planning-form .ui-field-group:not(.ui-date-field) { margin-top: var(--ui-space-2); }
+.planning-form .ui-date-control { margin-block: var(--ui-space-2); }
+.planning-form .ui-date-control label { margin: 0 0 var(--ui-space-2); }
 .planning-form .form-columns label { display: flex; flex-direction: column; justify-content: flex-end; }
 @media(min-width:721px) {
  .planning-page.app-active { overflow: hidden; overscroll-behavior-x: none; }
@@ -235,7 +237,7 @@ button.planning-date-action>span { text-decoration: underline; text-decoration-s
  .planner-heading,.planner-filter-block { position: relative; }
  .planner-toolbar { margin-bottom: var(--ui-space-1); }
  .planner-filter-block { margin-bottom: 0; }
- .planner-filters { position: absolute; top: 100%; left: 0; z-index: 20; width: min(680px,calc(100vw - 48px)); padding: var(--ui-space-4); border: 1px solid var(--ui-border); border-radius: var(--ui-radius-panel); background: var(--ui-surface-panel); box-shadow: var(--ui-shadow-panel); }
+ .planner-filters { top: 100%; inset-inline-start: 0; }
  .planner-navigation { margin-block: var(--ui-space-2) var(--ui-space-3); }
  .planner-navigation,.planning-month-layout { width: var(--planner-month-width); margin-inline: auto; }
  #planning-canvas { flex: 1; min-height: 0; overflow: hidden; }
@@ -274,11 +276,11 @@ button.planning-date-action>span { text-decoration: underline; text-decoration-s
  .planning-day-count::after { content: attr(data-count); font-size: 10px; }
 }
 @media(max-width:720px) {
- .planner-filter-row { flex-wrap: wrap; }
- .planner-filter-row .planner-filter-block[open] { flex-basis: 100%; }
+ .planner-filter-row { position: relative; z-index: 3; flex-wrap: wrap; }
  .planner-filter-row .planner-filter-block>summary { line-height: var(--ui-control); width: max-content; }
+ .planner-filters { top: var(--ui-control); inset-inline: 0; width: auto; }
  #planning-list-actions { width: 100%; justify-content: space-between; gap: var(--ui-space-2); flex-wrap: nowrap; }
- #planning-list-today { min-width: 0; }
+ #planning-list-today { min-width: 0; margin-inline-start: auto; }
  .planning-agenda-heading { position: sticky; top: calc(56px + env(safe-area-inset-top)); z-index: 2; padding-block: var(--ui-space-2); background: var(--ui-surface-page); }
  .planner-zone-disclosure { position: static; }
  .planner-heading { position: relative; }

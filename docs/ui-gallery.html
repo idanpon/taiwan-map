@@ -73,8 +73,8 @@
 <label>Ссылка с ошибкой<input class="ui-field" aria-invalid="true" aria-describedby="gallery-error" value="Неполная ссылка"></label>
 <p id="gallery-error" class="ui-error">Проверьте адрес ссылки.</p>
 <label>Поиск<span class="ui-field-group"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="search" placeholder="Найти место или адрес"></span></label>
-<label>Дата<span class="ui-field-group ui-field-group--soft"><input type="date" value="2026-11-07"></span></label>
-<fieldset class="ui-fieldset"><legend>Группа дат</legend><label>Начало<span class="ui-field-group ui-field-group--soft"><input type="date" value="2026-11-07"></span></label><label>Окончание<span class="ui-field-group ui-field-group--soft"><input type="date" value="2026-11-09"></span></label></fieldset>
+<div id="gallery-date"></div>
+<fieldset class="ui-fieldset" id="gallery-period"><legend>Группа дат</legend></fieldset>
 </section>
 <section class="ui-panel gallery-example" aria-labelledby="choices-title"><h2 id="choices-title">Выбор и список</h2>
 <div class="gallery-row" id="gallery-chips"><button class="ui-chip" aria-pressed="true">Достопримечательности</button><button class="ui-chip" aria-pressed="false">Музеи</button><button class="ui-chip" disabled>Недоступный фильтр</button></div>
@@ -90,7 +90,12 @@
 import {createThemeUI} from '../public/theme.js';
 import {createPlaceTagControls} from '../public/place-tag-controls.js';
 import {escapeHtml} from '../public/client-runtime.js';
+import {dateInput,installDatePicker} from '../public/date-picker.js';
 createThemeUI({document,window,onChange(){}});
+installDatePicker(document);
+document.getElementById('gallery-date').innerHTML=dateInput('date','2026-11-07','Дата');
+document.getElementById('gallery-period').insertAdjacentHTML('beforeend',
+  dateInput('start','2026-11-07','Начало')+dateInput('end','2026-11-09','Окончание'));
 createPlaceTagControls({root:document.getElementById('gallery-tags'),place:{tags:{}},esc:escapeHtml,onDirty(){}});
 document.getElementById('gallery-tags-form').onsubmit=event=>event.preventDefault();
 document.getElementById('gallery-chips').onclick=event=>{
