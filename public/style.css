@@ -113,6 +113,32 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .pin { opacity: var(--status-opacity, 1); width: 40px; height: 40px; background: var(--category); color: white; border: var(--map-pin-border-width) solid #fffcf6; border-radius: 50%; box-shadow: 0 0 0 1px #172a3c66, 0 3px 9px #13283866; position: relative; display: grid; place-items: center; }
 .pin svg { width: 19px; height: 19px; }
 .pin .pin-state { position: absolute; top: -3px; right: -3px; height: 14px; width: 14px; display: grid; place-items: center; border-radius: 50%; border: 2px solid white; background: var(--status); color: var(--status-symbol, white); box-shadow: 0 1px 4px #273a3240; font: 700 8px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI Symbol', sans-serif; }
+.pin-count {
+ position: absolute;
+ top: -4px;
+ left: -4px;
+ min-width: 18px;
+ min-height: 18px;
+ padding-inline: var(--ui-space-1);
+ display: grid;
+ place-items: center;
+ border: 1px solid var(--ui-border-control);
+ border-radius: var(--ui-radius-pill);
+ background: var(--ui-surface-panel);
+ color: var(--ui-text);
+ box-shadow: var(--ui-shadow-control);
+ font-size: 11px;
+ font-weight: 700;
+ line-height: 1;
+}
+.place-group { --ui-sheet-width: 400px; max-height: min(65dvh, 480px); }
+.place-group .ui-overlay-title { font-size: var(--ui-text-section); }
+.place-group .ui-list-item { min-height: var(--ui-control); align-items: center; }
+.place-group .place-name { margin-bottom: 0; }
+.place-group .card-status { margin-top: 2px; }
+@media (max-width: 1000px) {
+ .place-group.ui-sheet { left: var(--ui-sheet-mobile-left); right: var(--ui-sheet-mobile-right); width: auto; }
+}
 .map-area .detail { position: absolute; z-index: var(--ui-layer-detail); }
 .detail .eyebrow { color: var(--ui-text-muted); margin: 0 0 var(--ui-space-1); font-size: var(--ui-text-caption); overflow-wrap: anywhere; }
 
@@ -242,7 +268,7 @@ input[type=checkbox] { accent-color: var(--ui-accent); }
 .tip { white-space: pre-line; }
 .map-pin-button { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; background: none; }
 @media (max-width: 1000px) {
- .map-pin-button[data-map-place] { -webkit-touch-callout: none; user-select: none; }
+ .map-pin-button:is([data-map-place], [data-map-group]) { -webkit-touch-callout: none; user-select: none; }
  .map-pin-button[data-quick-action] { z-index: 502 !important; }
  .map-pin-button[data-quick-action]::after { visibility: hidden; }
  .map-quick-actions, .map-quick-direction {

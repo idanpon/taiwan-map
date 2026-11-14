@@ -7,7 +7,7 @@ import {tagDefinitions,tagIcon,tagsHeading,tagsDetails,matchesTags,taipeiDay} fr
 import {installDatePicker} from './date-picker.js';
 import {createApiClient} from './api-client.js';
 import {createAccountUI} from './accounts.js';
-import {cityOptions,statusAppearance,hoursVerification,hoursOverview} from './map-model.js';
+import {cityOptions,statusAppearance,hoursVerification,hoursOverview,placeCountLabel} from './map-model.js';
 import {fixedPlaceStatuses} from './place-statuses.js';
 import {categoryIcon as icon} from './categories.js';
 import {createHelpUI} from './help.js';
@@ -17,6 +17,7 @@ import {installMapMarkerActions} from './map-marker-actions.js';
 import {createAuthStartup,createLoadingScreenUI} from './auth-startup.js';
 import {createPlaceLifecycleUI} from './place-lifecycle.js';
 import {installSheetSwipe} from './sheet-swipe.js';
+import {installDialogBackdrop} from './dialogs.js';
 import {createNotice} from './notice.js';
 import {createPlaceRatings} from './place-ratings.js';
 import {installSidebarResize} from './sidebar-resize.js';
@@ -41,18 +42,37 @@ let accountUI,placeUI,startup;
 const canEdit=()=>['admin','editor'].includes(data?.user?.role);
 const compactMap=matchMedia('(max-width:1000px)');
 const openGoogleMaps=createGoogleMapsOpener(window);
+const placeGroup=$('place-group');
+const placeGroupList=$('place-group-list');
+let openGroupKey;
+installDialogBackdrop(placeGroup);
+const groupSwipe=installSheetSwipe({
+ card:placeGroup,document,enabled:()=>placeGroup.open,close:()=>placeGroup.close()
+});
+placeGroup.querySelector('.ui-overlay-close').onclick=()=>placeGroup.close();
+placeGroup.addEventListener('close',()=>{if(!placeGroup.open)groupSwipe.cancel()});
+placeGroupList.onclick=event=>{
+ const row=event.target.closest('[data-group-place]');
+ if(row)openPlace(row.dataset.groupPlace);
+};
+function mapMarkerActionsAllowed(){
+ return !busy&&!$('application').inert&&!document.querySelector('dialog[open]');
+}
 installMapMarkerActions($('map'),{
  actionsFor(id){
-  if(!compactMap.matches||busy||$('application').inert||document.querySelector('dialog[open]'))return [];
+  if(!compactMap.matches||!mapMarkerActionsAllowed())return [];
   const place=data?.places.find(value=>value.id===id);
   if(!place)return [];
   return canEdit()&&place.status_id!=='visited'?['maps','visited']:['maps'];
  },
- onAction:runMarkerAction
+ onAction:runMarkerAction,
+ canHoldGroup:()=>compactMap.matches&&mapMarkerActionsAllowed(),
+ onHoldGroup:openPlaceGroup
 });
 function showLogin(){
  notice.clear();
  closeDatePicker();
+ if(placeGroup.open)placeGroup.close();
  $('auth-loading').hidden=true;$('auth-content').hidden=false;$('login').hidden=false;
  $('login').classList.toggle('login-overlay',Boolean(data));
  $('login-back').hidden=!data;$('application').inert=Boolean(data);accountUI?.showLogin();$('username').focus({preventScroll:true});
@@ -90,9 +110,39 @@ function render(){if(!data)return;const ps=visible();$('place-count').textConten
 }
 function renderMarkers(ps=visible()){
  map?.setPlaces(ps.map(p=>({...p,category:getCategory(p),status:getStatus(p)})),selected);
+ if(placeGroup.open){
+  const group=map.getGroup(openGroupKey);
+  if(group.length>1)renderPlaceGroup(group);
+  else placeGroup.close();
+ }
 }
 function initMap(){
- map=createMapView({container:$('map'),statusElement:$('map-status'),statusText:$('map-status-text'),retryButton:$('map-retry'),listButton:$('map-list'),zoomIn:$('map-zoom-in'),zoomOut:$('map-zoom-out'),northButton:$('map-north'),theme:themeUI.value,onSelect:openPlace});
+ map=createMapView({container:$('map'),statusElement:$('map-status'),statusText:$('map-status-text'),retryButton:$('map-retry'),listButton:$('map-list'),zoomIn:$('map-zoom-in'),zoomOut:$('map-zoom-out'),northButton:$('map-north'),theme:themeUI.value,onSelect:openPlace,onSelectGroup:openPlaceGroup});
+}
+function renderPlaceGroup(group){
+ const focused=document.activeElement?.dataset.groupPlace;
+ $('place-group-title').textContent=placeCountLabel(group.length)+' в этой точке';
+ placeGroupList.innerHTML=group.map(({id,name,category,status})=>`
+  <button type="button" class="ui-list-item" data-group-place="${esc(id)}">
+   <span class="place-icon" style="--category:${esc(category.color)}" role="img" aria-label="${esc(category.label)}">${icon(category.icon)}</span>
+   <span class="place-card-content"><span class="place-name">${esc(name)}</span>
+    <span class="card-status" style="--status-text:${esc(status?.textColor||'var(--ui-text-muted)')}">${esc(status?.label||'Без статуса')}</span>
+   </span>
+  </button>`).join('');
+ if(focused){
+  const row=Array.from(placeGroupList.children).find(el=>el.dataset.groupPlace===focused);
+  (row||$('place-group-title')).focus({preventScroll:true});
+ }
+}
+function openPlaceGroup(key){
+ if(!mapMarkerActionsAllowed())return;
+ if(dirty){toast('Сначала сохраните изменения в открытой карточке.');return}
+ const group=map.getGroup(key);
+ if(group.length<2)return;
+ openGroupKey=key;
+ renderPlaceGroup(group);
+ $('map').querySelector('[data-map-group="'+CSS.escape(key)+'"]')?.focus({preventScroll:true});
+ placeGroup.showModal();
 }
 function fit(){map?.fit()}
 function detail(p){detailSwipe.cancel();resetDirty();tagControls=undefined;const c=getCategory(p),s=getStatus(p),links=p.links.filter(l=>/^https:\/\//.test(l.url));$('detail').style.setProperty('--category',c.color);
@@ -122,6 +172,7 @@ function openPlace(id,{keepMapCredits=false}={}){
  if(dirty){if(id!==selected)toast('Сначала сохраните изменения в открытой карточке.');return}
  const p=data.places.find(p=>p.id===id);
  if(!p)return;
+ if(placeGroup.open)placeGroup.close();
  detailCard.toggleAttribute('data-keep-map-credits',keepMapCredits);
  selected=id;
  detail(p);render();setSidebar(false);focusPlaceOnMap(p);

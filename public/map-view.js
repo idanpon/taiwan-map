@@ -4,7 +4,7 @@ import {createBasemapController} from './basemap.js';
 import {categoryIcon} from './categories.js';
 import {createCompassControl} from './map-compass.js';
 
-const statusMarkerPriority=new Map([['visited',0],['maybe',2],['want',3]]);
+import {groupMapPlaces, markerPriority, placeCountLabel} from './map-model.js';
 
 export function accuracyPolygon(lng,lat,meters){
  const radius=Math.max(0,meters)/6371008.8,phi=lat*Math.PI/180,lambda=lng*Math.PI/180,ring=[];
@@ -16,8 +16,9 @@ export function accuracyPolygon(lng,lat,meters){
  return {type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[ring]}};
 }
 
-export function createMapView({container,statusElement,retryButton,statusText,listButton,zoomIn,zoomOut,northButton,onSelect,onZoomGroupChange,onUnavailable,theme='light',config=mapConfiguration}){
+export function createMapView({container,statusElement,retryButton,statusText,listButton,zoomIn,zoomOut,northButton,onSelect,onSelectGroup,onZoomGroupChange,onUnavailable,theme='light',config=mapConfiguration}){
  let map,lib,basemap,compass,attribution,disposed=false,usable=false,places=[],selected=null,markers=[],lastGrouped=false,position,positionMarker,focusRequest,fitRequested=false;
+ let groups = new Map();
  const initialFraming=createInitialMapFraming({fit:fitPlaces});
  const controls=[zoomIn,zoomOut,northButton];
  const messages={
@@ -63,16 +64,32 @@ export function createMapView({container,statusElement,retryButton,statusText,li
     markers.push(new lib.Marker({element,anchor:'center'}).setLngLat([lon,lat]).addTo(map));
    }return;
   }
-  for(const p of places){
-   const c=p.category,s=p.status,label=p.name+(s?' · '+s.label:'')+(p.has_stay?' · Есть проживание':'');
+  for(const [key, group] of groups){
+   const p=group[0],c=p.category,s=p.status,multiple=group.length>1;
+   const label=multiple?placeCountLabel(group.length)+' в этой точке':p.name+(s?' · '+s.label:'')+(p.has_stay?' · Есть проживание':'');
    const element=markerButton(label,p.has_stay?'map-pin-button has-stay':'map-pin-button');
-   element.dataset.mapPlace=p.id;
-   element.setAttribute('aria-pressed',String(p.id===selected));
-   const priority=p.has_stay?4:(statusMarkerPriority.get(p.status_id)??1);
-   element.style.zIndex=p.id===selected?'500':String(priority);
+   const active=group.some(place=>place.id===selected);
+   if(multiple){
+    element.dataset.mapGroup=key;
+    element.setAttribute('aria-haspopup','dialog');
+    element.setAttribute('aria-controls','place-group');
+   }else element.dataset.mapPlace=p.id;
+   element.setAttribute('aria-pressed',String(active));
+   element.style.zIndex=active?'500':String(markerPriority(p));
    const pin=document.createElement('span');pin.className='pin';pin.style.setProperty('--category',c.color);pin.style.setProperty('--status',s?.color||c.color);pin.style.setProperty('--status-opacity',s?.opacity??1);pin.style.setProperty('--status-symbol',s?.symbolColor||'#fff');pin.setAttribute('aria-hidden','true');pin.innerHTML=categoryIcon(c.icon);
    if(s){const badge=document.createElement('i');badge.className='pin-state';badge.textContent=s.symbol;pin.append(badge)}
-   element.append(pin);element.addEventListener('click',event=>{event.stopPropagation();onSelect(p.id)});
+   element.append(pin);
+   if(multiple){
+    const count=document.createElement('span');
+    count.className='pin-count';
+    count.textContent=group.length;
+    count.setAttribute('aria-hidden','true');
+    element.append(count);
+   }
+   element.addEventListener('click',event=>{
+    event.stopPropagation();
+    if(multiple)onSelectGroup(key);else onSelect(p.id);
+   });
    markers.push(new lib.Marker({element,anchor:'center'}).setLngLat([p.lon,p.lat]).addTo(map));
   }
  }
@@ -122,7 +139,8 @@ export function createMapView({container,statusElement,retryButton,statusText,li
  })();
  return {
   initialized,
-  setPlaces(values,id){places=values;selected=id;initialFraming.update(Boolean(map),places);render()},
+  setPlaces(values,id){places=values;groups=groupMapPlaces(values);selected=id;initialFraming.update(Boolean(map),places);render()},
+  getGroup:key=>groups.get(key)||[],
   setTheme(value){theme=value;basemap?.setTheme(value)},
   fit:fitPlaces,focusPlace,centerPlace:p=>focusPlace(p,[0,0],false),
   resize(){map?.resize()},

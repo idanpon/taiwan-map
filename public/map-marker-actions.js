@@ -8,7 +8,7 @@ export function markerSwipeAction(dx, dy) {
  return dy < 0 ? 'maps' : 'visited';
 }
 
-export function installMapMarkerActions(surface, {actionsFor, onAction}) {
+export function installMapMarkerActions(surface, {actionsFor, onAction, canHoldGroup, onHoldGroup}) {
  let press;
  let holdTimer;
  let suppressedClick;
@@ -24,6 +24,13 @@ export function installMapMarkerActions(surface, {actionsFor, onAction}) {
 
  function showActions() {
   if (!press?.marker.isConnected) return reset();
+  const group = press.marker.dataset.mapGroup;
+  if (group) {
+   if (!canHoldGroup()) return reset();
+   press.groupOpened = true;
+   onHoldGroup(group);
+   return;
+  }
   const actions = actionsFor(press.marker.dataset.mapPlace);
   if (!actions.length) return reset();
   const rect = press.marker.getBoundingClientRect();
@@ -63,8 +70,9 @@ export function installMapMarkerActions(surface, {actionsFor, onAction}) {
   reset();
   suppressedClick = null;
   if (event.touches.length !== 1) return;
-  const marker = event.target.closest('[data-map-place]');
-  if (!marker || !actionsFor(marker.dataset.mapPlace).length) return;
+  const marker = event.target.closest('[data-map-place], [data-map-group]');
+  if (!marker) return;
+  if (marker.dataset.mapGroup ? !canHoldGroup() : !actionsFor(marker.dataset.mapPlace).length) return;
   const {identifier, clientX, clientY} = event.touches[0];
   press = {marker, identifier, clientX, clientY};
   holdTimer = setTimeout(showActions, holdDuration);
@@ -77,22 +85,22 @@ export function installMapMarkerActions(surface, {actionsFor, onAction}) {
    reset();
    return;
   }
-  if (!press.overlay) {
+  if (!press.groupOpened && !press.overlay) {
    if (Math.hypot(touch.clientX - press.clientX, touch.clientY - press.clientY) > holdSlop) reset();
    return;
   }
   if (event.cancelable) event.preventDefault();
   event.stopPropagation();
-  press.marker.dataset.quickAction = getAction(touch) || '';
+  if (press.overlay) press.marker.dataset.quickAction = getAction(touch) || '';
  }, {capture: true, passive: false});
 
  surface.addEventListener('touchend', event => {
   if (!press) return;
   const touch = Array.from(event.changedTouches).find(value => value.identifier === press.identifier);
-  if (!press.overlay || !touch || event.touches.length || !press.marker.isConnected) return reset();
+  if ((!press.overlay && !press.groupOpened) || !touch || event.touches.length || !press.marker.isConnected) return reset();
   const {marker} = press;
   const id = marker.dataset.mapPlace;
-  const action = getAction(touch);
+  const action = press.overlay ? getAction(touch) : null;
   suppressedClick = {marker, until: event.timeStamp + 500};
   if (event.cancelable) event.preventDefault();
   reset();
