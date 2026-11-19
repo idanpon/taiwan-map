@@ -206,7 +206,7 @@ nginx только с `/api/` и лимитом 8 КБ для этого не п
 proxy перед выпуском. Длинные SSE-соединения не нужны.
 
 Затем выпустить Pages с `assistant.html`, создать личное MCP-подключение
-в ChatGPT к `https://taiwan-77-105-138-163.sslip.io/api/assistant/mcp`, выбрать
+в ChatGPT к `https://taiwan.svobodadlaseti.beer/api/assistant/mcp`, выбрать
 OAuth с указанным client ID и без client secret. Добавить выданный callback
 в серверный allowlist и завершить вход аккаунтом карты.
 
