@@ -3,13 +3,13 @@
   "mcpServers": {
     "taiwan-map": {
       "type": "streamable-http",
-      "url": "https://taiwan-77-105-138-163.sslip.io/api/assistant/mcp",
+      "url": "https://taiwan.svobodadlaseti.beer/api/assistant/mcp",
       "extensions": {
         "com.openai": {
           "auth": {
             "type": "oauth",
             "client": { "mode": "provided", "clientId": "taiwan-chatgpt", "tokenEndpointAuthMethod": "none" },
-            "resource": "https://taiwan-77-105-138-163.sslip.io/api/assistant/mcp",
+            "resource": "https://taiwan.svobodadlaseti.beer/api/assistant/mcp",
             "baseScopes": ["trip:read"],
             "defaultScopes": ["trip:read", "trip:write"]
           }

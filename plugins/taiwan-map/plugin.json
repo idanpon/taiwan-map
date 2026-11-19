@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "taiwan-map",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Карта и план поездки: личные предложения, проверка связей и сохранение после подтверждения.",
   "homepage": "https://idanpon.github.io/taiwan-map/",
   "repository": "https://github.com/idanpon/taiwan-map",
